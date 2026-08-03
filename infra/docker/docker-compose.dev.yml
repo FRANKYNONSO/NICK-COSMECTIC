@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: nickcosmetics-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nickcosmetics
+      POSTGRES_PASSWORD: nickcosmetics
+      POSTGRES_DB: nickcosmetics
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nickcosmetics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: nickcosmetics-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: nickcosmetics-api
+    restart: unless-stopped
+    # --loop asyncio avoids a known uvloop DNS resolution bug on
+    # Docker Desktop for Windows/WSL2, where container hostnames
+    # (e.g. "postgres") intermittently or consistently fail to
+    # resolve under uvloop's resolver even though the network is fine.
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--loop", "asyncio"]
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://nickcosmetics:nickcosmetics@postgres:5432/nickcosmetics
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../../apps/api:/app
+      - ../../packages/core:/app/packages/core
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
