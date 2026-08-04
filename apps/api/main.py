@@ -1,6 +1,6 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 
-from api.v1.routers import auth
+from api.v1.routers import auth, catalog
 
 app = FastAPI(
     title="Nick Cosmetics API",
@@ -9,6 +9,7 @@ app = FastAPI(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(catalog.router, prefix="/api/v1")
 
 
 @app.get("/health")
