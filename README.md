@@ -80,6 +80,45 @@ docker compose -f infra/docker/docker-compose.dev.yml exec api alembic revision 
 docker compose -f infra/docker/docker-compose.dev.yml exec api alembic upgrade head
 ```
 
+## Auth: creating your first user and logging in
+
+There's no public sign-up form by design — accounts are created by a
+Super Admin. Create the first one with the seed script (containers
+must be running):
+
+```bash
+docker compose -f infra/docker/docker-compose.dev.yml exec api python scripts/seed_superadmin.py
+```
+
+It'll prompt for a name, email, and password.
+
+**Log in** (returns a short-lived access token + a longer-lived refresh token):
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "you@example.com", "password": "yourpassword"}'
+```
+
+**Call a protected endpoint** with the access token:
+
+```bash
+curl http://localhost:8000/api/v1/auth/me \
+  -H "Authorization: Bearer <paste access_token here>"
+```
+
+**Refresh an expired access token** without logging in again:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token": "<paste refresh_token here>"}'
+```
+
+You can also do all of this from the interactive docs at
+`http://localhost:8000/docs` — click "Authorize" after logging in via
+the `/auth/login` endpoint there.
+
 ## Running the core package's tests
 
 The shared domain package (`packages/core`) has no infrastructure
@@ -117,7 +156,8 @@ uvicorn main:app --reload
 - [x] FastAPI app skeleton with `/health` endpoint
 - [x] Full SQLAlchemy schema (19 tables — catalog, inventory, purchasing,
       sales, customers, audit, sync) + first Alembic migration
-- [ ] Auth endpoints (JWT issuance, login, refresh)
+- [x] Auth: JWT login/refresh, `/auth/me`, role-based `require_role()`
+      dependency, bcrypt password hashing, Super Admin seed script
 - [ ] Catalog/inventory/sales API routers wired to the core package
 - [ ] SQLAlchemy repository implementations satisfying `interfaces/repositories.py`
 

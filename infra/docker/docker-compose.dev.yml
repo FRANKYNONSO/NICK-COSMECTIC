@@ -45,6 +45,10 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://nickcosmetics:nickcosmetics@postgres:5432/nickcosmetics
       REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: dev-only-secret-change-before-any-real-deployment
+      JWT_ALGORITHM: HS256
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: "30"
     volumes:
       - ../../apps/api:/app
       - ../../packages/core:/app/packages/core
