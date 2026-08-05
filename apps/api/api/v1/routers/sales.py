@@ -1,18 +1,20 @@
-﻿import uuid
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies import get_db_session, require_permission
-from api.v1.schemas.sales import CheckoutRequest, SaleItemOut, SaleOut
+from api.v1.schemas.sales import CheckoutRequest, RefundCreate, RefundOut, SaleItemOut, SaleOut
 from infrastructure.db.checkout_adapter import (
     load_sale_repo,
     load_stock_batch_repo,
     persist_new_sale,
 )
+from infrastructure.db.models import Refund as ORMRefund
 from infrastructure.db.models import Sale as ORMSale
 from infrastructure.db.models import SaleItem as ORMSaleItem
+from infrastructure.db.models import StockBatch as ORMStockBatch
 from infrastructure.db.models import User
 from nickcosmetics_core.domain.money import Money
 from nickcosmetics_core.domain.sales.sale import SaleChannel
@@ -44,6 +46,7 @@ def _to_sale_out(orm_sale: ORMSale, orm_items: list[ORMSaleItem]) -> SaleOut:
         created_at=orm_sale.created_at,
         items=[
             SaleItemOut(
+                id=item.id,
                 variant_id=item.variant_id,
                 stock_batch_id=item.stock_batch_id,
                 quantity=item.quantity,
@@ -160,3 +163,100 @@ async def list_sales(
         items_by_sale.setdefault(item.sale_id, []).append(item)
 
     return [_to_sale_out(s, items_by_sale.get(s.id, [])) for s in orm_sales]
+
+
+@router.post("/{sale_id}/refund", response_model=RefundOut, status_code=status.HTTP_201_CREATED)
+async def refund_sale(
+    sale_id: uuid.UUID,
+    body: RefundCreate,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("process_sale")),
+) -> RefundOut:
+    """Process a full or partial refund against a sale.
+
+    The refunded amount is always computed server-side from the
+    original sale-item prices (quantity x unit_price), never taken as
+    a client-supplied figure -- this prevents a refund request from
+    crediting an arbitrary amount.
+
+    Per line, `restock=True` returns the quantity to the exact stock
+    batch it was originally sold from (accurate FIFO cost basis);
+    `restock=False` credits the customer without restoring stock, for
+    damaged/opened items that can't be resold.
+
+    Note: this implementation does not persist a per-line refund
+    ledger (the `refunds` table stores only an aggregate amount per
+    refund event, matching the schema in docs/architecture Section
+    4.2), so it does not prevent the same sale item from being
+    refunded more than once across separate requests. A future
+    migration adding a `refund_items` table would close this gap --
+    flagged here rather than silently assumed away.
+    """
+    orm_sale = await session.get(ORMSale, sale_id)
+    if orm_sale is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Sale not found")
+    if orm_sale.status not in ("completed", "partially_refunded"):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot refund a sale with status '{orm_sale.status}'",
+        )
+
+    items_result = await session.execute(select(ORMSaleItem).where(ORMSaleItem.sale_id == sale_id))
+    sale_items_by_id = {i.id: i for i in items_result.scalars().all()}
+
+    amount_kobo = 0
+    for line in body.lines:
+        sale_item = sale_items_by_id.get(line.sale_item_id)
+        if sale_item is None:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                detail=f"Sale item {line.sale_item_id} not found on this sale",
+            )
+        if line.quantity > sale_item.quantity:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Cannot refund {line.quantity} of item {sale_item.id}: "
+                    f"only {sale_item.quantity} were sold"
+                ),
+            )
+
+        amount_kobo += line.quantity * sale_item.unit_price_kobo
+
+        if line.restock and sale_item.stock_batch_id is not None:
+            batch = await session.get(ORMStockBatch, sale_item.stock_batch_id)
+            if batch is not None:
+                batch.quantity_remaining += line.quantity
+
+    refund = ORMRefund(
+        sale_id=sale_id,
+        processed_by=current_user.id,
+        amount_kobo=amount_kobo,
+        reason=body.reason,
+    )
+    session.add(refund)
+
+    # Recompute sale status from cumulative refunded amount vs total.
+    prior_refunded_result = await session.execute(
+        select(func.sum(ORMRefund.amount_kobo)).where(ORMRefund.sale_id == sale_id)
+    )
+    prior_refunded_kobo = int(prior_refunded_result.scalar() or 0)
+    total_refunded_kobo = prior_refunded_kobo + amount_kobo
+
+    if total_refunded_kobo >= orm_sale.total_kobo:
+        orm_sale.status = "refunded"
+    else:
+        orm_sale.status = "partially_refunded"
+
+    await session.commit()
+    await session.refresh(refund)
+
+    return RefundOut(
+        id=refund.id,
+        sale_id=refund.sale_id,
+        processed_by=refund.processed_by,
+        amount_naira=Money(refund.amount_kobo).naira,
+        reason=refund.reason,
+        created_at=refund.created_at,
+        sale_status=orm_sale.status,
+    )
