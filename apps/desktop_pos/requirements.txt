@@ -1,0 +1,12 @@
+﻿# Desktop POS -- runs directly on Windows/Mac/Linux (not in Docker;
+# GUI applications need a real display, which containers don't have).
+
+PySide6>=6.7
+httpx>=0.27
+python-dotenv>=1.0
+
+# Local offline database (added in the next increment alongside sync)
+sqlalchemy>=2.0
+
+# Shared domain package (editable local install, same as the API uses)
+-e ../../packages/core
