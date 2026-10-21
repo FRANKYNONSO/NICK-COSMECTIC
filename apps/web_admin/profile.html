@@ -1,0 +1,550 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>My Profile — Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="login-brand">
+      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+    <nav class="nav-gate-pending">
+      <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>
+      <a href="pos.html" data-nav="pos" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg></span><span>POS</span></a>
+      <a href="inventory.html" data-nav="inventory" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventory</span></a>
+      <a href="sales.html" data-nav="sales" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v18l-2.5-1.5L13 20.5l-2.5-1.5L8 20.5 6 19V2.5Z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/></svg></span><span>Transactions</span></a>
+      <a href="invoice.html" data-nav="invoice" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l3 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7l3-4Z"/><path d="M4 7h16"/><path d="M9 11h6M9 15h6"/></svg></span><span>Invoice</span></a>
+      <a href="warehouse.html" data-nav="warehouse" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M2.5 12h19"/></svg></span><span>Warehouse</span></a>
+      <a href="reports.html" data-nav="reports" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 12.9a9.2 9.2 0 1 1-9.1-10"/><path d="M21.2 12.9H12V3.7a9.2 9.2 0 0 1 9.2 9.2Z"/></svg></span><span>Reports</span></a>
+      <a href="staff.html" data-nav="staff" class="nav-item" title="Staff, Branches, Roles &amp; Shifts"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6.2M21.5 20a6 6 0 0 0-5-5.9"/></svg></span><span>Team</span></a>
+    </nav>
+    <button type="button" class="theme-toggle" id="theme-toggle-btn">
+      <span id="theme-toggle-text">Dark mode</span>
+      <span class="icon-swap"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+    </button>
+    <div class="sidebar-footer">
+      <div id="current-user-name" style="display:none"></div>
+      <div id="current-user-role" style="display:none"></div>
+      <a href="#" id="logout-link" class="btn-danger-text signout-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Sign Out</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h2 class="display">My Profile</h2>
+        <p>View your account details and update what's yours to change.</p>
+      </div>
+    </div>
+
+    <!-- Platform update spec section 6: "Settings should move under
+         My Profile" -- folded in the same way Credit List/Pending
+         Change/Losses were folded into Transactions. Store Settings
+         tab only rendered for whoever has 'configure_system' (super
+         admin) -- see the Perms.can check near the bottom of the
+         page script. -->
+    <div class="tabs" id="profile-tabs" style="display:flex;gap:8px;margin-bottom:16px;">
+      <button type="button" class="btn btn-ghost btn-sm tab-btn active" data-profile-tab="profile">My Profile</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-profile-tab="settings" id="store-settings-tab-btn" style="display:none;">Store Settings</button>
+    </div>
+
+    <div id="load-error" class="error-banner"></div>
+
+    <div id="profile-content" style="display:none;max-width:640px;">
+
+      <!-- Photo + identity summary -->
+      <div class="table-card" style="padding:20px;display:flex;gap:16px;align-items:center;margin-bottom:20px;">
+        <div style="position:relative;width:64px;height:64px;flex-shrink:0;">
+          <img id="avatar-img" src="" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--bg);display:none;cursor:zoom-in;" />
+          <div id="avatar-fallback" style="width:64px;height:64px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;">?</div>
+          <button type="button" id="avatar-zoom-btn" aria-label="Zoom in on photo" style="display:none;position:absolute;bottom:-2px;right:-2px;width:22px;height:22px;padding:0;border-radius:50%;background:var(--surface,#1a2238);border:1px solid var(--border);align-items:center;justify-content:center;cursor:zoom-in;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+          </button>
+        </div>
+        <div style="flex:1;">
+          <div class="full-name" id="display-name" style="font-size:16px;">—</div>
+          <div class="contact" id="display-meta">—</div>
+        </div>
+        <label class="btn btn-ghost btn-sm" style="width:auto;cursor:pointer;">
+          Change photo
+          <input type="file" id="photo-input" accept="image/*" style="display:none;" />
+        </label>
+      </div>
+
+      <div id="pending-application-notice" class="error-banner" style="display:none;background:var(--warning-tint);color:var(--warning);"></div>
+
+      <!-- Editable section -->
+      <div class="table-card" style="padding:20px;margin-bottom:20px;">
+        <h3 class="display" style="font-size:14px;margin:0 0 14px;">Editable</h3>
+        <div id="edit-error" class="error-banner"></div>
+        <form id="edit-form">
+          <div class="field">
+            <label for="preferred_name">Preferred name / username</label>
+            <input type="text" id="preferred_name" />
+          </div>
+          <div class="field">
+            <label for="phone_number">Phone number</label>
+            <input type="tel" id="phone_number" inputmode="numeric" pattern="[0-9]*" placeholder="Numbers only" />
+          </div>
+          <button type="submit" class="btn btn-primary" id="save-edit-btn" style="width:auto;padding:9px 18px;">Save changes</button>
+        </form>
+      </div>
+
+      <!-- Email change -->
+      <div class="table-card" style="padding:20px;margin-bottom:20px;">
+        <h3 class="display" style="font-size:14px;margin:0 0 6px;">Email</h3>
+        <p style="color:var(--ink-muted);font-size:12.5px;margin:0 0 14px;">Current: <span id="current-email-display">—</span></p>
+        <div id="pending-email-notice" style="display:none;color:var(--warning);font-size:12.5px;margin-bottom:12px;"></div>
+        <div id="email-error" class="error-banner"></div>
+        <form id="email-form">
+          <div class="field">
+            <label for="new_email">New email address</label>
+            <input type="email" id="new_email" />
+          </div>
+          <button type="submit" class="btn btn-ghost" id="save-email-btn" style="width:auto;padding:9px 18px;">Send verification link</button>
+        </form>
+      </div>
+
+      <!-- Change password -->
+      <div class="table-card" style="padding:20px;margin-bottom:20px;">
+        <h3 class="display" style="font-size:14px;margin:0 0 14px;">Change password</h3>
+        <div id="password-error" class="error-banner"></div>
+        <div id="password-success" style="display:none;color:var(--success);font-size:12.5px;margin-bottom:12px;">Password updated.</div>
+        <form id="password-form">
+          <div class="field">
+            <label for="current_password">Current password</label>
+            <input type="password" id="current_password" required />
+          </div>
+          <div class="field">
+            <label for="new_password">New password</label>
+            <input type="password" id="new_password" minlength="8" required />
+          </div>
+          <div class="field">
+            <label for="confirm_new_password">Confirm new password</label>
+            <input type="password" id="confirm_new_password" minlength="8" required />
+          </div>
+          <button type="submit" class="btn btn-ghost" id="save-password-btn" style="width:auto;padding:9px 18px;">Update password</button>
+        </form>
+      </div>
+
+      <!-- Protected / read-only section -->
+      <div class="table-card" style="padding:20px;">
+        <h3 class="display" style="font-size:14px;margin:0 0 4px;">Protected information</h3>
+        <p style="color:var(--ink-muted);font-size:12px;margin:0 0 14px;">Contact an administrator to correct any of this.</p>
+        <div id="protected-details" style="font-size:13.5px;line-height:1.9;"></div>
+        <div id="my-id-document" style="display:none;margin-top:14px;font-size:13.5px;"></div>
+      </div>
+
+    </div>
+
+    <!-- Store Settings tab (folded in from the old standalone
+         Settings page -- platform update spec section 6). -->
+    <div id="store-settings-section" style="display:none;max-width:560px;">
+      <p style="margin:0 0 16px;color:var(--ink-muted);">Store branding for every printed receipt — editable any time, shows up on every till and device.</p>
+      <div id="settings-load-error" class="error-banner"></div>
+      <div class="table-card" style="padding:20px;">
+        <div class="field" style="margin-bottom:16px;">
+          <label>Store logo</label>
+          <div style="display:flex;align-items:center;gap:16px;margin-top:6px;">
+            <div id="logo-preview" style="width:72px;height:72px;border:1px dashed var(--border,#ccc);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--ink-faint);font-size:11px;text-align:center;">No logo</div>
+            <div>
+              <input type="file" id="logo-file" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;" />
+              <button type="button" class="btn btn-ghost" id="logo-upload-btn" style="width:auto;">Upload logo</button>
+              <p class="hint" style="margin-top:6px;">PNG, JPG, WEBP or SVG. Shows on every receipt, in place of the placeholder. You can replace it again at any time.</p>
+            </div>
+          </div>
+        </div>
+        <form id="settings-form">
+          <div class="field">
+            <label for="store-name">Store name</label>
+            <input type="text" id="store-name" maxlength="200" required />
+          </div>
+          <div class="field">
+            <label for="store-email">Contact email (optional)</label>
+            <input type="email" id="store-email" maxlength="200" />
+          </div>
+          <div class="field">
+            <label for="website-url">Online store website (optional)</label>
+            <input type="text" id="website-url" maxlength="300" placeholder="e.g. https://shop.nickcosmetics.com" />
+            <p class="hint">If your business has an online store, the receipt QR code will take customers straight there — not to a copy of the receipt.</p>
+          </div>
+          <div class="field">
+            <label for="website-qr-caption">QR code caption (optional)</label>
+            <input type="text" id="website-qr-caption" maxlength="200" placeholder="e.g. Visit this website to purchase from our online store" />
+            <p class="hint">Printed above the QR code on the receipt. Leave blank to show just the code.</p>
+          </div>
+          <div class="modal-actions" style="margin-top:16px;">
+            <button type="submit" class="btn btn-primary" id="settings-save">Save settings</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/permissions.js"></script>
+<script src="js/receipt.js"></script>
+<script>
+  Auth.requireAuth();
+  Perms.applyNav();
+
+  const idTypeLabels = { national_id: 'National ID', passport: 'International Passport', drivers_license: "Driver's License" };
+  const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Staff' };
+
+  function showToast(message, isError) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast visible' + (isError ? ' error' : '');
+    setTimeout(() => toast.classList.remove('visible'), 3000);
+  }
+
+  function protectedRow(label, value) {
+    if (!value) return '';
+    return `<div style="display:flex;gap:8px;"><div style="width:170px;color:var(--ink-muted);flex-shrink:0;">${label}</div><div>${value}</div></div>`;
+  }
+
+  let profile = null;
+
+  // Your own ID document -- private on the server, so it is fetched with
+  // the auth header as a blob (a plain <img src> can't send it).
+  let myIdBlobUrl = null;
+  async function loadMyIdDocument() {
+    const box = document.getElementById('my-id-document');
+    if (!profile || !profile.has_id_document) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    if (myIdBlobUrl) return;
+    const heading = '<div style="color:var(--ink-muted);margin-bottom:6px;">ID document</div>';
+    box.innerHTML = heading + '<div style="color:var(--ink-muted);font-size:12.5px;">Loading...</div>';
+    try {
+      const { url, type } = await Api.fetchMyIdDocumentBlob();
+      myIdBlobUrl = url;
+      box.innerHTML = heading;
+      if (type === 'application/pdf') {
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.className = 'btn btn-ghost btn-sm';
+        link.style.width = 'auto';
+        link.textContent = 'Open ID document (PDF)';
+        box.appendChild(link);
+      } else {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = 'Your ID document';
+        img.style.cssText = 'max-width:260px;max-height:180px;border:1px solid var(--border);border-radius:10px;object-fit:cover;cursor:zoom-in;display:block;';
+        img.addEventListener('click', () => {
+          document.getElementById('avatar-lightbox-img').src = url;
+          document.getElementById('avatar-lightbox-backdrop').classList.add('visible');
+        });
+        box.appendChild(img);
+      }
+    } catch (err) {
+      box.innerHTML = heading;
+      const msg = document.createElement('div');
+      msg.style.cssText = 'color:var(--danger,#c0392b);font-size:12.5px;';
+      msg.textContent = err.message || 'Could not load your ID document.';
+      box.appendChild(msg);
+    }
+  }
+
+  async function loadProfile() {
+    try {
+      profile = await Api.getMyProfile();
+      renderProfile();
+      document.getElementById('profile-content').style.display = 'block';
+      loadMyIdDocument();
+    } catch (err) {
+      document.getElementById('load-error').textContent = err.message;
+      document.getElementById('load-error').classList.add('visible');
+    }
+  }
+
+  function renderProfile() {
+    document.getElementById('current-user-name').textContent = profile.full_name;
+    document.getElementById('current-user-role').textContent = roleLabels[profile.role] || profile.role;
+
+    if (profile.profile_photo_url) {
+      document.getElementById('avatar-img').src = profile.profile_photo_url;
+      document.getElementById('avatar-img').style.display = 'block';
+      document.getElementById('avatar-fallback').style.display = 'none';
+      document.getElementById('avatar-zoom-btn').style.display = 'flex';
+    } else {
+      document.getElementById('avatar-fallback').textContent = (profile.preferred_name || profile.full_name || '?').charAt(0).toUpperCase();
+    }
+
+    document.getElementById('display-name').textContent = profile.preferred_name || profile.full_name;
+    const metaBits = [profile.employee_id, roleLabels[profile.role] || profile.role].filter(Boolean);
+    document.getElementById('display-meta').textContent = metaBits.join(' · ');
+
+    if (profile.has_application && profile.application_status !== 'accepted') {
+      const notice = document.getElementById('pending-application-notice');
+      notice.textContent = `Your staff application is currently "${profile.application_status.replace('_', ' ')}" — some features stay limited until it's accepted.`;
+      notice.classList.add('visible');
+      notice.style.display = 'block';
+    }
+
+    document.getElementById('preferred_name').value = profile.preferred_name || '';
+    document.getElementById('phone_number').value = profile.phone || '';
+
+    document.getElementById('current-email-display').textContent = profile.email || '—';
+    if (profile.pending_email) {
+      const notice = document.getElementById('pending-email-notice');
+      notice.textContent = `A verification link was sent to ${profile.pending_email}. Your account keeps using the current email until you confirm it.`;
+      notice.style.display = 'block';
+    }
+
+    if (profile.has_application) {
+      document.getElementById('protected-details').innerHTML = [
+        protectedRow('Full legal name', profile.full_name),
+        protectedRow('Date of birth', profile.date_of_birth),
+        protectedRow('Gender', profile.gender === 'male' ? 'Male' : profile.gender === 'female' ? 'Female' : profile.gender),
+        protectedRow('Current address', profile.residential_address),
+        protectedRow('State of origin', profile.state_of_origin),
+        protectedRow('LGA of origin', profile.lga_of_origin),
+        protectedRow('Hometown', profile.hometown),
+        protectedRow('Home address of origin', profile.home_address_of_origin),
+        protectedRow('Emergency contact', profile.emergency_contact_name),
+        protectedRow('Emergency phone', profile.emergency_contact_phone),
+        protectedRow('Relationship', profile.emergency_contact_relationship),
+        protectedRow('ID type', idTypeLabels[profile.id_type] || profile.id_type),
+        protectedRow('ID number', profile.id_number),
+        protectedRow('Employee ID', profile.employee_id),
+        protectedRow('Date joined', profile.date_joined),
+      ].join('') || '<p style="color:var(--ink-muted);">Nothing on file.</p>';
+    } else {
+      document.getElementById('protected-details').innerHTML = '<p style="color:var(--ink-muted);">This account was created directly by an admin, so there\'s no staff application record.</p>';
+    }
+  }
+
+  // Click-to-enlarge lightbox for the profile photo -- same pattern
+  // as the one already used on Inventory/Deletion history thumbnails.
+  // Wrapped in DOMContentLoaded: this script runs before the lightbox
+  // markup near </body> has been parsed, so the elements don't exist
+  // in the DOM yet at the point this script block executes.
+  function openAvatarLightbox() {
+    const url = document.getElementById('avatar-img').src;
+    if (!url) return;
+    document.getElementById('avatar-lightbox-img').src = url;
+    document.getElementById('avatar-lightbox-backdrop').classList.add('visible');
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('avatar-img')?.addEventListener('click', openAvatarLightbox);
+    document.getElementById('avatar-zoom-btn')?.addEventListener('click', openAvatarLightbox);
+    document.getElementById('avatar-lightbox-close')?.addEventListener('click', () => {
+      document.getElementById('avatar-lightbox-backdrop').classList.remove('visible');
+    });
+    document.getElementById('avatar-lightbox-backdrop')?.addEventListener('click', (e) => {
+      if (e.target.id === 'avatar-lightbox-backdrop') document.getElementById('avatar-lightbox-backdrop').classList.remove('visible');
+    });
+  });
+
+  document.getElementById('photo-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('profile_photo', file);
+    try {
+      profile = await Api.updateMyPhoto(formData);
+      renderProfile();
+      showToast('Profile photo updated.');
+    } catch (err) {
+      showToast(err.message, true);
+    }
+  });
+
+  document.getElementById('phone_number').addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/[^0-9]/g, '');
+  });
+
+  document.getElementById('edit-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editError = document.getElementById('edit-error');
+    editError.classList.remove('visible');
+    try {
+      profile = await Api.updateMyProfile({
+        preferred_name: document.getElementById('preferred_name').value.trim() || null,
+        phone_number: document.getElementById('phone_number').value.trim() || null,
+      });
+      renderProfile();
+      showToast('Profile updated.');
+    } catch (err) {
+      editError.textContent = err.message;
+      editError.classList.add('visible');
+    }
+  });
+
+  document.getElementById('email-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const emailError = document.getElementById('email-error');
+    emailError.classList.remove('visible');
+    const newEmail = document.getElementById('new_email').value.trim();
+    if (!newEmail) return;
+    try {
+      await Api.requestEmailChange(newEmail);
+      document.getElementById('new_email').value = '';
+      showToast('Verification link sent to your new email.');
+      loadProfile();
+    } catch (err) {
+      emailError.textContent = err.message;
+      emailError.classList.add('visible');
+    }
+  });
+
+  document.getElementById('password-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const passwordError = document.getElementById('password-error');
+    const passwordSuccess = document.getElementById('password-success');
+    passwordError.classList.remove('visible');
+    passwordSuccess.style.display = 'none';
+
+    const newPassword = document.getElementById('new_password').value;
+    if (newPassword !== document.getElementById('confirm_new_password').value) {
+      passwordError.textContent = 'New passwords do not match.';
+      passwordError.classList.add('visible');
+      return;
+    }
+    try {
+      await Api.changeMyPassword(document.getElementById('current_password').value, newPassword);
+      document.getElementById('password-form').reset();
+      passwordSuccess.style.display = 'block';
+    } catch (err) {
+      passwordError.textContent = err.message;
+      passwordError.classList.add('visible');
+    }
+  });
+
+  document.getElementById('logout-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    Auth.logout();
+  });
+
+  loadProfile();
+
+  // ---------------------------------------------- Store Settings tab
+  // (folded in from the old standalone Settings page -- platform
+  // update spec section 6). Gated on 'configure_system' (super admin
+  // only), same as the page used to be via Perms.guardPage -- but
+  // scoped to just this tab now instead of redirecting every other
+  // role away from their own My Profile page.
+  let settingsLoaded = false;
+  if (Perms.can('configure_system')) {
+    document.getElementById('store-settings-tab-btn').style.display = '';
+  }
+
+  document.querySelectorAll('#profile-tabs .tab-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.profileTab;
+      document.querySelectorAll('#profile-tabs .tab-btn').forEach((b) => b.classList.toggle('active', b === btn));
+      document.getElementById('load-error').style.display = tab === 'profile' ? '' : 'none';
+      document.getElementById('profile-content').style.display = tab === 'profile' ? 'block' : 'none';
+      document.getElementById('store-settings-section').style.display = tab === 'settings' ? 'block' : 'none';
+      if (tab === 'settings' && !settingsLoaded) {
+        settingsLoaded = true;
+        loadStoreSettings();
+      }
+    });
+  });
+
+  function renderLogoPreview(logoUrl) {
+    const el = document.getElementById('logo-preview');
+    if (logoUrl) {
+      el.innerHTML = `<img src="${logoUrl}" alt="Store logo" style="width:100%;height:100%;object-fit:contain;" />`;
+    } else {
+      el.textContent = 'No logo';
+    }
+  }
+
+  async function loadStoreSettings() {
+    try {
+      const settings = await Api.getStoreSettings();
+      document.getElementById('store-name').value = settings.store_name || '';
+      document.getElementById('store-email').value = settings.store_email || '';
+      document.getElementById('website-url').value = settings.website_url || '';
+      document.getElementById('website-qr-caption').value = settings.website_qr_caption || '';
+      renderLogoPreview(settings.logo_url);
+      StoreBranding.save({
+        name: settings.store_name,
+        email: settings.store_email || '',
+        logoUrl: settings.logo_url || '',
+        websiteUrl: settings.website_url || '',
+        websiteQrCaption: settings.website_qr_caption || '',
+      });
+    } catch (err) {
+      document.getElementById('settings-load-error').textContent = err.message;
+      document.getElementById('settings-load-error').classList.add('visible');
+    }
+  }
+
+  document.getElementById('logo-upload-btn').addEventListener('click', () => {
+    document.getElementById('logo-file').click();
+  });
+
+  document.getElementById('logo-file').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const updated = await Api.uploadStoreLogo(file);
+      renderLogoPreview(updated.logo_url);
+      StoreBranding.save({ logoUrl: updated.logo_url || '' });
+      showToast('Logo uploaded — it will now show on every printed receipt. You can replace it again any time.');
+    } catch (err) {
+      showToast(err.message, true);
+    } finally {
+      e.target.value = '';
+    }
+  });
+
+  document.getElementById('settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const saveBtn = document.getElementById('settings-save');
+    saveBtn.disabled = true;
+    try {
+      const updated = await Api.updateStoreSettings({
+        store_name: document.getElementById('store-name').value.trim(),
+        store_email: document.getElementById('store-email').value.trim() || null,
+        website_url: document.getElementById('website-url').value.trim() || null,
+        website_qr_caption: document.getElementById('website-qr-caption').value.trim() || null,
+      });
+      StoreBranding.save({
+        name: updated.store_name,
+        email: updated.store_email || '',
+        logoUrl: updated.logo_url || '',
+        websiteUrl: updated.website_url || '',
+        websiteQrCaption: updated.website_qr_caption || '',
+      });
+      showToast('Settings saved.');
+    } catch (err) {
+      showToast(err.message, true);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+</script>
+
+<!-- Click-to-enlarge lightbox for the profile photo -->
+<div class="modal-backdrop" id="avatar-lightbox-backdrop">
+  <div class="modal" style="text-align:center;">
+    <img id="avatar-lightbox-img" src="" alt="" style="max-width:100%; max-height:75vh; border-radius:10px; object-fit:contain;" />
+    <button type="button" class="btn btn-ghost" id="avatar-lightbox-close" style="margin-top:14px;">Close</button>
+  </div>
+</div>
+
+</body>
+</html>
+

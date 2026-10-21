@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>POS — Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="login-brand">
+      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+    <nav class="nav-gate-pending">
+      <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>
+      <a href="pos.html" data-nav="pos" class="nav-item active"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg></span><span>POS</span></a>
+      <a href="inventory.html" data-nav="inventory" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventory</span></a>
+      <a href="sales.html" data-nav="sales" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v18l-2.5-1.5L13 20.5l-2.5-1.5L8 20.5 6 19V2.5Z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/></svg></span><span>Transactions</span></a>
+      <a href="invoice.html" data-nav="invoice" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l3 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7l3-4Z"/><path d="M4 7h16"/><path d="M9 11h6M9 15h6"/></svg></span><span>Invoice</span></a>
+      <a href="warehouse.html" data-nav="warehouse" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M2.5 12h19"/></svg></span><span>Warehouse</span></a>
+      <a href="reports.html" data-nav="reports" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 12.9a9.2 9.2 0 1 1-9.1-10"/><path d="M21.2 12.9H12V3.7a9.2 9.2 0 0 1 9.2 9.2Z"/></svg></span><span>Reports</span></a>
+      <a href="staff.html" data-nav="staff" class="nav-item" title="Staff, Branches, Roles &amp; Shifts"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6.2M21.5 20a6 6 0 0 0-5-5.9"/></svg></span><span>Team</span></a>
+    </nav>
+    <button type="button" class="theme-toggle" id="theme-toggle-btn">
+      <span id="theme-toggle-text">Dark mode</span>
+      <span class="icon-swap"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+    </button>
+    <div class="sidebar-footer">
+      <div id="current-user-name" style="display:none"></div>
+      <div id="current-user-role" style="display:none"></div>
+      <a href="#" id="logout-link" class="btn-danger-text signout-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Sign Out</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-head pos-head-card">
+      <div>
+        <h2 class="display">Point of Sale</h2>
+        <p>Scan a barcode or search to add items to the sale.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn btn-ghost btn-sm" id="generate-coupon-btn" style="display:none;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16a1 1 0 0 1 1 1v2.5a2.5 2.5 0 0 0 0 5V17a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a2.5 2.5 0 0 0 0-5V7a1 1 0 0 1 1-1Z"/><path d="M14 7.5v9" stroke-dasharray="2 2.5"/></svg><span>POS code</span></button>
+        <span class="status-pill" id="shift-status-pill" style="display:none;"></span>
+        <button class="pill-btn" id="shift-action-btn" style="display:none;"></button>
+        <span id="branch-badge"></span>
+      </div>
+    </div>
+
+    <!-- Shift compliance notification center -- spec section 10. Stays
+         visible (never auto-dismisses) until the staff member taps
+         Acknowledge on every pending warning; can't just be closed. -->
+    <div id="compliance-notifications" style="display:none;margin-bottom:16px;"></div>
+
+    <div class="pos-shell">
+      <div>
+        <div class="pos-search">
+          <input type="text" id="scan-input" placeholder="Scan a barcode or type to search…" autofocus />
+        </div>
+        <div class="pos-grid" id="pos-grid"></div>
+      </div>
+
+      <div class="cart-card">
+        <h3>Current sale <a id="clear-cart">Clear</a></h3>
+        <div class="modal-actions" style="margin:0 0 10px;justify-content:flex-start;gap:8px;">
+          <button type="button" class="btn btn-ghost btn-sm" id="hold-sale-btn">Hold sale</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="resume-sale-btn">Resume held (<span id="held-count">0</span>)</button>
+        </div>
+        <div id="cart-body">
+          <div class="cart-empty">Cart is empty</div>
+        </div>
+        <div class="cart-totals">
+          <div class="row has-controls"><span>Discount code</span>
+            <span class="row-controls">
+              <input type="text" id="coupon-input" placeholder="CODE" />
+              <button type="button" class="btn btn-ghost btn-sm" id="coupon-apply-btn">Apply</button>
+            </span>
+          </div>
+          <div class="row has-controls"><span>Discount</span><input type="number" id="discount-input" min="0" step="0.01" value="0" disabled /></div>
+          <div class="row coupon-remove-row" id="coupon-applied-row" style="display:none;">
+            <span id="coupon-applied-code" hidden></span><span id="coupon-applied-amount" hidden></span>
+            <a id="coupon-remove" href="#">Remove code</a>
+          </div>
+          <div class="row has-controls stack"><span>Payment</span>
+            <span class="row-controls">
+              <select id="tender-method-select">
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="transfer">Transfer</option>
+              </select>
+              <input type="number" id="tender-amount-input" min="0" step="0.01" placeholder="Amount" />
+              <button type="button" class="btn btn-ghost btn-sm" id="tender-add-btn">Add</button>
+            </span>
+          </div>
+          <div id="tender-list"></div>
+          <div class="row" id="tender-remaining-row">
+            <span id="tender-remaining-label">Remaining</span><span id="tender-remaining">₦0.00</span>
+          </div>
+          <div class="row grand"><span>Total</span><span id="cart-total">₦0.00</span></div>
+        </div>
+        <button class="btn btn-primary" id="checkout-btn" style="width:100%;margin-top:14px;" disabled>Complete checkout</button>
+        <button class="btn btn-ghost" id="book-btn" style="width:100%;margin-top:8px;" disabled>Book (part payment)</button>
+        <button class="btn btn-ghost" id="open-credit-btn" style="width:100%;margin-top:8px;" disabled>Open Credit</button>
+        <p id="checkout-hint" style="font-size:12px;color:var(--ink-faint);margin-top:8px;"></p>
+      </div>
+
+      <div class="modal-backdrop" id="booking-modal-backdrop">
+        <div class="modal">
+          <h3 style="margin-bottom:12px;">Book this order</h3>
+          <p style="margin:0 0 14px;color:var(--ink-faint);font-size:13px;">
+            Reserves the item now and prints a part-payment receipt. The customer pays the rest whenever they come back — no fixed deadline.
+          </p>
+          <div id="booking-error" class="error-banner"></div>
+          <div class="field" style="margin-bottom:12px;">
+            <label for="booking-customer-name">Customer full legal name *</label>
+            <input type="text" id="booking-customer-name" required />
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <label for="booking-customer-phone">Customer phone number *</label>
+            <input type="tel" id="booking-customer-phone" required />
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <label for="booking-deposit">Deposit amount</label>
+            <input type="number" id="booking-deposit" min="0.01" step="0.01" />
+          </div>
+          <div class="field" style="margin-bottom:12px;">
+            <label for="booking-deposit-method">Deposit payment method</label>
+            <select id="booking-deposit-method">
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="transfer">Transfer</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label for="booking-pickup-note">When are they coming back? (optional)</label>
+            <input type="text" id="booking-pickup-note" placeholder="e.g. later this week, by Friday" />
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="booking-cancel">Cancel</button>
+            <button type="button" class="btn btn-primary" id="booking-confirm">Confirm booking</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-backdrop" id="resume-sale-backdrop">
+        <div class="modal">
+          <h3>Held sales</h3>
+          <p class="modal-sub">Resume a cart you set aside earlier. These are stored on this device only.</p>
+          <div id="held-sales-list"></div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="resume-sale-cancel">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="open-shift-backdrop">
+  <div class="modal">
+    <h3>Open shift</h3>
+    <p class="modal-sub">Count the cash in the drawer before your first sale.</p>
+    <div id="open-shift-error" class="error-banner"></div>
+    <form id="open-shift-form">
+      <div class="field">
+        <label for="opening-cash">Opening Cash</label>
+        <input type="number" id="opening-cash" min="0" step="0.01" value="0" required />
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">Open shift</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="close-shift-backdrop">
+  <div class="modal">
+    <h3>Close shift</h3>
+    <p class="modal-sub">Count the cash in the drawer now, and compare it to what's expected.</p>
+    <div id="close-shift-error" class="error-banner"></div>
+    <div class="stat-trio plain" style="margin-bottom:14px;">
+      <div class="cell"><div class="label">Opening Cash</div><div class="value" id="close-shift-opening">—</div></div>
+      <div class="cell"><div class="label">Cash sales</div><div class="value" id="close-shift-cash-sales">—</div></div>
+      <div class="cell"><div class="label">Expected</div><div class="value accent" id="close-shift-expected">—</div></div>
+    </div>
+    <form id="close-shift-form">
+      <div class="field">
+        <label for="closing-counted">Counted cash</label>
+        <input type="number" id="closing-counted" min="0" step="0.01" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="close-shift-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Close shift</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Shown on POS load whenever an earlier shift got auto-closed at
+     midnight because it was never manually closed. Deliberately has no
+     Cancel/dismiss button -- the spec: "they cannot do any transaction
+     if a shift is not open", and opening today's shift is blocked
+     server-side until this is confirmed, so letting someone close this
+     modal without acting on it would just re-show it on the next
+     action anyway. -->
+<div class="modal-backdrop" id="pending-closure-backdrop">
+  <div class="modal">
+    <h3>Confirm yesterday's shift</h3>
+    <p class="modal-sub" id="pending-closure-sub"></p>
+    <div id="pending-closure-error" class="error-banner"></div>
+    <form id="pending-closure-form">
+      <div class="field">
+        <label for="pending-closure-counted">Counted cash at close</label>
+        <input type="number" id="pending-closure-counted" min="0" step="0.01" required />
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary">Confirm &amp; continue</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="generate-coupon-backdrop">
+  <div class="modal">
+    <h3>Generate discount code</h3>
+    <p class="modal-sub">Creates a one-time discount code any cashier can apply at checkout. Valid for 30 minutes from generation.</p>
+    <div id="generate-coupon-error" class="error-banner"></div>
+    <form id="generate-coupon-form">
+      <!-- PATCH3C-COUPON-POS -->
+      <div class="field">
+        <label for="gc-reference">Reference code (optional)</label>
+        <input type="text" id="gc-reference" placeholder="CHG-______" maxlength="32" autocomplete="off" />
+        <p style="margin:4px 0 0;font-size:12px;color:var(--ink-faint);">Only for a customer who kept their change as credit. Leave this empty for a normal code.</p>
+        <p id="gc-reference-info" style="display:none;margin:6px 0 0;font-size:13px;"></p>
+      </div>
+      <div class="field">
+        <label for="gc-amount">Discount amount</label>
+        <input type="number" id="gc-amount" min="0.01" step="0.01" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="generate-coupon-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="generate-coupon-submit">Generate</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="coupon-result-backdrop">
+  <div class="modal">
+    <h3>Discount code ready</h3>
+    <p class="modal-sub">Share this code with the customer — it can be applied once at checkout.</p>
+    <p style="font-size:28px;font-weight:700;letter-spacing:2px;text-align:center;margin:16px 0 4px;" id="coupon-result-code"></p>
+    <div style="text-align:center;margin-bottom:8px;">
+      <button type="button" class="btn btn-ghost btn-sm" id="coupon-result-copy">Copy code</button>
+    </div>
+    <p style="text-align:center;color:var(--ink-faint);font-size:13px;" id="coupon-result-detail"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="coupon-result-close">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- "Sold Below Original Price" checkout modal removed (September
+     2026 change spec section 3) -- all discounts now flow through
+     super-admin-generated coupon codes only; a cashier no longer
+     types a discount reason/amount at the register. -->
+
+<div class="modal-backdrop" id="post-checkout-receipt-backdrop">
+  <div class="modal receipt-modal">
+    <h3 style="margin-bottom:12px;">Sale completed</h3>
+    <!-- Shown whenever the customer tendered more than the total (e.g.
+         paid ?500 cash for a ?250 item) -- the excess is change due,
+         calculated automatically from what was actually collected. -->
+    <div id="post-checkout-change-banner" class="error-banner" style="display:none;background:var(--warning-bg,#fff4e0);color:var(--warning-ink,#8a5a00);"></div>
+    <div class="receipt-sheet" id="post-checkout-receipt-sheet"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="post-checkout-skip">Close</button>
+      <button type="button" class="btn btn-ghost" id="post-checkout-owed-change" style="display:none;">Settle change</button>
+      <button type="button" class="btn btn-primary" id="post-checkout-print">Print receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- September 2026 change spec (reworked): "give change" workflow.
+     Nothing here is assumed -- there is no default "handed over in
+     cash" guess. The cashier must explicitly account for the full
+     change due across one or more settlement methods (cash given now,
+     cash to collect later, bank transfer, airtime), each with its own
+     manually-entered amount. Every method chosen is recorded as its
+     own pending-change row against this exact sale (never a bare name
+     string) -- including cash handed over on the spot, which is
+     created and immediately settled in the same step, so it still
+     shows up in the Transactions > Pending Change > Settled history
+     instead of leaving no record at all. -->
+<div class="modal-backdrop" id="owed-change-backdrop">
+  <div class="modal" style="max-width:460px;">
+    <h3>Settle change</h3>
+    <p class="modal-sub" id="owed-change-due-line">Change due: ₦0.00</p>
+    <p class="modal-sub" id="owed-change-remaining-line" style="font-weight:600;"></p>
+    <div id="owed-change-error" class="error-banner"></div>
+
+    <!-- Screen 1: choose how the change is being handled -->
+    <div id="owed-change-choice-screen">
+      <div class="modal-actions" style="flex-direction:column;gap:10px;">
+        <button type="button" class="btn btn-primary" id="owed-change-choice-cash-now" style="width:100%;">Give cash now</button>
+        <button type="button" class="btn btn-ghost" id="owed-change-choice-track" style="width:100%;">Settle later</button>
+      </div>
+    </div>
+
+    <!-- Screen 2: fast path -- cash handed over on the spot -->
+    <form id="owed-change-cashnow-form" style="display:none;">
+      <div class="field">
+        <label for="owed-change-cashnow-amount">Amount given now *</label>
+        <input type="number" id="owed-change-cashnow-amount" min="0" step="0.01" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" data-owed-back>Back</button>
+        <button type="submit" class="btn btn-primary" style="flex:1;">Confirm</button>
+      </div>
+    </form>
+
+    <!-- Screen 3: tracked settlement methods -->
+    <form id="owed-change-form" style="display:none;">
+      <div class="field">
+        <label for="owed-change-name">Customer name *</label>
+        <input type="text" id="owed-change-name" required />
+      </div>
+      <div class="field">
+        <label for="owed-change-phone">Phone number (optional)</label>
+        <input type="tel" id="owed-change-phone" placeholder="For looking this up later, if given" />
+      </div>
+
+      <div id="owed-change-rows"></div>
+      <button type="button" class="btn btn-ghost btn-sm" id="owed-change-add-row" style="margin-bottom:12px;">+ Add another settlement method</button>
+
+      <div class="field">
+        <label for="owed-change-notes">Notes (optional)</label>
+        <input type="text" id="owed-change-notes" maxlength="500" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="owed-change-back-to-choice" data-owed-back>Back</button>
+        <button type="submit" class="btn btn-primary" id="owed-change-submit" style="flex:1;">Confirm</button>
+      </div>
+    </form>
+
+    <!-- Always-visible close, regardless of which screen is active -->
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="owed-change-cancel" style="width:100%;">Log as pending</button>
+    </div>
+  </div>
+</div>
+
+<!-- Template for one settlement-method row inside the Settle change
+     modal -- cloned by pos.js per row (first row plus any added via
+     "+ Add another settlement method"). Kept out of the tab order /
+     unused via the <template> tag so it's never itself submitted. -->
+<template id="owed-change-row-template">
+  <div class="owed-change-row" style="border:1px solid var(--border-color,#2a3550);border-radius:8px;padding:12px;margin-bottom:10px;">
+    <div class="field">
+      <label>Method *</label>
+      <select class="owed-row-method" required>
+        <option value="" selected disabled>Select method…</option>
+        <option value="cash-later">Cash — customer will collect later</option>
+        <option value="transfer">Bank transfer</option>
+        <option value="airtime">Airtime top-up</option>
+      </select>
+    </div>
+    <div class="owed-row-cashlater-fields" style="display:none;">
+      <div class="field">
+        <label>Amount already given now (optional)</label>
+        <input type="number" class="owed-row-cash-given" min="0" step="0.01" placeholder="e.g. 2,000 — leave blank if nothing was given yet" />
+        <small style="color:var(--text-muted,#8a94ad);">If part of the change was handed over already, enter it here — the amount to collect later fills in automatically below.</small>
+      </div>
+    </div>
+    <div class="field">
+      <label class="owed-row-amount-label">Amount for this method *</label>
+      <input type="number" class="owed-row-amount" min="0.01" step="0.01" required placeholder="Enter amount" />
+      <small class="owed-row-amount-hint" style="display:none;color:var(--text-muted,#8a94ad);">Auto-filled from the change due minus what's already been given — you can still adjust it.</small>
+    </div>
+    <div class="owed-row-transfer-fields" style="display:none;">
+      <div class="field">
+        <label>Bank name</label>
+        <select class="owed-row-bank-name"></select>
+      </div>
+      <div class="field">
+        <label>Account number</label>
+        <input type="text" class="owed-row-account-number" inputmode="numeric" maxlength="10" />
+      </div>
+      <div class="field">
+        <label>Account name</label>
+        <input type="text" class="owed-row-account-name" placeholder="For confirmation" />
+      </div>
+    </div>
+    <div class="owed-row-airtime-fields" style="display:none;">
+      <div class="field">
+        <label>Phone number for top-up</label>
+        <input type="tel" class="owed-row-airtime-phone" placeholder="e.g. 0803xxxxxxx" />
+      </div>
+      <div class="field">
+        <label>Network</label>
+        <select class="owed-row-airtime-network">
+          <option value="">Auto-detect from phone number</option>
+          <option value="MTN">MTN</option>
+          <option value="Airtel">Airtel</option>
+          <option value="Glo">Glo</option>
+          <option value="9mobile">9mobile</option>
+        </select>
+      </div>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm owed-row-remove" style="display:none;">Remove this method</button>
+  </div>
+</template>
+
+<!-- Pre-checkout confirmation: shows a receipt PREVIEW before the sale is
+     actually written to the server, so a stray/accidental tap on "Complete
+     checkout" can't finalize a sale. Nothing is persisted until the staff
+     member explicitly confirms here. -->
+<div class="modal-backdrop" id="pre-checkout-confirm-backdrop">
+  <div class="modal receipt-modal">
+    <h3 style="margin-bottom:4px;">Confirm this sale</h3>
+    <p class="modal-sub" style="margin-bottom:12px;">Review the receipt below before completing checkout. This cannot be undone once confirmed.</p>
+    <div class="receipt-sheet" id="pre-checkout-receipt-sheet"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="pre-checkout-cancel">Go back</button>
+      <button type="button" class="btn btn-primary" id="pre-checkout-confirm">Confirm &amp; complete checkout</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pre-booking confirmation: same idea for "Book (part payment)". -->
+<div class="modal-backdrop" id="pre-booking-confirm-backdrop">
+  <div class="modal receipt-modal">
+    <h3 style="margin-bottom:4px;">Confirm this booking</h3>
+    <p class="modal-sub" style="margin-bottom:12px;">Review the details below before opening the booking. This cannot be undone once confirmed.</p>
+    <div class="receipt-sheet" id="pre-booking-receipt-sheet"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="pre-booking-cancel">Go back</button>
+      <button type="button" class="btn btn-primary" id="pre-booking-confirm">Confirm booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- Open Credit: customer takes the cart now, pays later. One Credit
+     record is created per cart line against the still-live POST /credit
+     endpoint (that endpoint is single-product per call); the receipt
+     afterwards combines them into one ticket via Receipt.renderCreditBatch. -->
+<div class="modal-backdrop" id="open-credit-backdrop">
+  <div class="modal">
+    <h3 style="margin-bottom:12px;">Open Credit</h3>
+    <p style="margin:0 0 14px;color:var(--ink-faint);font-size:13px;">
+      Customer takes the cart now and pays later. Inventory is deducted immediately.
+    </p>
+    <div id="open-credit-error" class="error-banner"></div>
+    <div class="field" style="margin-bottom:12px;">
+      <label for="open-credit-customer-name">Customer full legal name *</label>
+      <input type="text" id="open-credit-customer-name" required />
+    </div>
+    <div class="field" style="margin-bottom:12px;">
+      <label for="open-credit-customer-phone">Customer phone number *</label>
+      <input type="tel" id="open-credit-customer-phone" required />
+    </div>
+    <div class="field" style="margin-bottom:12px;">
+      <label for="open-credit-customer-address">Home address (optional)</label>
+      <input type="text" id="open-credit-customer-address" />
+    </div>
+    <div class="field" style="margin-bottom:12px;">
+      <label for="open-credit-amount-paid">Amount paid now (optional)</label>
+      <input type="number" id="open-credit-amount-paid" min="0" step="0.01" value="0" />
+    </div>
+    <div class="field" style="margin-bottom:14px;">
+      <label for="open-credit-payment-method">Payment method (if anything paid now)</label>
+      <select id="open-credit-payment-method">
+        <option value="cash">Cash</option>
+        <option value="card">Card</option>
+        <option value="transfer">Transfer</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="open-credit-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="open-credit-review">Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pre-confirmation preview, same two-step pattern as checkout/booking. -->
+<div class="modal-backdrop" id="pre-open-credit-confirm-backdrop">
+  <div class="modal receipt-modal">
+    <h3 style="margin-bottom:4px;">Confirm this credit</h3>
+    <p class="modal-sub" style="margin-bottom:12px;">Review the details below before opening credit. This cannot be undone once confirmed.</p>
+    <div class="receipt-sheet" id="pre-open-credit-receipt-sheet"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="pre-open-credit-cancel">Go back</button>
+      <button type="button" class="btn btn-primary" id="pre-open-credit-confirm">Confirm &amp; open credit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Final ticket after the credit record(s) are created. -->
+<div class="modal-backdrop" id="post-open-credit-receipt-backdrop">
+  <div class="modal receipt-modal">
+    <h3 style="margin-bottom:12px;">Credit opened</h3>
+    <div class="receipt-sheet" id="post-open-credit-receipt-sheet"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="post-open-credit-skip">Close</button>
+      <button type="button" class="btn btn-primary" id="post-open-credit-print">Print receipt</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shift compliance warning detail -- spec sections 6/7/8: "I Understand
+     / Acknowledge" (level 1) escalating to "Acknowledge Warning"
+     (level 2+). Opened from the notification banner above. -->
+<div class="modal-backdrop" id="compliance-detail-backdrop">
+  <div class="modal">
+    <h3 id="compliance-detail-title" style="margin-bottom:4px;">Shift Closing Reminder</h3>
+    <p id="compliance-detail-body" style="margin-bottom:14px;color:var(--ink-muted);font-size:14px;line-height:1.6;"></p>
+    <div style="background:var(--bg-muted);border-radius:10px;padding:14px;margin-bottom:14px;font-size:13.5px;line-height:1.8;" id="compliance-detail-facts"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="compliance-detail-later">Not now</button>
+      <button type="button" class="btn btn-primary" id="compliance-detail-ack">I Understand / Acknowledge</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/api.js"></script>
+<script src="js/permissions.js"></script>
+<script src="js/nigerian-banks.js"></script>
+<script src="js/receipt.js"></script>
+<script src="js/pos.js"></script>
+<script src="js/website-coupon-generator.js"></script>
+<script>
+/* Renames the header button created by website-coupon-generator.js to "Website code".
+   Remove this block once that file itself says "Website code". */
+(function () {
+  var head = document.querySelector('.pos-head-card') || document.body;
+  function rename() {
+    var w = document.createTreeWalker(head, NodeFilter.SHOW_TEXT);
+    var n;
+    while ((n = w.nextNode())) {
+      if (/website\s+coupon/i.test(n.nodeValue)) {
+        n.nodeValue = n.nodeValue.replace(/website\s+coupon/i, 'Website code');
+        var b = n.parentNode;
+        if (b && b.tagName === 'BUTTON' && !b.querySelector('svg')) b.insertAdjacentHTML('afterbegin', '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16a1 1 0 0 1 1 1v2.5a2.5 2.5 0 0 0 0 5V17a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-2.5a2.5 2.5 0 0 0 0-5V7a1 1 0 0 1 1-1Z"/><path d="M14 7.5v9" stroke-dasharray="2 2.5"/></svg>');
+      }
+    }
+  }
+  rename();
+  new MutationObserver(rename).observe(head, { childList: true, subtree: true, characterData: true });
+})();
+</script>
+</body>
+</html>

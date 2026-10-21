@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ site_name }} — {{ product.name }}{% endblock %}
+{% block content %}
+<div class="product-detail">
+    <div class="product-image">
+        {% if product.image_url %}
+        <img src="{{ product.image_url }}" alt="{{ product.name }}">
+        {% else %}
+        <div class="product-image-placeholder large"></div>
+        {% endif %}
+    </div>
+    <div class="product-info">
+        <h1>{{ product.name }}</h1>
+        <p class="price">₦{{ "{:,.0f}".format(product.price|float) }}</p>
+        {% if product.stock is defined %}
+        <p class="stock {{ 'in' if product.stock else 'out' }}">{{ "In stock" if product.stock else "Out of stock" }}</p>
+        {% endif %}
+        {% if product.description %}
+        <p class="description">{{ product.description }}</p>
+        {% endif %}
+
+        <form method="post" action="/cart/add">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+
+            {% if product.variants %}
+            <div class="variants">
+                <label for="variant_id">Options</label>
+                <select id="variant_id" name="variant_id" required>
+                    {% for variant in product.variants %}
+                    <option value="{{ variant.id }}">{{ variant.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% else %}
+            <input type="hidden" name="variant_id" value="{{ product.default_variant_id or product.id }}">
+            {% endif %}
+
+            <div>
+                <label for="qty">Quantity</label>
+                <input type="number" id="qty" name="quantity" value="1" min="1">
+            </div>
+            <button type="submit" class="btn-primary">Add to Cart</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

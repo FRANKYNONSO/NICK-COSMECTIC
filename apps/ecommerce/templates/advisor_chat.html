@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Beauty Advisor | {{ site_name }}{% endblock %}
+{% block content %}
+<section class="bc" id="bc-root">
+  <header class="bc-head">
+    <h1>Beauty Advisor</h1>
+    <p class="bc-sub">Tell us what you need. We suggest products from our own shop that are in stock today.</p>
+    <p class="bc-note">{{ disclaimer }}</p>
+  </header>
+
+  <div class="bc-panel">
+    <div class="bc-log" id="bc-log" role="log" aria-live="polite" aria-label="Conversation with the Beauty Advisor"></div>
+
+    <div class="bc-chips" id="bc-chips" hidden></div>
+
+    <form class="bc-composer" id="bc-form" autocomplete="off">
+      <label class="bc-sr" for="bc-input">Your message</label>
+      <input type="text" id="bc-input" maxlength="300" placeholder="For example: oily skin, dark spots, lotion under 5,000" enterkeyhint="send">
+      <button type="submit" class="btn-primary bc-send" id="bc-send">Send</button>
+    </form>
+  </div>
+
+  <p class="bc-foot">
+    <button type="button" class="bc-link" id="bc-restart">Start over</button>
+    <a class="bc-link" href="/advisor/classic">Prefer quick questions? Use the step-by-step version</a>
+    <a class="bc-link" href="/shop">Browse the whole shop</a>
+  </p>
+</section>
+<script src="/static/js/advisor_chat.js"></script>
+{% endblock %}

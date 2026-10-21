@@ -30,7 +30,7 @@ docker compose -f docker-compose.dev.yml up --build
 ```
 
 This starts:
-- **Postgres 16** on `localhost:5432` (user/pass/db: `nickcosmetics`)
+- **Postgres 16** on `localhost:5432` (user and database: `nickcosmetics`; the password is `NICK_DB_PASSWORD` in `infra/docker/.env`, which git ignores) <!-- PATCH22C-DB-PASSWORD -->
 - **Redis 7** on `localhost:6379`
 - **API** on `localhost:8000`, hot-reloading on code changes
 

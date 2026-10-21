@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Sign in — Nick Cosmetics Admin</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700;1,800&display=swap" rel="stylesheet" />
+
+<script src="js/theme.js"></script>
+<script src="js/numeric-input-fix.js"></script>
+
+<style>
+  /* This page is fully self-contained: it does not use css/style.css */
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #0b0f17;
+    color: #fff;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* Background: grid + blue glow */
+  .bg {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      radial-gradient(60% 45% at 50% 0%, rgba(56, 142, 255, .22), transparent 70%),
+      linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px);
+    background-size: auto, 46px 46px, 46px 46px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  }
+
+  /* Lightning */
+  .bolt {
+    position: fixed; top: -10px; left: 50%; width: 260px; height: 420px;
+    transform: translateX(-50%); z-index: 0; pointer-events: none;
+    opacity: 0; filter: drop-shadow(0 0 10px rgba(90,170,255,.9)) drop-shadow(0 0 28px rgba(56,142,255,.7));
+  }
+  .bolt.b2 { left: 22%; width: 180px; height: 300px; }
+  body.ready .bolt { animation: flash 6s 1.2s infinite; }
+  body.ready .bolt.b2 { animation: flash 7.5s 3.4s infinite; }
+  @keyframes flash {
+    0%, 86%, 100% { opacity: 0; }
+    87% { opacity: .95; }
+    88% { opacity: .15; }
+    89% { opacity: 1; }
+    92% { opacity: .35; }
+    95% { opacity: 0; }
+  }
+
+  .wrap {
+    position: relative; z-index: 1;
+    min-height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 32px 18px;
+  }
+
+  /* Header */
+  .head { text-align: center; margin-bottom: 26px; opacity: 0; }
+  .logo {
+    width: 58px; height: 58px; margin: 0 auto 14px;
+    border-radius: 18px;
+    display: grid; place-items: center;
+    background: linear-gradient(145deg, #2f8bff, #1457d6);
+    box-shadow: 0 10px 30px rgba(31, 111, 235, .45), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .logo svg { width: 30px; height: 30px; color: #fff; }
+  .brand {
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    font-style: italic; font-weight: 700; font-size: 20px; letter-spacing: .2px;
+    margin: 0 0 18px; color: #fff;
+  }
+  .brand span { color: #4aa3ff; }
+  .welcome {
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    font-style: italic; font-weight: 800; font-size: 38px; line-height: 1.1;
+    margin: 0 0 10px;
+  }
+  .sub { margin: 0; color: rgba(255,255,255,.62); font-size: 14.5px; }
+
+  /* Card */
+  .card {
+    width: 100%; max-width: 420px;
+    background: #fff; color: #0f172a;
+    border-radius: 28px;
+    padding: 26px 20px 24px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55);
+    opacity: 0;
+  }
+  body.ready .head { animation: rise .7s ease both; }
+  body.ready .card { animation: rise .8s .1s ease both; }
+  body.ready .logo { animation: pop .8s cubic-bezier(.2,1.4,.4,1) both; }
+
+
+  .error-banner {
+    display: none;
+    background: #fff1f2; border: 1px solid #fecdd3; color: #be123c;
+    padding: 11px 14px; border-radius: 12px; font-size: 13.5px; margin-bottom: 14px;
+  }
+  .error-banner.visible { display: block; }
+
+  .field { margin-bottom: 14px; }
+  .input {
+    position: relative; display: flex; align-items: center;
+    border: 1.5px solid #e3e7ee; background: #fff; border-radius: 16px;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .input:focus-within { border-color: #3b9cff; box-shadow: 0 0 0 4px rgba(59,156,255,.15); }
+  .input .ic { width: 20px; height: 20px; margin-left: 16px; color: #9aa3b5; flex: none; }
+  .input input {
+    flex: 1; min-width: 0; border: 0; outline: 0; background: transparent;
+    padding: 17px 14px; font-size: 15.5px; color: #0f172a; font-family: inherit;
+  }
+  .input input::placeholder { color: #a3abbb; }
+  .eye {
+    border: 0; background: transparent; cursor: pointer; padding: 0 16px; height: 100%;
+    color: #9aa3b5; display: grid; place-items: center;
+  }
+  .eye svg { width: 20px; height: 20px; }
+  .eye:hover { color: #0f172a; }
+
+  .field.invalid .input { border-color: #f4a1b3; background: #fff5f7; }
+  .field.invalid .input .ic { color: #e5486b; }
+  .msg {
+    display: none; align-items: center; gap: 7px;
+    color: #e5486b; font-size: 12.5px; margin: 7px 4px 0;
+  }
+  .msg::before {
+    content: "!"; display: inline-grid; place-items: center;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #e5486b; color: #fff; font-size: 10px; font-weight: 800;
+  }
+  .field.invalid .msg { display: flex; }
+
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 4px 2px 18px; font-size: 14px;
+  }
+  .check { display: flex; align-items: center; gap: 9px; color: #6b7487; cursor: pointer; user-select: none; }
+  .check input {
+    appearance: none; -webkit-appearance: none;
+    width: 20px; height: 20px; border-radius: 6px; margin: 0;
+    border: 1.5px solid #cdd3de; background: #fff; cursor: pointer;
+    display: grid; place-items: center; transition: background .15s, border-color .15s;
+  }
+  .check input:checked { background: #3b9cff; border-color: #3b9cff; }
+  .check input:checked::after {
+    content: ""; width: 5px; height: 10px; margin-top: -2px;
+    border: solid #fff; border-width: 0 2.2px 2.2px 0; transform: rotate(45deg);
+  }
+  .link { color: #2f8bff; text-decoration: none; font-weight: 600; }
+  .link:hover { text-decoration: underline; }
+
+  .btn {
+    width: 100%; border: 0; cursor: pointer;
+    padding: 17px 0; border-radius: 16px;
+    font-size: 16px; font-weight: 700; color: #fff; font-family: inherit;
+    background: linear-gradient(180deg, #4aa8ff, #2f8bff);
+    box-shadow: 0 10px 24px rgba(47,139,255,.35);
+    transition: transform .08s, filter .15s, opacity .15s;
+  }
+  .btn:hover { filter: brightness(1.05); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .7; cursor: not-allowed; }
+
+  .foot { margin-top: 20px; padding-top: 18px; border-top: 1px solid #eef0f5; text-align: center; font-size: 13.5px; color: #7d8699; }
+
+  .legal { margin-top: 22px; color: rgba(255,255,255,.4); font-size: 12.5px; text-align: center; }
+
+  /* ===== Intro splash ===== */
+  #intro {
+    position: fixed; inset: 0; z-index: 50; background: #070a10;
+    display: grid; place-items: center; overflow: hidden; cursor: pointer;
+    transition: opacity .6s ease;
+  }
+  #intro.hide { opacity: 0; pointer-events: none; }
+  .intro-grid {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(50% 40% at 50% 45%, rgba(56,142,255,.25), transparent 70%),
+      linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    background-size: auto, 46px 46px, 46px 46px;
+    opacity: 0; animation: fadein 1s .1s ease forwards;
+  }
+  .intro-center { position: relative; z-index: 2; text-align: center; padding: 0 24px; transition: opacity .4s ease, transform .6s ease-in; }
+  #intro.leaving .intro-center { opacity: 0; transform: scale(1.15); }
+  .intro-logo {
+    width: 92px; height: 92px; margin: 0 auto 22px; border-radius: 28px;
+    display: grid; place-items: center;
+    background: linear-gradient(145deg, #2f8bff, #1457d6);
+    box-shadow: 0 0 0 0 rgba(47,139,255,.6), 0 18px 50px rgba(31,111,235,.55), inset 0 1px 0 rgba(255,255,255,.35);
+    opacity: 0; transform: scale(.5);
+    animation: logoIn .8s .25s cubic-bezier(.2,1.3,.4,1) forwards, glow 1.8s 1s ease-in-out infinite;
+  }
+  .intro-logo svg { width: 46px; height: 46px; color: #fff; }
+  .intro-logo path { stroke-dasharray: 120; stroke-dashoffset: 120; animation: draw 1.3s .5s ease forwards; }
+  .intro-logo path + path { animation-delay: 1.1s; }
+  .intro-logo path + path + path { animation-delay: 1.2s; }
+  .intro-logo path + path + path + path { animation-delay: 1.3s; }
+  .intro-brand {
+    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+    font-style: italic; font-weight: 800; font-size: 36px; margin: 0 0 10px;
+    opacity: 0; transform: translateY(10px); animation: rise .7s 1.5s ease forwards;
+  }
+  .intro-brand span { color: #4aa3ff; }
+  .intro-tag {
+    margin: 0; font-size: 14px; color: rgba(255,255,255,.6);
+    opacity: 0; transform: translateY(10px); animation: rise .7s 1.9s ease forwards;
+  }
+  .intro-sweep {
+    position: absolute; left: 50%; top: 50%; width: 60px; height: 60px; margin: -30px 0 0 -30px;
+    border-radius: 50%; background: #2f8bff; transform: scale(0); z-index: 1;
+  }
+  #intro.leaving .intro-sweep { transform: scale(60); transition: transform .7s cubic-bezier(.6,0,.9,.5); }
+  .intro-skip {
+    position: absolute; bottom: 26px; left: 0; right: 0; text-align: center; z-index: 3;
+    font-size: 12.5px; color: rgba(255,255,255,.35);
+  }
+  @keyframes fadein { to { opacity: 1; } }
+  @keyframes logoIn { to { opacity: 1; transform: scale(1); } }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(47,139,255,.55), 0 18px 50px rgba(31,111,235,.55), inset 0 1px 0 rgba(255,255,255,.35); }
+    50% { box-shadow: 0 0 0 18px rgba(47,139,255,0), 0 18px 60px rgba(31,111,235,.8), inset 0 1px 0 rgba(255,255,255,.35); }
+  }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+  @keyframes pop  { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 420px) {
+    .welcome { font-size: 33px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .bolt, .head, .card, .logo { animation: none !important; }
+    .head, .card { opacity: 1 !important; }
+    .bolt { opacity: 0 !important; }
+    #intro { display: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="intro" aria-hidden="true">
+  <div class="intro-grid"></div>
+  <div class="intro-sweep"></div>
+  <div class="intro-center">
+    <div class="intro-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+        <path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>
+      </svg>
+    </div>
+    <p class="intro-brand">Nick <span>Cosmetics</span></p>
+    <p class="intro-tag">Inventory, sales and stock, all in one place.</p>
+  </div>
+  <div class="intro-skip">Tap to skip</div>
+</div>
+<script>
+  // Intro splash: plays on every load of the login page. Click/tap skips it.
+  (function () {
+    var intro = document.getElementById('intro');
+    function ready() { document.body.classList.add('ready'); }
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!intro || reduce) { if (intro) intro.remove(); ready(); return; }
+    var done = false;
+    function finish() {
+      if (done) return; done = true;
+      ready();
+      intro.classList.add('hide');
+      setTimeout(function () { intro.remove(); }, 700);
+    }
+    var t1 = setTimeout(function () { intro.classList.add('leaving'); }, 2900);
+    var t2 = setTimeout(finish, 3600);
+    intro.addEventListener('click', function () { clearTimeout(t1); clearTimeout(t2); finish(); });
+  })();
+</script>
+
+<div class="bg"></div>
+
+<svg class="bolt" viewBox="0 0 120 200" fill="none" aria-hidden="true">
+  <polyline points="70,0 52,58 74,64 40,128 58,134 28,200" stroke="#bfe0ff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
+<svg class="bolt b2" viewBox="0 0 120 200" fill="none" aria-hidden="true">
+  <polyline points="60,0 78,52 56,60 84,120 66,128 90,200" stroke="#bfe0ff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>
+
+<div class="wrap">
+
+  <div class="head">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>
+        <path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>
+      </svg>
+    </div>
+    <p class="brand">Nick <span>Cosmetics</span></p>
+    <h1 class="welcome">Welcome back.</h1>
+    <p class="sub">Pick up where you left off. Your shop is waiting.</p>
+  </div>
+
+  <div class="card">
+    <div id="error-banner" class="error-banner"></div>
+
+    <form id="login-form" novalidate>
+      <div class="field" id="field-email">
+        <div class="input">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 7 9 6 9-6"/></svg>
+          <input type="email" id="email" name="email" placeholder="Email address" autocomplete="username" />
+        </div>
+        <div class="msg" id="msg-email">Enter your email address.</div>
+      </div>
+
+      <div class="field" id="field-password">
+        <div class="input">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="3"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+          <input type="password" id="password" name="password" placeholder="Password" autocomplete="current-password" />
+          <button type="button" class="eye" id="eye" aria-label="Show password">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="msg" id="msg-password">Enter your password.</div>
+      </div>
+
+      <div class="row">
+        <label class="check"><input type="checkbox" id="remember" /> Remember my email</label>
+        <a class="link" href="forgot-password.html">Forgot Password?</a>
+      </div>
+
+      <button type="submit" class="btn" id="submit-btn">Sign in</button>
+    </form>
+
+    <div class="foot">Don't have an account? <a class="link" href="register.html">Create account</a></div>
+  </div>
+
+  <div class="legal">Nick Cosmetics Admin</div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  // Already signed in? Skip straight past login.
+  if (Auth.getToken()) window.location.href = 'dashboard.html';
+
+  const form = document.getElementById('login-form');
+  const errorBanner = document.getElementById('error-banner');
+  const submitBtn = document.getElementById('submit-btn');
+  const emailEl = document.getElementById('email');
+  const passEl = document.getElementById('password');
+  const rememberEl = document.getElementById('remember');
+  const REMEMBER_KEY = 'nc_remember_email';
+
+  // Remember my email (email only, never the password)
+  try {
+    const saved = localStorage.getItem(REMEMBER_KEY);
+    if (saved) { emailEl.value = saved; rememberEl.checked = true; }
+  } catch (e) {}
+
+  // Show / hide password
+  document.getElementById('eye').addEventListener('click', () => {
+    const show = passEl.type === 'password';
+    passEl.type = show ? 'text' : 'password';
+    document.getElementById('eye').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  });
+
+  function showError(message) {
+    errorBanner.textContent = message;
+    errorBanner.classList.add('visible');
+  }
+
+  function setInvalid(fieldId, msgId, text) {
+    const field = document.getElementById(fieldId);
+    if (text) {
+      document.getElementById(msgId).textContent = text;
+      field.classList.add('invalid');
+    } else {
+      field.classList.remove('invalid');
+    }
+  }
+
+  emailEl.addEventListener('input', () => setInvalid('field-email', 'msg-email', ''));
+  passEl.addEventListener('input', () => setInvalid('field-password', 'msg-password', ''));
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorBanner.classList.remove('visible');
+
+    const email = emailEl.value.trim();
+    const password = passEl.value;
+
+    let bad = false;
+    if (!email) {
+      setInvalid('field-email', 'msg-email', 'Enter your email address.'); bad = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setInvalid('field-email', 'msg-email', 'Enter a valid email address.'); bad = true;
+    } else {
+      setInvalid('field-email', 'msg-email', '');
+    }
+    if (!password) {
+      setInvalid('field-password', 'msg-password', 'Enter your password.'); bad = true;
+    } else {
+      setInvalid('field-password', 'msg-password', '');
+    }
+    if (bad) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in…';
+
+    try {
+      const tokens = await Api.login(email, password);
+      localStorage.setItem('nc_access_token', tokens.access_token);
+      const me = await Api.me();
+
+      let appStatus = null;
+      try {
+        const application = await Api.myApplicationStatus();
+        appStatus = application.status;
+      } catch (err) {
+        // 404 just means this account has no staff application (e.g. an
+        // admin-created account) -- treat as fully active, nothing to do.
+      }
+
+      try {
+        if (rememberEl.checked) localStorage.setItem(REMEMBER_KEY, email);
+        else localStorage.removeItem(REMEMBER_KEY);
+      } catch (e2) {}
+
+      Auth.setSession(tokens.access_token, me, appStatus, tokens.refresh_token);
+      window.location.href = (appStatus && appStatus !== 'accepted') ? 'application-status.html' : 'dashboard.html';
+    } catch (err) {
+      showError(err.status === 401 ? 'Incorrect email or password.' : err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign in';
+    }
+  });
+</script>
+
+</body>
+</html>

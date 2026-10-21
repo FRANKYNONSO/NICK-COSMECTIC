@@ -1,0 +1,234 @@
+﻿{% extends "base.html" %}
+{% block title %}{{ site_name }} — Checkout{% endblock %}
+{% block content %}
+<h1>Checkout</h1>
+
+<div class="checkout-summary">
+    <h2>Order Summary</h2>
+    {% for item in items %}
+    <p>{{ item.name }}{% if item.size %} ({{ item.size }}){% endif %} × {{ item.quantity }} — ₦{{ "{:,.0f}".format(item.price * item.quantity) }}</p>
+    {% endfor %}
+    <p><strong>Subtotal: ₦{{ "{:,.0f}".format(subtotal) }}</strong></p>
+</div>
+
+{% if error %}
+<p class="error">{{ error }}</p>
+{% endif %}
+
+<form method="post" action="/checkout">
+    <h2>Your Details</h2>
+    <label for="full_name">Full Name</label>
+    <input type="text" id="full_name" name="full_name" required>
+
+    <label for="email">Email</label>
+    {# PATCH15A-EMAIL-CHECK #}
+    <input type="email" id="email" name="email" required pattern="[^@\s]+@[^@\s]+\.[A-Za-z]{2,}" title="Please enter a valid email address, for example name@example.com.">
+
+    <label for="phone">Phone Number</label>
+    <input type="tel" id="phone" name="phone" required>
+
+    <h2>Delivery Address</h2>
+    <label for="state">State</label>
+    <select id="state" name="state" required onchange="onStateChange()">
+        <option value="">-- Select State --</option>
+        {% for s in states %}
+        <option value="{{ s }}">{{ s }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="lga">Local Government Area</label>
+    <select id="lga" name="lga" required onchange="onLgaChange()">
+        <option value="">-- Select State First --</option>
+    </select>
+
+    <label for="city">City / Town</label>
+    <input type="text" id="city" name="city">
+
+    <label for="address_line">Street Address</label>
+    <textarea id="address_line" name="address_line" required></textarea>
+
+    <p id="shipping-message"></p>
+
+    <h2>Coupon (optional)</h2>
+    <label for="coupon_code">Coupon Code</label>
+    <div class="coupon-row">
+        <input type="text" id="coupon_code" name="coupon_code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. WEB-XXXX-XXXX">
+        <button type="button" id="coupon-apply" class="btn-apply"><span class="btn-apply-spinner" aria-hidden="true"></span><span class="btn-apply-label">Apply</span></button>
+    </div>
+    <div id="coupon-result" class="coupon-result" role="status" aria-live="polite" hidden></div>
+
+    <button type="submit" class="btn-primary">Place Order</button>
+</form>
+
+<script>
+const STATE_LGAS = {{ state_lgas_json | safe }};
+const FREE_STATE = "Taraba";
+const FREE_LGA = "Takum";
+const TARABA_FEE = 2000;
+
+function onStateChange() {
+    const state = document.getElementById("state").value;
+    const lgaSelect = document.getElementById("lga");
+    const msg = document.getElementById("shipping-message");
+
+    lgaSelect.innerHTML = "";
+
+    if (!state) {
+        lgaSelect.innerHTML = '<option value="">-- Select State First --</option>';
+        msg.textContent = "";
+        return;
+    }
+
+    const lgas = STATE_LGAS[state] || [];
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "-- Select LGA --";
+    lgaSelect.appendChild(placeholder);
+
+    lgas.forEach(function (lga) {
+        const opt = document.createElement("option");
+        opt.value = lga;
+        opt.textContent = lga;
+        lgaSelect.appendChild(opt);
+    });
+
+    updateShippingMessage(state, "");
+}
+
+function onLgaChange() {
+    const state = document.getElementById("state").value;
+    const lga = document.getElementById("lga").value;
+    updateShippingMessage(state, lga);
+}
+
+function updateShippingMessage(state, lga) {
+    const msg = document.getElementById("shipping-message");
+
+    if (!state) {
+        msg.textContent = "";
+        return;
+    }
+
+    if (state === FREE_STATE) {
+        if (lga === FREE_LGA) {
+            msg.textContent = "Delivery is FREE for Takum, Taraba.";
+        } else if (lga) {
+            msg.textContent = "Delivery fee: ₦" + TARABA_FEE.toLocaleString() + " (Taraba, outside Takum).";
+        } else {
+            msg.textContent = "";
+        }
+    } else {
+        msg.textContent = "Delivery cost for your area will be confirmed via phone or email before your order ships.";
+    }
+}
+
+// Coupon preview: only shows the discount. It never changes the form or the order.
+(function () {
+    const input = document.getElementById("coupon_code");
+    const btn = document.getElementById("coupon-apply");
+    const out = document.getElementById("coupon-result");
+    if (!input || !btn || !out) return;
+    const label = btn.querySelector(".btn-apply-label");
+
+    const SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+    const ICONS = {
+        ok: SVG_OPEN + '<polyline points="20 6 9 17 4 12"></polyline></svg>',
+        bad: SVG_OPEN + '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+        warn: SVG_OPEN + '<line x1="12" y1="7" x2="12" y2="13"></line><line x1="12" y1="17" x2="12" y2="17.01"></line></svg>'
+    };
+
+    let applied = false;
+
+    function cap(s) {
+        return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+    }
+
+    function setLoading(on) {
+        btn.disabled = on;
+        btn.classList.toggle("is-loading", on);
+        label.textContent = on ? "Checking" : (applied ? "Applied" : "Apply");
+    }
+
+    function clearResult() {
+        out.hidden = true;
+        out.className = "coupon-result";
+        out.textContent = "";
+        input.classList.remove("is-valid", "is-invalid");
+    }
+
+    function show(kind, title, text) {
+        out.textContent = "";
+        out.className = "coupon-result is-" + kind;
+
+        const icon = document.createElement("span");
+        icon.className = "coupon-result-icon";
+        icon.innerHTML = ICONS[kind];
+
+        const body = document.createElement("div");
+        const t = document.createElement("div");
+        t.className = "coupon-result-title";
+        t.textContent = title;
+        const p = document.createElement("div");
+        p.className = "coupon-result-text";
+        p.textContent = text;
+        body.appendChild(t);
+        body.appendChild(p);
+
+        out.appendChild(icon);
+        out.appendChild(body);
+        out.hidden = false;
+    }
+
+    async function check() {
+        const code = input.value.trim();
+        clearResult();
+        applied = false;
+        if (!code) {
+            show("warn", "Enter a code", "Type your coupon code above, then press Apply.");
+            label.textContent = "Apply";
+            return;
+        }
+        setLoading(true);
+        try {
+            const resp = await fetch("/checkout/coupon-preview?code=" + encodeURIComponent(code), {
+                headers: { "Accept": "application/json" }
+            });
+            let data = {};
+            try { data = await resp.json(); } catch (e) { data = {}; }
+            const msg = (data && data.message) ? String(data.message) : "";
+
+            if (resp.status === 429) {
+                show("warn", "Too many attempts", msg || "Please wait a few minutes and try again.");
+            } else if (data.valid === true) {
+                applied = true;
+                input.classList.add("is-valid");
+                show("ok", "Coupon applied",
+                    cap(msg.replace(/^Coupon accepted:\s*/i, "")) || "Your discount will be applied when you place the order.");
+            } else if (data.valid === false) {
+                input.classList.add("is-invalid");
+                show("bad", "Code not valid",
+                    msg.replace(/^This code is not valid\.\s*/i, "") || "It may have expired, been used already, or been typed wrongly.");
+            } else {
+                show("warn", "Could not check the code",
+                    msg || "We could not check the code right now. You can still place your order; the code is checked again then.");
+            }
+        } catch (e) {
+            show("warn", "Could not check the code",
+                "We couldn't check the code right now. You can still place your order; the code is checked again then.");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    btn.addEventListener("click", check);
+    input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); check(); }
+    });
+    input.addEventListener("input", function () {
+        applied = false;
+        clearResult();
+        label.textContent = "Apply";
+    });
+})();
+</script>
+{% endblock %}

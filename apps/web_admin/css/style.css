@@ -1,0 +1,3048 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Tells the browser this page is dark, so native controls (date-picker
+     calendar icon, scrollbars, etc.) render in a light-on-dark style
+     instead of the default dark-on-dark icon that's nearly invisible on
+     our dark background. Flips to light below when the theme is light. */
+  color-scheme: dark;
+  --bg: #0b1220;
+  --surface: #111a2e;
+  --surface-raised: #16213a;
+  --ink: #eef1f8;
+  --ink-muted: #97a1b8;
+  --ink-faint: #6b7690;
+  --border: #232f49;
+  --bg-muted: #1a2439;
+  --accent: #4f8cff;
+  --accent-hover: #6ea0ff;
+  --accent-tint: rgba(79, 140, 255, 0.14);
+  --success: #34d399;
+  --success-tint: rgba(52, 211, 153, 0.14);
+  --danger: #f56d63;
+  --danger-tint: rgba(245, 109, 99, 0.14);
+  --warning: #f2b84b;
+  --warning-tint: rgba(242, 184, 75, 0.14);
+  --role-super: #c084fc;
+  --role-manager: #4f8cff;
+  --role-staff: #f2b84b;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --surface-raised: #ffffff;
+  --ink: #16213a;
+  --ink-muted: #5b6478;
+  --ink-faint: #8791a8;
+  --border: #e3e7f0;
+  --bg-muted: #eef1f7;
+  --accent: #3b6fe0;
+  --accent-hover: #2c5bc7;
+  --accent-tint: rgba(59, 111, 224, 0.10);
+  --success: #1a9c73;
+  --success-tint: rgba(26, 156, 115, 0.10);
+  --danger: #dc3f34;
+  --danger-tint: rgba(220, 63, 52, 0.10);
+  --warning: #b9791a;
+  --warning-tint: rgba(185, 121, 26, 0.12);
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 10px 30px rgba(16, 24, 40, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.display {
+  font-family: 'Sora', 'Inter', sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+}
+
+a { color: var(--accent); }
+
+/* ---------------------------------------------------------- Swatch mark */
+
+.swatch-mark {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.swatch-mark span {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* --------------------------------------------------------------- Login */
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 36px 32px 32px;
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.login-brand .swatch-mark span:nth-child(1) { background: var(--role-super); }
+.login-brand .swatch-mark span:nth-child(2) { background: var(--role-manager); }
+.login-brand .swatch-mark span:nth-child(3) { background: var(--role-staff); }
+
+.login-brand h1 {
+  font-size: 17px;
+  margin: 0;
+}
+
+.login-sub {
+  color: var(--ink-muted);
+  font-size: 13px;
+  margin: -20px 0 24px;
+}
+
+.login-links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.login-links a { color: var(--accent); text-decoration: none; }
+.login-links a:hover { text-decoration: underline; }
+
+.status-page {
+  width: 100%;
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 36px 32px 32px;
+  text-align: center;
+}
+.status-page .status-icon { font-size: 34px; margin-bottom: 6px; }
+.status-page p { color: var(--ink-muted); font-size: 13.5px; line-height: 1.6; }
+
+/* ---------------------------------------------------------------- Form */
+
+.field { margin-bottom: 16px; }
+
+.field label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+.field input:focus,
+.field select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.btn-primary { background: var(--accent); color: #fff; width: 100%; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { background: var(--ink-faint); cursor: not-allowed; }
+
+.btn-ghost { background: transparent; border-color: var(--border); color: var(--ink); }
+.btn-ghost:hover { background: var(--bg); }
+
+.btn-sm { padding: 6px 10px; font-size: 12.5px; border-radius: 6px; }
+
+.btn-danger-text { background: transparent; color: var(--danger); border: none; padding: 6px 8px; }
+.btn-danger-text:hover { text-decoration: underline; }
+
+.btn-danger { background: var(--danger); color: #fff; border: none; }
+.btn-danger:hover { opacity: 0.9; }
+
+.segmented { display: inline-flex; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
+.segmented-btn { background: transparent; border: none; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--ink-muted); cursor: pointer; }
+.segmented-btn.active { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+
+.badge-count { display: inline-block; min-width: 18px; padding: 1px 6px; border-radius: 100px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; margin-left: 4px; }
+
+.error-banner {
+  background: var(--danger-tint);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+}
+.error-banner.visible { display: block; }
+
+/* ------------------------------------------------------------- App shell */
+
+.app-shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 256px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar .login-brand { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.sidebar .login-brand h1 { font-size: 19px; }
+
+.brand-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; color: var(--accent); flex-shrink: 0;
+}
+.brand-icon svg { width: 100%; height: 100%; }
+
+/* Every sidebar link is in the raw HTML on every page, then
+   Perms.applyNav() (js/permissions.js) removes the ones this user
+   isn't allowed to see -- but that script only runs once its <script>
+   tag is reached near the bottom of the page, after the browser has
+   already parsed (and can already have painted) the full, unfiltered
+   nav. That gap is what caused the "extra icons flash then disappear"
+   glitch. Fix: every gated link starts invisible (but still takes up
+   its normal space, so nothing jumps once real links appear) via this
+   class, which HTML puts on <nav> itself; applyNav() removes the
+   class the moment it's done filtering, revealing only the links that
+   actually survived. See js/permissions.js's applyNav(). */
+.sidebar nav.nav-gate-pending [data-nav] { visibility: hidden; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  color: var(--ink-muted);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 15.5px;
+  margin-bottom: 2px;
+}
+.nav-item .nav-icon { display: flex; width: 19px; height: 19px; flex-shrink: 0; opacity: .8; }
+.nav-item .nav-icon svg { width: 100%; height: 100%; }
+.nav-badge {
+  margin-left: auto; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700;
+  line-height: 1; padding: 3px 6px; border-radius: 999px; min-width: 18px; text-align: center;
+}
+
+/* -------------------------------------------------------------------- Chat */
+.chat-conv-item {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+  padding: 12px 16px; background: none; border: none; border-bottom: 1px solid var(--border);
+  cursor: pointer; font-size: 13.5px; color: var(--ink);
+}
+.chat-conv-item:hover { background: var(--bg); }
+.chat-conv-item.active { background: var(--accent-tint); color: var(--accent); font-weight: 600; }
+.chat-conv-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-bubble-row { display: flex; flex-direction: column; max-width: 70%; }
+.chat-bubble-row.mine { align-self: flex-end; align-items: flex-end; }
+.chat-bubble-row.theirs { align-self: flex-start; align-items: flex-start; }
+.chat-bubble-sender { font-size: 11px; color: var(--ink-faint); margin-bottom: 2px; padding: 0 4px; }
+.chat-bubble {
+  padding: 9px 13px; border-radius: 14px; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+}
+.chat-bubble-row.mine .chat-bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+.chat-bubble-row.theirs .chat-bubble { background: var(--surface-raised); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.chat-bubble-time { font-size: 10.5px; color: var(--ink-faint); margin-top: 3px; padding: 0 4px; }
+.nav-item.active { background: var(--accent-tint); color: var(--accent); }
+.nav-item.active .nav-icon { opacity: 1; }
+.nav-item:hover:not(.active) { background: var(--bg); color: var(--accent); }
+.nav-item:hover:not(.active) .nav-icon { opacity: 1; color: var(--accent); }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--ink-muted);
+}
+.sidebar-footer .who { color: var(--ink); font-weight: 500; margin-bottom: 2px; }
+.signout-link { display: inline-flex !important; align-items: center; gap: 6px; }
+
+.theme-toggle {
+  margin-top: auto;
+  padding: 10px 12px;
+  border-top: none;
+  background: var(--bg);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+.theme-toggle-label { display: inline-flex; align-items: center; gap: 8px; }
+.theme-toggle + .sidebar-footer { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
+.switch { display: inline-flex; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch-track {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background .15s ease;
+}
+.switch-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  transition: transform .15s ease, background .15s ease;
+}
+.switch input:checked + .switch-track { background: var(--accent-tint); }
+.switch input:checked + .switch-track .switch-thumb {
+  transform: translateX(14px);
+  background: var(--accent);
+}
+
+.main { flex: 1; padding: 40px 48px 40px 24px; min-width: 0; }
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.page-head h2 { font-size: 20px; margin: 0 0 4px; }
+.page-head p { margin: 0; color: var(--ink-muted); font-size: 13px; }
+
+/* ------------------------------------------------------------ Toolbar */
+
+.toolbar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.toolbar select,
+.toolbar input[type="date"],
+.toolbar input[type="search"] { padding: 7px 10px; border-radius: 7px; border: 1px solid var(--border); font: inherit; background: var(--surface); color: var(--ink); }
+.toolbar select option { background: var(--surface); color: var(--ink); }
+.toolbar label.checkbox { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-muted); }
+/* A labeled toolbar control, e.g. "From" / "To" above a date input,
+   so the field's purpose is clear instead of a bare unlabeled picker. */
+.toolbar .field-inline { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.toolbar .field-inline label { font-size: 11.5px; color: var(--ink-muted); font-weight: 500; }
+
+/* A bordered panel wrapping a toolbar of filters, matching InventoryPro's
+   boxed From/To/Cashier filter row instead of a bare unboxed strip. */
+.filter-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 18px; margin-bottom: 16px;
+}
+.filter-card .toolbar { margin-bottom: 0; }
+
+/* --------------------------------------------------------------- Table */
+
+.table-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+table { width: 100%; border-collapse: collapse; }
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Inventory page-head + toolbar merged into the same card as the
+   table (Sept 2026 change) -- one visually unified block. */
+.inventory-card { padding: 0; }
+.inventory-card-head {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  padding: 26px 28px 22px; border-bottom: 1px solid var(--border);
+}
+.inventory-toolbar { padding: 18px 28px !important; margin: 0 !important; border-bottom: 1px solid var(--border); }
+
+th {
+  text-align: left;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  font-weight: 700;
+  padding: 16px 20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Inventory table header redesign -- scoped to #products-table and (Sept
+   2026 dictated request) the Transactions page tables, so they get the
+   same dark/bold header + column-divider ("brace mark") treatment as
+   Inventory. Other tables in the app (Deletion history, Low stock, etc.)
+   are intentionally left out of this selector list and keep their
+   existing muted/uppercase header style. */
+#products-table thead th,
+#sales-table thead th,
+#bookings-table thead th,
+#booking-history-table thead th,
+#refunds-table thead th,
+#credit-table thead th,
+#pending-change-table thead th,
+#pending-approval-table thead th,
+#settled-change-table thead th,
+#losses-table thead th,
+#purchase-invoices-table thead th,
+#invoice-items-table thead th {
+  background: #060a13;
+  color: var(--ink);
+  font-weight: 800;
+  font-size: 12.5px;
+}
+/* fix18: #products-table intentionally excluded below -- Inventory
+   no longer shows vertical column-divider lines between header cells. */
+#sales-table thead th,
+#bookings-table thead th,
+#booking-history-table thead th,
+#refunds-table thead th,
+#credit-table thead th,
+#pending-change-table thead th,
+#pending-approval-table thead th,
+#settled-change-table thead th,
+#losses-table thead th {
+  border-right: 1px solid var(--border);
+}
+#products-table thead th:last-child,
+#sales-table thead th:last-child,
+#bookings-table thead th:last-child,
+#booking-history-table thead th:last-child,
+#refunds-table thead th:last-child,
+#credit-table thead th:last-child,
+#pending-change-table thead th:last-child,
+#pending-approval-table thead th:last-child,
+#settled-change-table thead th:last-child,
+#losses-table thead th:last-child {
+  border-right: none;
+  text-align: right;
+}
+/* fix18: #products-table intentionally excluded here -- Inventory
+   no longer shows vertical column-divider lines between body cells. */
+#sales-table tbody td,
+#bookings-table tbody td,
+#booking-history-table tbody td,
+#refunds-table tbody td,
+#credit-table tbody td,
+#pending-change-table tbody td,
+#pending-approval-table tbody td,
+#settled-change-table tbody td,
+#losses-table tbody td {
+  border-right: 1px solid var(--border);
+}
+#products-table tbody td:last-child,
+#sales-table tbody td:last-child,
+#bookings-table tbody td:last-child,
+#booking-history-table tbody td:last-child,
+#refunds-table tbody td:last-child,
+#credit-table tbody td:last-child,
+#pending-change-table tbody td:last-child,
+#pending-approval-table tbody td:last-child,
+#settled-change-table tbody td:last-child,
+#losses-table tbody td:last-child {
+  border-right: none;
+}
+
+
+td {
+  padding: 20px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+}
+tr:last-child td { border-bottom: none; }
+tr.inactive-row td { color: var(--ink-faint); }
+
+/* September 2026 change spec section 16: "better, centered,
+   table-like positioning" for the Inventory Alerts tables (low
+   stock/out of stock/expiring) -- these already used real <table>
+   markup with a click-to-enlarge thumbnail, so this is a light CSS
+   pass rather than a rebuild: give the thumbnail column a fixed,
+   narrow width and center its contents so the row doesn't look
+   lopsided next to the wider text columns. */
+.thumb-cell { width: 60px; text-align: center; }
+.thumb-cell img, .thumb-cell > div { margin: 0 auto; }
+
+.name-cell .full-name { font-weight: 500; }
+.name-cell .contact { color: var(--ink-muted); font-size: 12px; margin-top: 1px; }
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--bg);
+}
+.role-badge .dot { width: 7px; height: 7px; border-radius: 50%; }
+.role-badge.role-super_admin .dot { background: var(--role-super); }
+.role-badge.role-branch_manager .dot { background: var(--role-manager); }
+.role-badge.role-staff .dot { background: var(--role-staff); }
+
+.status-pill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-pill.active { background: var(--success-tint); color: var(--success); }
+.status-pill.inactive { background: var(--bg); color: var(--ink-faint); }
+.status-pill.under_review { background: var(--warning-tint); color: var(--warning); }
+.status-pill.accepted { background: var(--success-tint); color: var(--success); }
+.status-pill.rejected { background: var(--danger-tint); color: var(--danger); }
+.status-pill.suspended { background: var(--danger-tint); color: var(--danger); }
+
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--ink-muted);
+}
+.empty-state .display { font-size: 15px; color: var(--ink); margin-bottom: 4px; }
+
+/* --------------------------------------------------------------- Modal */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 8, 16, 0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal-backdrop.visible { display: flex; }
+
+.modal {
+  background: var(--surface);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 420px;
+  padding: 24px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal h3 { margin: 0 0 4px; font-size: 16px; }
+.modal .modal-sub { color: var(--ink-muted); font-size: 12.5px; margin: 0 0 20px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.modal-actions .btn { flex: 1; }
+
+/* ---------------------------------------------------------------- Receipt */
+/* A compact, thermal-paper-width printable receipt (js/receipt.js builds
+   the markup; this just styles it). Printing is still sized to fit
+   standard 80mm thermal roll paper (see the @media print override
+   below) -- monospace-leaning, tight vertical rhythm, dashed section
+   rules instead of boxed tables. On screen, though, the modal/sheet
+   are widened (September 2026 change spec section 12: the on-screen
+   receipt was "too narrow to show all information, esp. for
+   refunds") -- this only affects how it's read before printing, the
+   physical paper output is unchanged. */
+.modal.receipt-modal { max-width: 480px; }
+.receipt-sheet {
+  background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px 16px; width: 440px; max-width: 100%; margin: 0 auto;
+  font-family: 'Courier New', Consolas, monospace; font-size: 12.5px; line-height: 1.5;
+}
+.receipt-logo { text-align: center; margin-bottom: 8px; }
+.receipt-logo-img { max-height: 44px; max-width: 100%; }
+.receipt-logo-placeholder { color: var(--ink-faint); font-size: 12px; }
+.receipt-ticket-meta { text-align: center; color: var(--ink-muted); margin-bottom: 10px; }
+.receipt-ticket-meta div { margin: 1px 0; }
+.receipt-items { border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border); padding: 8px 0; margin-bottom: 8px; }
+.receipt-line-item { margin: 6px 0; }
+.receipt-line-item-row { display: flex; gap: 6px; }
+.receipt-line-qty { flex: 0 0 20px; color: var(--ink-muted); }
+.receipt-line-name { flex: 1; }
+.receipt-line-amount { flex: 0 0 auto; text-align: right; white-space: nowrap; }
+.receipt-line-unit { color: var(--ink-faint); font-size: 11px; margin-left: 26px; }
+.receipt-totals { margin-bottom: 10px; }
+.receipt-totals-row { display: flex; justify-content: space-between; padding: 2px 0; }
+.receipt-grand-total { font-weight: 700; font-size: 14px; border-top: 1px solid var(--border); margin-top: 4px; padding-top: 6px; }
+.receipt-balance-note { font-size: 11px; color: var(--ink-faint); margin-top: 4px; }
+.receipt-payment-history { margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 6px; }
+.receipt-payment-history-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-faint); margin-bottom: 4px; }
+.receipt-payment-history-row { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; padding: 1px 0; }
+.receipt-payment-history-row span:first-child { flex: 1 1 auto; color: var(--ink-faint); }
+.receipt-payment-history-entry { margin-bottom: 2px; }
+.receipt-payment-history-staff { font-size: 10px; color: var(--ink-faint); font-style: italic; }
+.tab-btn { border-radius: 999px; }
+.tab-btn.active { background: var(--accent, #6c4bd6); color: #fff; border-color: transparent; }
+.receipt-qr-block { display: flex; flex-direction: column; gap: 6px; align-items: center; margin: 10px 0; text-align: center; }
+.receipt-qr { flex: 0 0 auto; }
+.receipt-qr-caption { font-size: 10.5px; color: var(--ink-faint); word-break: break-all; }
+.receipt-qr-url { margin-top: 2px; }
+.receipt-store-footer { text-align: center; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); font-size: 11.5px; color: var(--ink-muted); }
+.receipt-thank-you { margin-top: 2px; }
+.receipt-powered-by { text-align: center; margin-top: 6px; font-size: 10.5px; color: var(--ink-faint); }
+
+/* Two-action "View / Print" link pair, replacing a single combined link so
+   printing doesn't require opening the receipt first. */
+.receipt-actions { display: flex; gap: 10px; }
+
+@media print {
+  body * { visibility: hidden; }
+  .receipt-sheet, .receipt-sheet * { visibility: visible; }
+  /* 80mm thermal roll width -- printing wider than the paper is what
+     was producing the broken/oversized output before. */
+  .receipt-sheet { position: fixed; top: 0; left: 0; width: 72mm; border: none; box-shadow: none; padding: 4mm; }
+  /* Bug fix (spec section 11): every receipt-sheet lives inside a
+     .modal-backdrop (it's shown as a modal on screen). The previous
+     rule here hid .modal-backdrop itself, which -- since display:none
+     on an ancestor always wins over visibility:visible on a
+     descendant -- hid the receipt-sheet along with it, leaving
+     nothing for the print rules above to actually show. That's what
+     caused the printed page not to match the on-screen preview.
+     .modal-actions (the Cancel/Print buttons, a sibling of
+     receipt-sheet, not an ancestor) is the only thing that actually
+     needs hiding here. */
+  .modal-actions { display: none !important; }
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  /* Deliberately NOT var(--ink) -- that's the theme's *text* color, which
+     flips to near-white in dark mode, making a white-on-near-white toast
+     that's nearly invisible. The toast should always be a solid dark
+     chip with white text, regardless of which theme is active. */
+  background: #16213a;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+  z-index: 100;
+}
+.toast.visible { opacity: 1; transform: translateY(0); }
+.toast.error { background: var(--danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .toast { transition: none; }
+}
+
+/* --------------------------------------------------------------- Loading */
+
+.loading-row td {
+  color: var(--ink-faint);
+  text-align: center;
+  padding: 28px 16px;
+  font-size: 13px;
+}
+
+.skeleton-line {
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--surface) 25%, #223056 37%, var(--surface) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shine 1.4s ease infinite;
+}
+@keyframes skeleton-shine {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kpi-card.low-stock-blinking,
+  .kpi-card.low-stock-blinking .icon { animation: none; }
+}
+
+/* ------------------------------------------------------------ Overflow safety */
+
+.name-cell .full-name,
+td strong {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .app-shell { flex-direction: column; }
+  .sidebar {
+    width: 100%; flex-direction: row; align-items: center; padding: 14px 16px; flex-wrap: wrap; gap: 4px 0;
+    position: static; height: auto; overflow-y: visible;
+  }
+  .sidebar .login-brand { margin-bottom: 0; margin-right: 4px; }
+  .theme-toggle { display: none; }
+  .sidebar-footer {
+    display: flex; align-items: center; gap: 8px; margin-left: auto; padding: 0; border: none;
+  }
+  .sidebar-footer .who, .sidebar-footer #current-user-role { display: none; }
+  .nav-item { margin-left: 4px; padding: 7px 9px; }
+  .main { padding: 16px; }
+  .page-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .page-head h2 { font-size: 18px; }
+  .page-head .btn { width: 100%; }
+  .page-head > div:last-child { flex-wrap: wrap; }
+  #receive-stock-form, #intake-form { grid-template-columns: 1fr !important; }
+  table, thead, tbody, th, td, tr { display: block; }
+  thead { display: none; }
+  .table-card tr { border-bottom: 1px solid var(--border); padding: 12px 16px; }
+  td { border: none; padding: 4px 0; }
+  .row-actions { justify-content: flex-start; margin-top: 8px; }
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .stat-trio { grid-template-columns: 1fr; }
+  .connect-head { flex-direction: column; }
+  .top-actions { width: 100%; }
+  .modal { padding: 20px 18px; max-height: 85vh; }
+  .toast {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    text-align: center;
+  }
+  .toolbar { gap: 8px; }
+  .toolbar select { flex: 1; min-width: 0; }
+}
+
+@media (max-width: 420px) {
+  .login-card { padding: 28px 20px 24px; }
+}
+
+/* ---------------------------------------------------- Product / stock cells */
+
+.product-cell { display: flex; align-items: center; gap: 10px; }
+.product-thumb {
+  width: 36px; height: 36px; border-radius: 7px; object-fit: cover;
+  background: var(--bg); border: 1px solid var(--border); flex-shrink: 0;
+}
+.product-thumb.placeholder { display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: 10px; }
+
+/* Inventory table redesign: larger thumbnail, bolder cell text, and
+   icon+label action pills -- scoped classes so other pages that reuse
+   .product-thumb/.row-actions (Deletion history, Low stock) are unaffected. */
+.product-thumb-lg {
+  width: 56px; height: 56px; border-radius: 10px; object-fit: cover;
+  background: var(--bg); border: 1px solid var(--border); flex-shrink: 0;
+}
+.product-thumb-lg.placeholder { display: flex; align-items: center; justify-content: center; color: var(--ink-faint); font-size: 11px; }
+
+.cell-strong { font-size: 14.5px; font-weight: 600; color: var(--ink); }
+.cell-medium { font-size: 13.5px; font-weight: 500; color: var(--ink); }
+
+.action-pill {
+  display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px;
+  border-radius: 8px; font-size: 12.5px; font-weight: 500; border: none;
+  cursor: pointer; white-space: nowrap; line-height: 1;
+}
+.action-pill svg { width: 14px; height: 14px; flex-shrink: 0; }
+.action-pill-edit { background: var(--accent-tint); color: var(--accent); }
+.action-pill-edit:hover { opacity: 0.85; }
+.action-pill-delete { background: var(--danger-tint); color: var(--danger); }
+.action-pill-delete:hover { opacity: 0.85; }
+.action-pill-restock { background: var(--success-tint); color: var(--success); }
+.action-pill-restock:hover { opacity: 0.85; }
+.action-pill-history { background: var(--warning-tint); color: var(--warning); }
+.action-pill-history:hover { opacity: 0.85; }
+
+/* Action links (mockup Option 5) -- plain text, color-coded, no
+   background/border, tight right-aligned group. */
+.action-link {
+  font-size: 13px; font-weight: 600; background: none; border: none;
+  padding: 0; cursor: pointer; text-decoration: none; line-height: 1;
+}
+.action-link:hover { text-decoration: underline; }
+.action-link-edit { color: var(--accent); }
+.action-link-restock { color: var(--success); }
+.action-link-history { color: var(--warning); }
+.action-link-delete { color: var(--danger); }
+.action-link-mute { color: var(--ink-faint); }
+.action-link-mute:hover { color: var(--ink-muted); }
+.action-link-mute { color: var(--ink-faint); }
+.action-link-mute:hover { color: var(--ink-muted); }
+/* Transactions page (Sept 2026 dictated request): View/Refund on Sales,
+   and Add Payment/Change Item/Receipt/Cancel on Open Bookings, use the
+   same plain colored-text-link treatment as Inventory's Edit/Delete --
+   blue for a neutral/informational action, red for one that reverses
+   money already taken. js/sales.js should render these with these
+   classes instead of full buttons. */
+.action-link-view { color: var(--accent); }
+.action-link-refund { color: var(--danger); }
+.action-link-payment { color: var(--success); }
+.action-link-change { color: var(--warning); }
+.action-link-receipt { color: var(--accent); }
+.action-link-cancel { color: var(--danger); }
+.row-actions-links { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.row-actions-line { display: flex; gap: 14px; justify-content: flex-end; align-items: center; }
+
+.stock-pill {
+  display: inline-block; padding: 3px 9px; border-radius: 100px; font-size: 12px; font-weight: 500;
+  white-space: nowrap;
+}
+.stock-pill.ok { background: var(--success-tint); color: var(--success); }
+.stock-pill.low { background: var(--warning-tint); color: var(--warning); }
+.stock-pill.out { background: var(--danger-tint); color: var(--danger); }
+
+.category-badge {
+  display: inline-block; padding: 3px 9px; border-radius: 100px; font-size: 12px; font-weight: 500;
+  background: var(--accent-tint); color: var(--accent);
+}
+
+/* -------------------------------------------------------------- Grid cards */
+
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 24px;
+}
+/* Dashboard rows: force an even 3-up / 2-up split on desktop (InventoryPro-style
+   compact layout), falling back to a single column on narrow screens instead of
+   the looser auto-fit sizing above. */
+.dashboard-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.dashboard-grid-2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 900px) {
+  .dashboard-grid-3, .dashboard-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* A fixed-width panel (a short form) beside a flexible one (a list/table),
+   e.g. Categories' "Add category" form next to the categories table. */
+.split-layout { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 24px; }
+.split-layout > .io-card { flex: 0 0 360px; }
+.split-layout > .table-card { flex: 1; min-width: 0; }
+@media (max-width: 900px) {
+  .split-layout { flex-direction: column; }
+  .split-layout > .io-card { flex-basis: auto; width: 100%; }
+}
+.io-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
+}
+.io-card h3 { margin: 0 0 4px; font-size: 15px; }
+.io-card p.io-sub { margin: 0 0 16px; color: var(--ink-muted); font-size: 12.5px; }
+.io-card .btn { width: auto; }
+.io-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.io-card .file-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.io-card input[type="file"] { font-size: 12.5px; max-width: 100%; }
+.io-note {
+  background: var(--accent-tint); color: var(--accent); border-radius: 8px; padding: 10px 12px;
+  font-size: 12.5px; margin-top: 4px;
+}
+
+/* -------------------------------------------------------------------- POS */
+
+.pos-shell { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+.pos-search { margin-bottom: 16px; }
+.pos-search input {
+  width: 100%; padding: 11px 14px; border: 1px solid var(--border); border-radius: 8px; font: inherit;
+}
+.pos-search input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: var(--accent); }
+
+.pos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.pos-tile {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px; cursor: pointer; text-align: left; transition: border-color .12s ease, transform .12s ease, box-shadow .12s ease;
+}
+.pos-tile:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+.pos-tile:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+.pos-tile .name { font-weight: 700; font-size: 16px; margin-bottom: 4px; letter-spacing: -.01em; }
+.pos-tile .barcode { color: var(--ink-faint); font-size: 11.5px; margin-bottom: 12px; font-family: 'Sora', monospace; }
+.pos-tile .price-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pos-tile .price { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 19px; color: var(--accent); }
+.pos-tile .avail {
+  display: inline-block; padding: 3px 10px; border-radius: 100px; font-size: 11.5px; font-weight: 600;
+  background: var(--success-tint); color: var(--success); white-space: nowrap;
+}
+.pos-tile .avail.low { background: var(--warning-tint); color: var(--warning); }
+.pos-tile .avail.out { background: var(--danger-tint); color: var(--danger); }
+
+.cart-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px; position: sticky; top: 20px;
+}
+.cart-card h3 { margin: 0 0 12px; font-size: 15px; display: flex; justify-content: space-between; align-items: center; }
+.cart-card h3 a { font-size: 12px; font-weight: 500; color: var(--danger); cursor: pointer; text-decoration: none; }
+.cart-empty { text-align: center; color: var(--ink-faint); padding: 32px 0; font-size: 13px; }
+.cart-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.cart-row .info { flex: 1; min-width: 0; }
+.cart-row .info .name { font-size: 13px; font-weight: 500; overflow-wrap: anywhere; }
+.cart-row .info .unit { font-size: 11.5px; color: var(--ink-muted); }
+.cart-row .qty { display: flex; align-items: center; gap: 4px; }
+.cart-row .qty button {
+  width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; font: inherit; line-height: 1;
+}
+.cart-row .qty span { min-width: 18px; text-align: center; font-size: 13px; }
+.cart-row .line-total { font-size: 13px; font-weight: 500; min-width: 64px; text-align: right; }
+.cart-row .remove { color: var(--danger); background: none; border: none; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
+
+.cart-totals { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 13px; }
+.cart-totals .row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.cart-totals .row.grand { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16px; margin-top: 8px; }
+.cart-totals input[type="number"] { width: 90px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; text-align: right; font: inherit; }
+
+@media (max-width: 900px) {
+  .pos-shell { grid-template-columns: 1fr; }
+  .cart-card { position: static; }
+}
+@media (max-width: 760px) {
+  .cart-totals .row { flex-wrap: wrap; gap: 6px; }
+  #coupon-input, #tender-amount-input { flex: 1; min-width: 0; }
+}
+
+/* ------------------------------------------------------- Dashboard header */
+
+.top-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.pill-btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 100px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink); font: inherit;
+  font-size: 12.5px; font-weight: 500; cursor: pointer; text-decoration: none;
+}
+.pill-btn:hover { border-color: var(--accent); }
+.pill-btn.link { color: var(--accent); border-color: transparent; background: transparent; padding-left: 4px; }
+
+.status-pill.online { background: var(--success-tint); color: var(--success); }
+.status-pill.connecting { background: var(--warning-tint); color: var(--warning); }
+.status-pill.offline { background: var(--danger-tint); color: var(--danger); }
+.status-pill .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 5px; }
+
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+
+.kpi-card {
+  position: relative; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 24px;
+}
+.kpi-card .label { font-size: 12.5px; color: var(--ink-muted); margin-bottom: 12px; }
+.kpi-card .value { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 27px; }
+.kpi-card .icon {
+  position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 9px;
+  background: var(--accent-tint); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.kpi-card .icon svg { width: 19px; height: 19px; }
+.kpi-card.warn .icon,
+.kpi-card.danger .icon { background: var(--danger-tint); color: var(--danger); }
+
+/* Dashboard redesign implementation prompt, step 2: hide/reveal
+   toggle on the Total revenue, Total invested in inventory, and
+   Losses KPI cards -- positioned to the icon's left so the two don't
+   overlap (kpi-card .icon already sits absolutely at top:16px;
+   right:16px; width/height:36px). */
+.kpi-hide-toggle {
+  position: absolute; top: 16px; right: 60px; width: 28px; height: 28px; border-radius: 8px;
+  border: none; background: transparent; color: var(--ink-muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.kpi-hide-toggle:hover { background: var(--bg-muted); }
+.kpi-hide-toggle svg { width: 17px; height: 17px; }
+.kpi-hide-toggle.revealed { color: var(--ink); }
+
+/* Active low-stock alert -- blinks so it's genuinely noticeable, not just
+   a static red card someone can get used to ignoring. Respects
+   prefers-reduced-motion via the rule further down that turns off all
+   transitions/animations for that preference. Shared by the low-stock
+   and out-of-stock KPI cards -- same visual treatment, different data. */
+.kpi-card.low-stock-blinking {
+  animation: low-stock-blink 1.4s ease-in-out infinite;
+}
+.kpi-card.low-stock-blinking .icon {
+  animation: low-stock-icon-blink 1.4s ease-in-out infinite;
+}
+@keyframes low-stock-blink {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.35); }
+}
+@keyframes low-stock-icon-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* Out-of-stock KPI card's click-to-expand dropdown -- lists the items
+   currently at zero stock, each with a "Don't remind me" toggle so a
+   product that isn't being reordered can be dismissed from this alert
+   without touching the Low Stock/Inventory pages. */
+.out-of-stock-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 20;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); max-height: 320px; overflow-y: auto; padding: 8px;
+}
+.out-of-stock-dropdown-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; font-size: 12.5px;
+}
+.out-of-stock-dropdown-row:hover { background: var(--bg-muted); }
+.out-of-stock-dropdown-row .name { font-weight: 600; }
+.out-of-stock-dropdown-row .mute-btn {
+  font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; cursor: pointer; white-space: nowrap;
+}
+.out-of-stock-dropdown-empty { padding: 14px; text-align: center; color: var(--ink-faint); font-size: 12.5px; }
+
+/* Dashboard redesign implementation prompt, step 5: notification bell
+   replacing the five removed alert KPI cards. Reuses the existing
+   .out-of-stock-dropdown-row styling for its rows rather than
+   introducing new row CSS -- see the shared .notif-panel below, which
+   otherwise matches .out-of-stock-dropdown's positioning/shadow. */
+.bell-wrap { position: relative; }
+#notif-bell-btn { position: relative; padding: 7px 10px; }
+#notif-bell-btn svg { width: 17px; height: 17px; }
+.bell-wrap .badge-count {
+  position: absolute; top: -4px; right: -4px; margin-left: 0;
+  font-size: 10px; min-width: 16px; line-height: 14px; padding: 1px 5px;
+}
+.notif-panel {
+  position: absolute; top: calc(100% + 6px); right: 0; left: auto; width: 300px; z-index: 30;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); max-height: 360px; overflow-y: auto; padding: 8px;
+}
+.notif-panel-empty { padding: 14px; text-align: center; color: var(--ink-faint); font-size: 12.5px; }
+
+/* Item autocomplete on the Invoice item rows (spec section 4) --
+   type a product name, get matching catalog products in a dropdown,
+   plus a "+ Add product" row when nothing matches. */
+.item-autocomplete-wrap { position: relative; }
+.item-autocomplete-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 30;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12); max-height: 220px; overflow-y: auto;
+}
+.item-autocomplete-row {
+  padding: 8px 10px; font-size: 12.5px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
+}
+.item-autocomplete-row:hover, .item-autocomplete-row.active { background: var(--bg-muted); }
+.item-autocomplete-row .price { color: var(--ink-faint); white-space: nowrap; }
+.item-autocomplete-add { color: var(--brand, #6b3fa0); font-weight: 600; }
+.item-autocomplete-empty { padding: 10px; font-size: 12px; color: var(--ink-faint); }
+.kpi-card.revenue .icon { background: var(--success-tint); color: var(--success); }
+.kpi-card .sub { font-size: 11.5px; color: var(--ink-faint); margin-top: 4px; }
+
+/* ------------------------------------------------------- Card icon header */
+
+.card-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.card-head .card-icon {
+  width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+  background: var(--accent-tint); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.card-head .card-icon svg { width: 18px; height: 18px; }
+.card-head .card-icon.success { background: rgba(52, 211, 153, 0.22); color: var(--success); }
+.card-head .card-icon.danger { background: var(--danger-tint); color: var(--danger); }
+.card-head .card-icon.warning { background: var(--warning-tint); color: var(--warning); }
+.card-head .card-icon.lg { width: 46px; height: 46px; border-radius: 12px; }
+.card-head .card-icon.lg svg { width: 24px; height: 24px; }
+.card-head .card-titles h3 { margin: 0 0 2px; font-size: 15px; }
+.card-head .card-titles p { margin: 0; color: var(--ink-muted); font-size: 12.5px; }
+.card-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+
+.section-title { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16px; margin: 28px 0 4px; }
+.section-hint { color: var(--ink-muted); font-size: 12.5px; margin-bottom: 14px; }
+
+/* Small uppercase grouping label used to divide the Reports page into
+   sections (Sales summary, Revenue trends, Inventory analytics) � distinct
+   from .section-title's bolder card-style headers used elsewhere. */
+.section-eyebrow { font-family: 'Inter', sans-serif; font-weight: 700; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint); margin: 28px 0 12px; }
+
+/* ------------------------------------------------------- Overview card */
+/* Boxed summary panel (icon + title + "Manage" link + a 3-stat row),
+   used for the Inventory Overview block on the dashboard. */
+.overview-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 20px; }
+.overview-card .card-titles h3 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 16px; }
+.overview-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.overview-stats .cell { padding: 0 22px; }
+.overview-stats .cell:first-child { padding-left: 0; }
+.overview-stats .cell:not(:first-child) { border-left: 1px solid rgba(79, 140, 255, 0.35); }
+.overview-stats .cell .label { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); margin-bottom: 6px; }
+.overview-stats .cell .value { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 22px; }
+.overview-stats .cell .value.accent { color: var(--accent); }
+@media (max-width: 900px) {
+  .overview-stats { grid-template-columns: 1fr; gap: 12px; }
+  .overview-stats .cell { padding: 0; border-left: none !important; }
+}
+
+/* Small breakdown list used for "Stock health detail", paired beside the
+   Category breakdown table. */
+.detail-list { display: flex; flex-direction: column; gap: 12px; }
+.detail-list .share-row { padding: 2px 0; }
+.detail-list .share-label { min-width: 84px; font-size: 12.5px; color: var(--ink-muted); flex-shrink: 0; }
+
+/* --------------------------------------------------------- Connect card */
+
+.connect-card {
+  background: linear-gradient(135deg, var(--surface-raised), var(--surface));
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 24px;
+}
+.connect-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.connect-head h3 { margin: 0 0 4px; font-size: 15px; }
+.connect-head p { margin: 0; color: var(--ink-muted); font-size: 12.5px; max-width: 420px; }
+.connect-toggle { display: flex; background: var(--bg); border-radius: 8px; padding: 3px; gap: 2px; }
+.connect-toggle button { padding: 6px 12px; border-radius: 6px; border: none; background: transparent; color: var(--ink-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.connect-toggle button.active { background: var(--accent); color: #fff; }
+
+.qr-box { background: #fff; padding: 14px; border-radius: 10px; width: fit-content; margin: 0 auto 16px; }
+.qr-box canvas, .qr-box img { display: block; }
+.connect-caption { text-align: center; font-size: 12px; color: var(--ink-muted); margin-bottom: 16px; }
+.connect-caption strong { color: var(--ink); }
+
+.code-block {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;
+}
+.code-block .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); margin-bottom: 4px; }
+.code-block .url { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); word-break: break-all; }
+.code-block .hint { font-size: 11.5px; color: var(--ink-muted); margin-top: 6px; }
+
+.how-it-works { background: var(--bg); border-radius: 8px; padding: 14px 16px; font-size: 12.5px; color: var(--ink-muted); }
+.how-it-works strong { color: var(--ink); display: block; margin-bottom: 6px; font-size: 12.5px; }
+.how-it-works li { margin-bottom: 4px; }
+
+/* ---------------------------------------------------------------- Tabs */
+
+.tabs { display: inline-flex; background: var(--bg); padding: 4px; border-radius: 8px; gap: 2px; margin-bottom: 16px; }
+.tabs button { padding: 6px 14px; border-radius: 6px; border: none; background: transparent; color: var(--ink-muted); font: inherit; font-size: 12.5px; cursor: pointer; }
+.tabs button.active { background: var(--surface-raised); color: var(--ink); font-weight: 500; }
+
+/* Transactions page main tab row (Sept 2026 dictated request): darker,
+   slightly recessed pill bar with a subtle inner shadow -- "a little
+   design", matching the intent of Inventory's overall dark card look --
+   rather than the plain flat tab strip this replaces. Scoped to
+   #main-tabs so the Records/Reports/Dashboard tab rows elsewhere are
+   unaffected. */
+#main-tabs.tabs {
+  background: #060a13;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  padding: 5px;
+}
+#main-tabs .tab-btn { color: var(--ink-muted); border: 1px solid transparent; }
+#main-tabs .tab-btn:hover:not(.active) { color: var(--ink); background: var(--bg-muted); }
+#main-tabs .tab-btn.active { box-shadow: 0 2px 8px rgba(79, 140, 255, 0.35); }
+
+/* Transactions top card: the page title and the tab bar are merged into
+   one padded panel (instead of a bare header floating above a separate
+   tab bar), with a divider between them. */
+.page-top {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 22px 24px 20px; margin-bottom: 16px;
+}
+.page-top .page-head { margin-bottom: 0; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+.page-top #main-tabs.tabs {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 0;
+  background: #060a13; border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4); padding: 5px;
+}
+.page-top #main-tabs .tab-btn { padding: 8px 16px; }
+@media (max-width: 720px) {
+  .page-top { padding: 16px; }
+  .page-top #main-tabs.tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .page-top #main-tabs .tab-btn { flex-shrink: 0; white-space: nowrap; }
+}
+
+/* Fused top panel: whichever intro/filter cards lead the active tab's
+   section (info-card and/or filter-card) now continue the title+tabs card
+   as one panel -- same 24px side padding, hairline dividers, no gaps.
+   Tabs with no leading card (Open Bookings, Losses) keep the rounded
+   standalone top card. */
+.page-top:has(~ div:not([style*="display:none"]):not([style*="display: none"]) > :is(.info-card, .filter-card):first-child) {
+  border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  border-bottom: 0; margin-bottom: 0;
+}
+.page-top ~ div > :is(.info-card, .filter-card):first-child,
+.page-top ~ div > .info-card:first-child + .filter-card {
+  border-top-left-radius: 0; border-top-right-radius: 0;
+  padding: 20px 24px; gap: 12px;
+}
+.page-top ~ div > .info-card:first-child:has(+ .filter-card) {
+  border-radius: 0; margin-bottom: 0;
+}
+/* Filter row inside the fused panel: every control shares one height and
+   sits on one baseline, and the row starts at the same 24px left edge as
+   the tab bar above and the title icon. */
+.page-top ~ div > .filter-card:first-child .toolbar,
+.page-top ~ div > .info-card:first-child + .filter-card .toolbar { align-items: flex-end; gap: 12px; }
+.page-top ~ div > .filter-card .toolbar :is(select, input[type="date"], .btn) {
+  height: 40px; min-height: 40px; box-sizing: border-box; display: inline-flex; align-items: center;
+}
+.page-top ~ div > .filter-card .toolbar [id$="branch-badge"] > * {
+  height: 40px; box-sizing: border-box; display: inline-block; line-height: 38px; padding-top: 0; padding-bottom: 0; white-space: nowrap;
+}
+.page-top ~ div > .filter-card .toolbar :is(select, input[type="date"]) { display: block; }
+.page-top ~ div > .filter-card .toolbar .field-inline { gap: 6px; }
+
+@media (max-width: 720px) {
+  .page-top ~ div > :is(.info-card, .filter-card):first-child,
+  .page-top ~ div > .info-card:first-child + .filter-card { padding: 16px; }
+}
+
+/* Transactions tables: the action cell (View / Refund / Details / Mark
+   processed) carries .row-actions-links, which is display:flex -- on a
+   <td> that pulls the cell out of the table layout, so it stops
+   matching the row height and its divider line sits off. Keep it a real
+   table cell, vertically centred, with the links stacked and right-aligned. */
+.page-top ~ div td.row-actions-links {
+  display: table-cell; vertical-align: middle; text-align: right; white-space: nowrap;
+}
+.page-top ~ div td.row-actions-links > .action-link { display: block; }
+.page-top ~ div td.row-actions-links > .action-link + .action-link { margin-top: 6px; }
+.page-top ~ div .table-card td { vertical-align: middle; }
+
+/* Header for the action column: right-aligned to sit over the links. */
+.page-top ~ div th.th-actions { text-align: right; }
+/* Plain "Completed" status has no pill background, so drop the pill's
+   left padding to line it up under the STATUS header. */
+#refunds-tbody .stock-pill:not(.low) { padding-left: 0; }
+
+/* Pending Change tab -- Outstanding / Pending Approval / Settled tables.
+   1) Outstanding's id is #pending-change-table (the dark-header lists
+      above pointed at a non-existent #outstanding-table), so its header
+      row was the wrong shade.
+   2) Fixed column grid so the tables fit the card instead of running off
+      the right edge (the long "Settled ... by ..." text no longer forces
+      the width), with tighter cell padding.
+   3) Notes moves to the last position and takes the leftover width. */
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) {
+  display: block; width: 100%; min-width: 1170px;
+}
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) :is(thead, tbody) { display: block; }
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) tr {
+  display: grid;
+  grid-template-columns: 100px 118px 105px 92px 130px 90px 115px 130px minmax(200px, 1fr) 88px;
+}
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) :is(th, td) {
+  padding: 14px 10px; min-width: 0; overflow-wrap: anywhere; white-space: normal;
+}
+/* Headers only ever wrap between words, never mid-word (REFERENC / E). */
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) th {
+  overflow-wrap: normal; word-break: normal; hyphens: none; letter-spacing: 0.03em; font-size: 12px;
+  display: flex; align-items: center;
+}
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) :is(th, td):nth-child(7) {
+  order: 9; border-right: 1px solid var(--border); text-align: left;
+}
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) :is(th, td):nth-child(10) {
+  border-right: 1px solid var(--border); text-align: left;
+}
+/* Column order on screen: ... Recorded by, Settled/Action, Notes, Receipt.
+   Notes (7th in the HTML) is pulled to 9th; Receipt (10th) stays last,
+   right-aligned like the action column on every other tab.
+   Receipt | Notes: the generic ":last-child" rules above stripped the
+   divider after Receipt (it's last in the HTML but not on screen), so
+   Receipt and Notes ran together. Restore the divider, give Notes its own
+   left padding, and line the View link up with the other cells' first line. */
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) tr > :is(th, td):nth-child(10) {
+  order: 10; border-right: none; text-align: center; justify-content: center;
+}
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) tr > :is(th, td):nth-child(7) {
+  order: 9; border-right: 1px solid var(--border); padding-left: 16px; padding-right: 16px; text-align: left; justify-content: flex-start;
+}
+:is(#pending-change-table, #pending-approval-table, #settled-change-table) tbody td.row-actions-links {
+  display: block; text-align: center; padding-top: 17px;
+}
+.table-card:has(> :is(#pending-change-table, #pending-approval-table, #settled-change-table)) { overflow-x: auto; }
+
+/* Invoice page: header row matches the other dark-header tables, and the
+   "View invoice" column is centred under its own header. */
+#purchase-invoices-table thead th.th-center,
+#purchase-invoices-table tbody td:last-child { text-align: center; }
+
+/* Invoice page top card: title + "Add purchase invoice" on one row, a
+   divider, then the filters -- all inside the same padded .page-top card. */
+.page-top .page-head { align-items: center; flex-wrap: nowrap; }
+.page-top .page-head > .card-head { flex: 1 1 auto; min-width: 0; }
+/* .btn-primary is width:100% globally -- keep the Add button its natural size. */
+.page-top .page-head > .btn { flex: 0 0 auto; width: auto; white-space: nowrap; height: 40px; padding: 0 18px; font-size: 13px; }
+.page-top-filters { margin-top: 18px; }
+.page-top-filters .toolbar { margin-bottom: 0; align-items: flex-end; gap: 12px; }
+.page-top-filters .toolbar :is(select, .btn) {
+  height: 40px; min-height: 40px; box-sizing: border-box; display: inline-flex; align-items: center;
+}
+.page-top-filters .toolbar [id$="branch-badge"] > * {
+  height: 40px; box-sizing: border-box; display: inline-block; line-height: 38px; padding-top: 0; padding-bottom: 0; white-space: nowrap;
+}
+.page-top-filters .toolbar select { display: block; }
+@media (max-width: 720px) {
+  .page-top .page-head { flex-wrap: wrap; }
+  .page-top .page-head > .btn { width: 100%; }
+}
+
+/* Invoice modal "Items on this invoice" table: header row runs edge to
+   edge in the same dark black as the other tables (the card no longer has
+   its own inner padding), with even cell padding in the header, rows and
+   subtotal. */
+#invoice-items-table thead th { padding: 14px 16px; }
+#invoice-items-table thead th:first-child { text-align: center; }
+#invoice-items-table tbody td { padding: 12px 16px; }
+#invoice-items-table tfoot td { padding: 14px 16px; border-top: 1px solid var(--border); border-bottom: none; }
+
+/* Reusable "what is this section" info card -- icon + heading + short
+   explanation, sitting above (and visually separate from) a section's
+   own table. Used on Transactions > Refund History / Credit List /
+   Pending Change (Sept 2026 dictated request: "a little write-up...
+   and its own table at the top... but not part of the table itself"). */
+.info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  margin-bottom: 16px;
+}
+.info-card .card-icon { margin-top: 1px; width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0; background: var(--accent-tint); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.info-card .card-icon svg { width: 18px; height: 18px; }
+.info-card .card-icon.success { background: rgba(52, 211, 153, 0.22); color: var(--success); }
+.info-card .card-icon.danger { background: var(--danger-tint); color: var(--danger); }
+.info-card .card-icon.warning { background: var(--warning-tint); color: var(--warning); }
+.info-card h3 { margin: 0 0 4px; font-size: 15px; }
+.info-card p { margin: 0; color: var(--ink-muted); font-size: 12.5px; line-height: 1.55; }
+
+.stat-trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.stat-trio .cell { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.stat-trio .cell .label { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint); margin-bottom: 4px; }
+.stat-trio .cell .value { font-family: 'Sora', sans-serif; font-weight: 600; font-size: 16px; }
+.stat-trio .cell .value.positive { color: var(--success); }
+/* Plain variant: no boxed background, bigger/bolder figures, color-coded
+   per stat � matches InventoryPro's Revenue Analytics treatment more
+   closely than the original boxed cells above. */
+.stat-trio.plain { gap: 0; margin-bottom: 20px; }
+.stat-trio.plain .cell { background: none; padding: 0 24px; }
+.stat-trio.plain .cell:first-child { padding-left: 0; }
+.stat-trio.plain .cell:not(:first-child) { border-left: 1px solid rgba(79, 140, 255, 0.35); }
+.stat-trio.plain .cell .label { font-size: 11.5px; letter-spacing: .06em; margin-bottom: 6px; }
+.stat-trio.plain .cell .value { font-size: 26px; font-weight: 700; }
+.stat-trio.plain .cell .value.accent { color: var(--accent); }
+.stat-trio.plain .cell .value.positive { color: var(--success); }
+@media (max-width: 900px) {
+  .stat-trio.plain .cell { padding: 0; border-left: none !important; }
+}
+
+.updated-at { font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; }
+
+.chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+.chart-card h3 { margin: 0 0 2px; font-size: 15px; }
+.chart-card .chart-sub { margin: 0 0 16px; color: var(--ink-muted); font-size: 12px; }
+.chart-container { position: relative; height: 220px; }
+.chart-container.donut { height: 200px; }
+
+/* ------------------------------------------------------- Legend / shares */
+
+.legend-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-muted); margin-right: 16px; }
+.legend-row .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.legend-list { display: flex; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+
+.share-row { display: flex; align-items: center; gap: 10px; }
+.share-bar-track { flex: 1; height: 5px; border-radius: 100px; background: var(--bg); overflow: hidden; min-width: 60px; }
+.share-bar-fill { height: 100%; background: var(--accent); border-radius: 100px; }
+.share-pct { font-size: 11.5px; color: var(--ink-muted); min-width: 30px; text-align: right; }
+
+/* ------------------------------------------------------------ Activity */
+
+.activity-list { display: flex; flex-direction: column; }
+.activity-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+.activity-row:last-child { border-bottom: none; }
+.activity-row .who { font-weight: 500; font-size: 13px; }
+.activity-row .meta { font-size: 11.5px; color: var(--ink-faint); margin-top: 2px; }
+.activity-row .amt { text-align: right; font-weight: 600; font-family: 'Sora', sans-serif; }
+.activity-row .amt a { display: block; font-family: 'Inter', sans-serif; font-weight: 500; font-size: 11.5px; margin-top: 2px; }
+
+.section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+.section-card h3 { margin: 0 0 2px; font-size: 15px; }
+.section-card .chart-sub { margin: 0 0 14px; color: var(--ink-muted); font-size: 12px; }
+/* Read-only "active branch" indicator shown on every page except the
+   Dashboard, which keeps the real selector. See BranchContext in api.js. */
+.branch-context-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 12.5px;
+}
+.branch-context-badge strong { color: var(--ink); font-weight: 600; }
+/* Invoice "items on this invoice" table -- quantity / rate / total inputs.
+   These previously had no explicit colors, so they fell back to the
+   browser's native dark-mode control styling (color-scheme: dark above),
+   which renders spinner arrows and the read-only total field in a
+   near-white-on-white combination that's unreadable except in the light
+   theme. Give them explicit theme-aware colors so they're legible in both
+   themes and the up/down spinner buttons stay visible against the field. */
+.item-qty,
+.item-rate,
+.item-total {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color-scheme: light dark;
+}
+.item-total {
+  background: var(--bg-muted);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Read-only value shown inside a form in place of an editable input --
+   e.g. the branch on Add Purchase Invoice / Open Credit, which is
+   always the active dashboard branch (or the signed-in user's own
+   fixed branch) and is never client-editable. See invoice.js/credit.js. */
+.field-static {
+  padding: 9px 12px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------
+   Global numeric input fix (Update Request item 1)
+   - Remove browser spin arrows from every number input, app-wide.
+   - Scroll-wheel over a focused number input must not change its value
+     (handled in js/numeric-input-fix.js, loaded on every page).
+   --------------------------------------------------------------------- */
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Dashboard alert banner (Update Request item 15) -- a "go look at
+   this" nudge distinct from the static KPI tiles above it. */
+.dashboard-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border));
+  color: var(--ink);
+  font-size: 13.5px;
+}
+.dashboard-alert-banner-icon { font-size: 16px; }
+.dashboard-alert-banner-link { margin-left: auto; color: var(--danger); font-weight: 600; white-space: nowrap; }
+
+/* fix18: animated moon/sun swap in the sidebar theme toggle */
+.icon-swap { position: relative; display: inline-flex; width: 15px; height: 15px; flex: none; }
+.icon-swap svg {
+  position: absolute; top: 0; left: 0;
+  transition: opacity .3s ease, transform .3s ease;
+}
+.icon-swap .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+.icon-swap .icon-sun  { opacity: 0; transform: rotate(90deg) scale(.5); }
+[data-theme="light"] .icon-swap .icon-moon { opacity: 0; transform: rotate(-90deg) scale(.5); }
+[data-theme="light"] .icon-swap .icon-sun  { opacity: 1; transform: rotate(0deg) scale(1); }
+
+/* fix26: sticky actions column */
+/* Pins the Actions column in Inventory so it stays visible while the rest
+   of the table scrolls horizontally, instead of dragging off-screen with
+   no way to see it without dragging the scrollbar all the way right.
+   Scoped to #products-table only -- other tables keep normal scroll
+   behavior and are untouched. */
+#products-table thead th:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: #060a13;
+  box-shadow: -8px 0 8px -6px rgba(0, 0, 0, 0.4);
+}
+#products-table tbody td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: -8px 0 8px -6px rgba(0, 0, 0, 0.4);
+}
+/* fix28: light-mode table header contrast */
+/* The shared dark-header rule at line 446 hardcodes background: #060a13
+   instead of a theme variable, so in light mode the header keeps its
+   near-black background while color: var(--ink) correctly switches to
+   dark navy text -- dark-on-dark, unreadable. This overrides just the
+   background for light mode across the same 10 table IDs, leaving dark
+   mode untouched. */
+:root[data-theme="light"] #products-table thead th,
+:root[data-theme="light"] #sales-table thead th,
+:root[data-theme="light"] #bookings-table thead th,
+:root[data-theme="light"] #booking-history-table thead th,
+:root[data-theme="light"] #refunds-table thead th,
+:root[data-theme="light"] #credit-table thead th,
+:root[data-theme="light"] #pending-change-table thead th,
+:root[data-theme="light"] #pending-approval-table thead th,
+:root[data-theme="light"] #settled-change-table thead th,
+:root[data-theme="light"] #losses-table thead th {
+  background: var(--surface-raised);
+}
+/* fix29: light-mode sticky actions header contrast */
+/* fix26's sticky Actions header cell hardcodes the same #060a13 background
+   as the rest of the header row, so it has the identical light-mode
+   contrast bug fix28 just solved -- just scoped to :last-child since
+   that's what fix26 targets. Body cells already use var(--surface), which
+   is already theme-aware, so those don't need an override. */
+:root[data-theme="light"] #products-table thead th:last-child {
+  background: var(--surface-raised);
+}
+/* fix31: theme-toggle button reset */
+/* .theme-toggle is now a <button> (was a <label>) -- browsers apply
+   default button chrome (border, font, background) that a label never
+   had. This strips that back to plain, so the existing flex/background/
+   radius rules above keep controlling how it looks. */
+.theme-toggle {
+  border: none;
+  font: inherit;
+  width: 100%;
+  text-align: left;
+}
+/* fix35: theme-toggle big blue style */
+/* Bigger, accent-blue styled toggle button per user request -- reuses
+   the existing --accent / --accent-tint tokens (same blue as the active
+   nav-item highlight) rather than a new color. Overrides fix31's reset
+   for padding/font-size/color specifically; layout (flex, radius,
+   cursor) from the original rule at line 327 is untouched. */
+.theme-toggle {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent) !important;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.theme-toggle .icon-swap svg {
+  width: 20px;
+  height: 20px;
+}
+/* fix36: moon icon only blue, text back to normal */
+/* fix35 set color: var(--accent) on .theme-toggle, which cascades to
+   both the label text and the icons via stroke="currentColor" -- user
+   wants the label text back to normal and only the moon icon blue.
+   Overriding the text color back to --ink here, then re-applying accent
+   specifically to .icon-moon (not .icon-sun, per request). */
+.theme-toggle {
+  color: var(--ink) !important;
+}
+.theme-toggle .icon-swap .icon-moon {
+  color: var(--accent);
+}
+
+/* Product Categories > Edit modal: "Products in this category" list
+   as an aligned table (product info / Edit button), with a row
+   separator and column header -- Sept 2026 request. CSS-only; the
+   click handler in category-variants.js keys off .ecp-row/.ecp-summary
+   via closest()/querySelector() so this doesn't require any JS change. */
+.ecp-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+.ecp-row { border-bottom: 1px solid var(--border); }
+.ecp-row:last-child { border-bottom: none; }
+.ecp-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+}
+
+
+/* ---------------------------------------------------- Revenue analysis bar chart */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 100%;
+  padding-top: 8px;
+}
+.bar-chart .bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  min-width: 0;
+}
+.bar-chart .bar-col .bar-value {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+.bar-chart .bar-col .bar-fill {
+  width: 70%;
+  max-width: 36px;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: height 0.25s ease;
+}
+.bar-chart .bar-col.best .bar-fill { background: var(--success); }
+.bar-chart .bar-col .bar-label {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  margin-top: 6px;
+  white-space: nowrap;
+  text-align: center;
+}
+.bar-chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--ink-faint);
+  font-size: 13px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* fix37: roomier supplier field in the Add Product -> invoice prompt */
+#invoice-prompt-supplier-input {
+  width: 100%;
+  padding: 11px 14px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a3140);
+  background: var(--surface, #0c1220);
+  color: var(--ink, #e8ecf4);
+  box-sizing: border-box;
+}
+#invoice-prompt-supplier-input:focus {
+  outline: none;
+  border-color: var(--accent, #4a7dff);
+}
+/* fix38: keep the "Choose a draft invoice" select inside the modal
+   instead of stretching to fit its widest option text */
+#invoice-prompt-existing-select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a3140);
+  background: var(--surface, #0c1220);
+  color: var(--ink, #e8ecf4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#invoice-prompt-existing-select:focus {
+  outline: none;
+  border-color: var(--accent, #4a7dff);
+}
+
+/* ------------------------------------------------- Inventory Overview: unified panel */
+.overview-subgrid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+.overview-subgrid-3 .cell {
+  padding: 20px 22px;
+}
+.overview-subgrid-3 .cell:not(:first-child) {
+  border-left: 1px solid var(--border);
+}
+.overview-subgrid-2 {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+}
+.overview-subgrid-2 .cell {
+  padding: 20px 22px;
+}
+.overview-subgrid-2 .cell:not(:first-child) {
+  border-left: 1px solid var(--border);
+}
+@media (max-width: 900px) {
+  .overview-subgrid-3,
+  .overview-subgrid-2 {
+    grid-template-columns: 1fr;
+  }
+  .overview-subgrid-3 .cell:not(:first-child),
+  .overview-subgrid-2 .cell:not(:first-child) {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* fix59: sidebar sizes match InventoryPro */
+@media (min-width: 761px) {
+  .sidebar { padding-bottom: 16px; }
+
+  /* ---- menu list ---- */
+  .sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 32px;
+  }
+  .sidebar .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 10px 16px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+  }
+  .sidebar .nav-item.active { font-weight: 500; }
+  .sidebar .nav-item .nav-icon {
+    flex: 0 0 20px;
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sidebar .nav-item .nav-icon svg { width: 20px; height: 20px; }
+
+  /* ---- Dark mode box ---- */
+  .theme-toggle.theme-toggle {
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    height: 46px;
+    padding: 0 16px;
+    border-radius: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border) !important;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+    justify-content: space-between;
+    color: var(--ink-muted) !important;
+  }
+  .theme-toggle.theme-toggle::before {
+    content: "";
+    position: absolute;
+    left: -16px;
+    right: -16px;
+    top: -17px;
+    height: 1px;
+    background: var(--border);
+  }
+  .theme-toggle .icon-swap svg { width: 20px; height: 20px; }
+
+  /* ---- Sign Out (no box) ---- */
+  .theme-toggle + .sidebar-footer {
+    margin-top: 8px;
+    padding-top: 0;
+    border-top: none;
+  }
+  .sidebar-footer .signout-link {
+    box-sizing: border-box;
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 24px;
+    color: var(--danger);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .sidebar-footer .signout-link:hover {
+    text-decoration: none;
+    background: var(--danger-tint);
+  }
+  .sidebar-footer .signout-link svg { width: 20px; height: 20px; }
+}
+
+/* fix60: KPI cards match InventoryPro */
+@media (min-width: 761px) {
+  .kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    padding: 24px;
+    border-radius: 16px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+  .kpi-card .label {
+    display: flex;
+    align-items: center;
+    min-height: 36px;
+    margin: 0;
+    padding-right: 44px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+  .kpi-card:has(.kpi-hide-toggle) .label { padding-right: 76px; }
+  .kpi-card .value {
+    margin-top: 16px;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 36px;
+  }
+  .kpi-card .sub {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+  .kpi-card .icon {
+    top: 24px;
+    right: 24px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+  .kpi-card .icon svg { width: 20px; height: 20px; }
+  .kpi-hide-toggle { top: 28px; right: 68px; }
+}
+@media (min-width: 1024px) {
+  .kpi-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ---- Ringing bell + rotating notification pop-up ---- */
+@keyframes bell-ring {
+  0%, 36%, 100% { transform: rotate(0); }
+  4%  { transform: rotate(16deg); }
+  8%  { transform: rotate(-14deg); }
+  12% { transform: rotate(12deg); }
+  16% { transform: rotate(-10deg); }
+  20% { transform: rotate(7deg); }
+  24% { transform: rotate(-5deg); }
+  28% { transform: rotate(3deg); }
+}
+#notif-bell-btn.bell-ringing svg {
+  transform-origin: 50% 10%;
+  animation: bell-ring 2.6s ease-in-out infinite;
+}
+.notif-popup {
+  position: fixed; top: 70px; right: 24px; z-index: 1200;
+  display: flex; align-items: center; gap: 10px;
+  min-width: 220px; max-width: 320px; padding: 10px 14px;
+  border-radius: 12px; background: #1f2433; color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,.28); text-decoration: none;
+  opacity: 0; transform: translateY(-8px); pointer-events: none;
+  transition: opacity .25s, transform .25s;
+}
+.notif-popup.visible { opacity: 1; transform: none; pointer-events: auto; }
+.notif-popup-icon {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+/* ===== Restock List polish ===== */
+main table, .content table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #0f1a2e;
+  border: 1px solid #1f2d4a;
+  border-radius: 14px;
+  overflow: hidden;
+  font-size: 15px;
+}
+main table thead th, .content table thead th {
+  background: #16233d;
+  color: #93c5fd;
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 14px 16px;
+  border-bottom: 2px solid #3b82f6;
+}
+main table tbody td, .content table tbody td {
+  padding: 14px 16px;
+  color: #e5edff;
+  font-weight: 600;
+  border-bottom: 1px solid #1b2a47;
+  vertical-align: middle;
+}
+main table tbody tr:nth-child(even), .content table tbody tr:nth-child(even) { background: #0d1729; }
+main table tbody tr:hover, .content table tbody tr:hover { background: #172a4d; }
+main table tbody tr:last-child td, .content table tbody tr:last-child td { border-bottom: 0; }
+main table td:first-child, .content table td:first-child { font-weight: 800; color: #fff; }
+main table img, .content table img {
+  width: 44px; height: 44px; object-fit: cover;
+  border-radius: 10px; border: 1px solid #2a3d63;
+}
+
+/* qty + unit inputs inside the table and the add form */
+main input[type="text"], main input[type="number"], main select,
+.content input[type="text"], .content input[type="number"], .content select {
+  background: #0b1424;
+  color: #fff;
+  border: 1px solid #2a3d63;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 600;
+}
+main input:focus, main select:focus, .content input:focus, .content select:focus {
+  outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.25);
+}
+main input[type="file"]::file-selector-button, .content input[type="file"]::file-selector-button {
+  background: #16233d; color: #93c5fd; font-weight: 700;
+  border: 1px solid #2a3d63; border-radius: 10px;
+  padding: 9px 14px; margin-right: 10px; cursor: pointer;
+}
+main input[type="file"]::file-selector-button:hover, .content input[type="file"]::file-selector-button:hover { background: #1d3158; }
+
+/* ===== Restock: Add items from Inventory button ===== */
+.btn-restock-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 22px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff !important;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: .02em;
+  text-decoration: none !important;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, .35);
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.btn-restock-add::before {
+  content: "+";
+  display: inline-grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  background: rgba(255, 255, 255, .2);
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+}
+.btn-restock-add:hover { transform: translateY(-2px); filter: brightness(1.08); box-shadow: 0 10px 24px rgba(37, 99, 235, .5); }
+.btn-restock-add:active { transform: translateY(0); box-shadow: 0 3px 10px rgba(37, 99, 235, .4); }
+
+/* force Restock add button to win over btn-ghost */
+a.btn-restock-add.btn-ghost {
+  background: linear-gradient(135deg, #3b82f6, #2563eb) !important;
+  border: 0 !important;
+  color: #fff !important;
+  padding: 12px 22px !important;
+  border-radius: 12px !important;
+}
+
+/* Restock add button: smaller, softer glow */
+a.btn-restock-add, .btn-restock-add {
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  gap: 8px !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, .25) !important;
+}
+.btn-restock-add::before {
+  width: 18px !important;
+  height: 18px !important;
+  font-size: 13px !important;
+}
+.btn-restock-add:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, .35) !important;
+}
+
+/* ===== Restock: finishing touches ===== */
+/* supplier box in the bottom bar */
+input[placeholder^="Supplier name"] {
+  background: #0b1424 !important;
+  color: #fff !important;
+  border: 1px solid #2a3d63 !important;
+  border-radius: 10px !important;
+  padding: 10px 14px !important;
+  font-weight: 600;
+  min-width: 220px;
+}
+input[placeholder^="Supplier name"]:focus {
+  outline: none;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.25);
+}
+
+/* bigger, blue checkboxes */
+main input[type="checkbox"], .content input[type="checkbox"] {
+  width: 18px; height: 18px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+/* Remove buttons: subtle red, clearly destructive */
+main table tbody td button, .content table tbody td button {
+  background: rgba(239, 68, 68, .10);
+  color: #fca5a5;
+  font-weight: 700;
+  border: 1px solid rgba(239, 68, 68, .35);
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+main table tbody td button:hover, .content table tbody td button:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* ===== Inventory table v2: content-sized columns, nothing cut off ===== */
+div:has(> table.inv-table) { overflow-x: auto; max-width: 100%; }
+
+table.inv-table {
+  width: 100%;
+  table-layout: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+table.inv-table th, table.inv-table td {
+  position: static !important;      /* actions column no longer sticks/moves */
+  padding: 12px 10px;
+  vertical-align: middle;
+  overflow: visible;
+  text-overflow: clip;
+}
+table.inv-table th { white-space: nowrap; font-size: 12px; }
+table.inv-table td { font-size: 14px; }
+
+/* product name wraps instead of being cut */
+table.inv-table td:nth-child(3) { white-space: normal; overflow-wrap: break-word; min-width: 140px; }
+
+/* actions: keep the four links together and fully visible */
+table.inv-table td:last-child, table.inv-table th:last-child {
+  text-align: right;
+  min-width: 150px;
+  background: transparent !important;
+}
+table.inv-table td:last-child a, table.inv-table td:last-child button { margin-left: 8px; white-space: nowrap; }
+
+/* bigger, clearer checkboxes */
+table.inv-table input[type="checkbox"] {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+/* ===== Inventory: Actions column = content width, at the right end ===== */
+#products-table th:last-child,
+#products-table td:last-child {
+  position: static !important;
+  width: 1% !important;          /* shrink to fit the links, other columns take the rest */
+  min-width: 0 !important;
+  white-space: nowrap !important;
+  text-align: right !important;
+  box-shadow: none !important;   /* removes the old divider line */
+  padding-right: 20px !important;
+}
+#products-table .row-actions-links { align-items: flex-end; }
+#products-table .row-actions-line { white-space: nowrap; gap: 14px; }
+#products-table td:last-child a,
+#products-table td:last-child button { margin-left: 0 !important; }
+
+/* ===== Inventory: tight columns, Actions right next to Stock ===== */
+#products-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: auto !important;
+}
+#products-table th, #products-table td {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+#products-table th:last-child, #products-table td:last-child {
+  position: static !important;
+  width: auto !important;
+  min-width: 0 !important;
+  text-align: left !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  white-space: nowrap !important;
+}
+#products-table .row-actions-links { align-items: flex-start !important; }
+#products-table .row-actions-line { justify-content: flex-start !important; gap: 12px !important; }
+
+/* ===== Inventory table: one consistent color scheme (dark mode) ===== */
+:root:not([data-theme="light"]) #products-table thead th,
+:root:not([data-theme="light"]) #products-table thead th:last-child {
+  background: #16233d !important;
+  color: #93c5fd !important;
+  border-bottom: 2px solid #3b82f6 !important;
+  box-shadow: none !important;
+}
+:root:not([data-theme="light"]) #products-table tbody td,
+:root:not([data-theme="light"]) #products-table tbody td:last-child {
+  background: transparent !important;
+  border-bottom: 1px solid #1b2a47;
+}
+:root:not([data-theme="light"]) #products-table tbody tr:nth-child(even) { background: #0d1729; }
+:root:not([data-theme="light"]) #products-table tbody tr:hover { background: #172a4d; }
+
+/* ===== Inventory: category / brand / size shown under the product name ===== */
+#products-table td.name-cell { white-space: normal; overflow-wrap: anywhere; min-width: 200px; }
+#products-table td { padding-top: 14px !important; padding-bottom: 14px !important; }
+#products-table td.mono { white-space: nowrap; }
+.cell-sub {
+  display: flex; flex-wrap: wrap; align-items: center;
+  margin-top: 4px; font-size: 12.5px; font-weight: 400; color: var(--ink-faint);
+}
+.cell-sub span + span::before { content: "\00b7"; margin: 0 7px; opacity: .7; }
+
+/* ===== Inventory: InventoryPro-style layout (plain header, even columns, one-line actions) ===== */
+#products-table { table-layout: fixed !important; width: 100% !important; min-width: 880px !important; }
+#products-table th.c-img { width: 108px; }
+#products-table th.c-name { width: 28%; }
+#products-table th.c-barcode { width: 17%; }
+#products-table th.c-price { width: 12%; }
+#products-table th.c-stock { width: 14%; }
+#products-table th, #products-table td { padding: 18px 16px !important; vertical-align: middle; }
+#products-table th:first-child, #products-table td:first-child { padding-left: 28px !important; }
+#products-table th.thumb-cell, #products-table td.thumb-cell { width: 64px !important; padding-left: 24px !important; padding-right: 0 !important; }
+#products-table th.thumb-cell + th, #products-table td.thumb-cell + td { padding-left: 12px !important; }
+#products-table thead th { font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+#products-table th.c-actions, #products-table td.c-actions { text-align: right !important; padding-right: 28px !important; }
+
+:root:not([data-theme="light"]) #products-table thead th,
+:root:not([data-theme="light"]) #products-table thead th:last-child {
+  background: #0a111f !important;
+  color: #cbd5e1 !important;
+  border-bottom: 1px solid #1b2a47 !important;
+  box-shadow: none !important;
+}
+:root:not([data-theme="light"]) #products-table tbody td,
+:root:not([data-theme="light"]) #products-table tbody td:last-child { border-bottom: 1px solid #16233a; }
+:root:not([data-theme="light"]) #products-table tbody tr:last-child td { border-bottom: 0; }
+:root:not([data-theme="light"]) #products-table tbody tr:nth-child(even) { background: transparent; }
+:root:not([data-theme="light"]) #products-table tbody tr:hover { background: rgba(148, 163, 184, .06); }
+
+#products-table td.name-cell { min-width: 0; padding-right: 24px !important; }
+#products-table .cell-strong { font-size: 16px; font-weight: 600; }
+#products-table td.mono { font-size: 14px; font-weight: 400; letter-spacing: .03em; color: var(--ink-muted, #94a3b8); }
+#products-table .cell-sub { font-size: 13px; margin-top: 4px; color: var(--ink-muted, #94a3b8); }
+
+#products-table .row-actions-links { flex-direction: row !important; flex-wrap: wrap; justify-content: flex-end !important; align-items: center !important; gap: 8px 20px; }
+#products-table .row-actions-line { display: contents !important; }
+#products-table .action-link { font-size: 14px; font-weight: 500; }
+
+/* ===== Inventory: select checkbox only shows after pressing "Select items" ===== */
+#products-table .img-wrap { position: relative; width: 56px; height: 56px; }
+#products-table .restock-select-check {
+  display: none; position: absolute; top: 5px; left: 5px; z-index: 2; margin: 0; cursor: pointer;
+  outline: 2px solid rgba(10, 17, 31, .85); outline-offset: 0; border-radius: 4px;
+}
+#products-table.selecting .restock-select-check { display: block; }
+
+/* ===== Calmer palette: shared tables, form fields and the Restock page buttons ===== */
+main table thead th, .content table thead th {
+  background: #0a111f;
+  color: #cbd5e1;
+  font-weight: 600;
+  border-bottom: 1px solid #1b2a47;
+}
+main table tbody td, .content table tbody td {
+  color: #e2e8f0;
+  font-weight: 500;
+  border-bottom: 1px solid #16233a;
+}
+main table tbody tr:nth-child(even), .content table tbody tr:nth-child(even) { background: transparent; }
+main table tbody tr:hover, .content table tbody tr:hover { background: rgba(148, 163, 184, .06); }
+main table td:first-child, .content table td:first-child { font-weight: 600; color: #f1f5f9; }
+
+main input[type="text"], main input[type="number"], main select,
+.content input[type="text"], .content input[type="number"], .content select {
+  color: #e2e8f0;
+  font-weight: 500;
+  border-color: #24334f;
+}
+main input:focus, main select:focus, .content input:focus, .content select:focus {
+  border-color: #4b78c4;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .15);
+}
+main input[type="file"]::file-selector-button, .content input[type="file"]::file-selector-button {
+  background: #131f35; color: #cbd5e1; font-weight: 500; border-color: #24334f;
+}
+main input[type="file"]::file-selector-button:hover, .content input[type="file"]::file-selector-button:hover { background: #18263f; }
+input[placeholder^="Supplier name"] { border-color: #24334f !important; font-weight: 500; }
+input[placeholder^="Supplier name"]:focus { border-color: #4b78c4 !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, .15); }
+
+a.btn-restock-add, .btn-restock-add, a.btn-restock-add.btn-ghost {
+  background: rgba(59, 130, 246, .14) !important;
+  color: #93c5fd !important;
+  border: 1px solid rgba(59, 130, 246, .35) !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+.btn-restock-add::before { background: rgba(147, 197, 253, .18) !important; }
+a.btn-restock-add:hover, .btn-restock-add:hover {
+  background: rgba(59, 130, 246, .22) !important;
+  transform: none !important;
+  filter: none;
+  box-shadow: none !important;
+}
+
+main table tbody td button:hover, .content table tbody td button:hover {
+  background: rgba(239, 68, 68, .2);
+  color: #fecaca;
+}
+
+/* ===== POS: fixed-size cart area with a cart icon watermark behind the items ===== */
+#cart-body {
+  height: 290px; overflow-y: auto; scrollbar-width: thin;
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%238493ad'%20stroke-opacity='0.2'%20stroke-width='1.4'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx='6'%20cy='19'%20r='2'/%3E%3Ccircle%20cx='17'%20cy='19'%20r='2'/%3E%3Cpath%20d='M17%2017h-11v-14h-2'/%3E%3Cpath%20d='M6%205l14%201l-1%207h-13'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: center 38%; background-size: 104px 104px;
+}
+#cart-body:has(.cart-empty) { background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='%238493ad'%20stroke-opacity='0.55'%20stroke-width='1.4'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Ccircle%20cx='6'%20cy='19'%20r='2'/%3E%3Ccircle%20cx='17'%20cy='19'%20r='2'/%3E%3Cpath%20d='M17%2017h-11v-14h-2'/%3E%3Cpath%20d='M6%205l14%201l-1%207h-13'/%3E%3C/svg%3E"); }
+.cart-empty { padding: 176px 0 0; text-align: center; font-size: 15px; color: var(--ink-muted, #8493ad); }
+
+
+/* ===== POS: heading strip as a rounded card with roomy padding ===== */
+.pos-head-card {
+  align-items: center; padding: 24px 28px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 18px;
+}
+@media (max-width: 900px) { .pos-head-card { padding: 18px; } }
+
+/* === LOGIN SIZE OVERRIDE (InventoryPro size) === */
+.login-shell { align-items: flex-start; padding: 60px 16px 32px; box-sizing: border-box; }
+.login-card { max-width: 448px; padding: 32px; border-radius: 20px; box-sizing: border-box; }
+.login-card .login-brand { gap: 12px; margin-bottom: 10px; }
+.login-card .login-brand h1 { font-size: 22px; }
+.login-card .swatch-mark { transform: scale(1.1); transform-origin: left center; margin-right: 4px; }
+.login-card .login-sub { font-size: 14px; margin: 0 0 32px; }
+.login-card .field { margin-bottom: 24px; }
+.login-card .field label { font-size: 14px; font-weight: 600; margin-bottom: 11px; }
+.login-card .field input { height: 50px; padding: 0 14px; font-size: 14px; border-radius: 11px; box-sizing: border-box; }
+.login-card .btn-primary { height: 48px; font-size: 15px; font-weight: 600; border-radius: 11px; box-shadow: 0 8px 24px rgba(79, 140, 255, 0.25); }
+.login-card .login-links { margin-top: 20px; font-size: 13px; }
+@media (max-width: 600px) {
+  .login-shell { padding: 28px 14px 24px; }
+  .login-card { padding: 26px 20px; border-radius: 18px; }
+}
+/* === LOGIN CENTER BRAND === */
+.login-card { text-align: center; }
+.login-card form { text-align: left; }
+.login-logo {
+  width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 50%;
+  background: var(--accent-tint); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+}
+.login-logo svg { width: 30px; height: 30px; }
+.login-title { font-size: 26px; margin: 0 0 8px; }
+.login-card .login-sub { margin: 0 0 32px; }
+/* ===== Login redesign (Oct 2026) ===== */
+.login-shell {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 500px at 15% -10%, rgba(79, 140, 255, 0.16), transparent 60%),
+    radial-gradient(700px 500px at 110% 10%, rgba(130, 90, 255, 0.14), transparent 55%),
+    var(--bg);
+}
+.login-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(circle at 50% 30%, black, transparent 70%);
+  pointer-events: none;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(180deg, var(--surface-raised), var(--surface));
+  border: 1px solid var(--border);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 20px 60px -20px rgba(0,0,0,0.55),
+    0 0 0 1px rgba(79,140,255,0.04);
+  animation: login-card-in 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes login-card-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.login-logo {
+  background: linear-gradient(135deg, var(--accent), #8a5cff);
+  color: #fff;
+  box-shadow: 0 8px 24px -6px rgba(79, 140, 255, 0.55);
+}
+
+.login-title {
+  background: linear-gradient(135deg, var(--ink), var(--ink-muted));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.01em;
+}
+
+.login-card .field input {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.login-card .field input:focus {
+  box-shadow: 0 0 0 4px rgba(79, 140, 255, 0.14);
+}
+.login-card .field input:hover:not(:focus) {
+  border-color: var(--ink-faint);
+}
+
+.login-card .btn-primary {
+  background: linear-gradient(135deg, var(--accent), #6d5bff);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.login-card .btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 12px 28px -8px rgba(79, 140, 255, 0.5);
+}
+.login-card .btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login-links a {
+  font-weight: 500;
+  transition: opacity 0.15s ease;
+}
+.login-links a:hover { opacity: 0.8; text-decoration: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card { animation: none; }
+}
+
+/* ---- POS cart: aligned totals rows ----
+   Coupon, Discount and Payment share one two-column grid: labels in a fixed
+   left column, controls filling the right column, all 36px tall and centred
+   on the label. Nothing can run past the card edge. */
+.cart-totals .row.has-controls {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  margin-bottom: 10px;
+  line-height: 1.25;
+}
+.cart-totals .row-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.cart-totals .row.has-controls input,
+.cart-totals .row.has-controls select,
+.cart-totals .row.has-controls .btn {
+  box-sizing: border-box;
+  height: 36px;
+  margin: 0;
+  font-size: 13px;
+}
+.cart-totals .row.has-controls input,
+.cart-totals .row.has-controls select {
+  min-width: 0;
+  padding: 0 10px;
+}
+.cart-totals .row.has-controls .btn {
+  flex: 0 0 auto;
+  padding: 0 14px;
+}
+.cart-totals #coupon-input { flex: 1 1 auto; width: auto; text-transform: uppercase; }
+.cart-totals #tender-method-select { flex: 0 0 96px; width: 96px; }
+.cart-totals #tender-amount-input { flex: 1 1 auto; width: auto; text-align: right; }
+.cart-totals #discount-input { width: 100%; text-align: right; }
+.cart-totals .row:not(.has-controls) { align-items: center; }
+
+/* ---- POS cart: Payment row gets its own line for the controls ----
+   The amount being typed must always be fully readable, so the label sits
+   above and the dropdown / amount / Add button share the full card width. */
+.cart-totals .row.has-controls.stack {
+  grid-template-columns: minmax(0, 1fr);
+  row-gap: 6px;
+}
+.cart-totals .row.has-controls.stack #tender-method-select { flex: 0 0 104px; width: 104px; }
+.cart-totals .row.has-controls.stack #tender-amount-input {
+  flex: 1 1 140px;
+  min-width: 120px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+/* number-input arrows eat into the box and can hide digits */
+.cart-totals #tender-amount-input::-webkit-outer-spin-button,
+.cart-totals #tender-amount-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cart-totals #tender-amount-input { -moz-appearance: textfield; appearance: textfield; }
+
+/* ---- POS cart: coupon removal sits alone under the Discount box ---- */
+.cart-totals .coupon-remove-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  column-gap: 10px;
+  margin: -4px 0 10px;
+}
+.cart-totals .coupon-remove-row[style*="display: none"] { display: none; }
+.cart-totals .coupon-remove-row #coupon-remove {
+  grid-column: 2;
+  justify-self: end;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--danger);
+  text-decoration: none;
+  cursor: pointer;
+}
+.cart-totals .coupon-remove-row #coupon-remove:hover { text-decoration: underline; }
+
+/* ---- POS cart scrolls on its own ----
+   The cart panel stays pinned beside the product grid and gets its own
+   scrollbar when it is taller than the screen. Scrolling over it moves only
+   the cart (overscroll-behavior stops the page behind it from moving too). */
+@media (min-width: 901px) {
+  .cart-card {
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .cart-card::-webkit-scrollbar { width: 6px; }
+  .cart-card::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+  .cart-card::-webkit-scrollbar-track { background: transparent; }
+}
+
+/* ---- POS heading card: keep the buttons on the right, level with the title ----
+   Longer button labels used to push the whole button group onto a second
+   line under the title. Now the title block gives up width first (its subtitle
+   simply wraps), and the buttons only wrap among themselves if the screen is
+   genuinely too narrow for them. */
+@media (min-width: 761px) {
+  .pos-head-card { flex-wrap: nowrap; gap: 20px; }
+  .pos-head-card > div:first-child { flex: 1 1 240px; min-width: 0; }
+  .pos-head-card > div:last-child {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 80%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .pos-head-card .btn,
+  .pos-head-card .pill-btn,
+  .pos-head-card .status-pill { white-space: nowrap; }
+}
+
+/* ---- POS cart: buttons always visible, only the item list scrolls ----
+   Replaces the earlier "whole card scrolls" behaviour, which pushed
+   Complete checkout / Book / Open Credit out of sight. The card now fits the
+   screen; the items area flexes to fill whatever height is left and scrolls
+   by itself when the cart is long. */
+@media (min-width: 901px) {
+  .cart-card {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;            /* last-resort scroll on very short screens */
+    overscroll-behavior: contain;
+  }
+  .cart-card > * { flex: 0 0 auto; }
+  .cart-card > #cart-body {
+    flex: 1 1 200px;
+    height: auto;
+    min-height: 200px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  /* real cart rows should fill the width, not be centred */
+  .cart-card > #cart-body:not(:has(.cart-empty)) { display: block; }
+  #cart-body .cart-empty { padding: 0 0 24px; }
+}
+
+/* ---- POS heading card: "POS code" and "Website code" buttons ----
+   Same height as the other header controls, icon + label centred together. */
+.pos-head-card #generate-coupon-btn,
+.pos-head-card button.btn-ghost.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  line-height: 1;
+}
+.pos-head-card #generate-coupon-btn[style*="display: none"] { display: none; }
+.pos-head-card button.btn-ghost.btn-sm svg { flex: 0 0 auto; opacity: 0.85; }
+
+/* ---- POS cart: header and empty state copied from the InventoryPro cart ----
+   Header: big "Current Sale" title, red Clear, full-width divider.
+   Empty state: 64px cart icon (1.5 stroke, same shape as InventoryPro's),
+   16px gap, then "Cart is empty" in the muted text colour. The icon is drawn
+   with a mask so it follows the theme colour in dark and light mode. */
+.cart-card h3 {
+  margin: -18px -18px 0;
+  padding: 34px 24px;
+  border-bottom: 1px solid var(--border);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.cart-card h3 a { font-size: 16px; font-weight: 500; color: var(--danger); }
+.cart-card h3 a:hover { text-decoration: underline; }
+.cart-card h3 + .modal-actions { margin-top: 16px !important; }
+
+.cart-card #cart-body:has(.cart-empty) {
+  background-image: none;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+.cart-card #cart-body .cart-empty {
+  width: 100%;
+  min-height: 240px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--ink-muted, #8d9db8);
+}
+.cart-card #cart-body .cart-empty::before {
+  content: "";
+  width: 64px;
+  height: 64px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* ===== Warehouse page: black-header tables on navy rows + padded section headings (Oct 2026) ===== */
+.wh-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.wh-table thead th {
+  background: #060a13;
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.wh-table tbody td {
+  background: var(--surface);
+  color: #e2e8f0;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.wh-table tbody tr:nth-child(even) td { background: var(--surface); }
+.wh-table tbody tr:hover td { background: var(--surface-raised); }
+.wh-table tbody tr:last-child td { border-bottom: 0; }
+.wh-table .th-history,
+#warehouse-stock-tbody td:last-child { text-align: center; }
+.wh-table tbody td:last-child .btn-sm { white-space: nowrap; }
+
+/* Section headings inside the table cards: room above, beside and below */
+.table-card > .wh-card-title { margin: 0; padding: 26px 28px 6px; font-size: 17px; }
+.table-card > .wh-card-sub { margin: 0; padding: 0 28px 20px; color: var(--ink-faint); font-size: 13px; }
+.table-card > .wh-card-head-row {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  padding: 26px 28px 20px;
+}
+.table-card > .wh-card-head-row .wh-card-title { padding: 0; }
+.table-card > .wh-card-title:not(:has(+ .wh-card-sub)) { padding-bottom: 20px; }
+/* keep the tables aligned with the padded heading instead of touching the card edge */
+.table-card > .wh-table { width: calc(100% - 56px); margin: 0 28px 28px; }
+.table-card > .table-scroll { padding: 0 28px 28px; }
+#push-history-backdrop .wh-table { margin: 0; }
+
+:root[data-theme="light"] .wh-table { background: var(--surface); border-color: var(--border); }
+:root[data-theme="light"] .wh-table thead th { background: var(--surface-raised); color: var(--ink); border-bottom-color: var(--border); }
+:root[data-theme="light"] .wh-table tbody td { background: var(--surface); color: var(--ink); border-bottom-color: var(--border); }
+:root[data-theme="light"] .wh-table tbody tr:hover td { background: var(--bg-muted); }
+
+/* Warehouse header card: same look as the Invoice header (icon tile, title, divider, branch row) */
+.wh-top .page-head { align-items: center; }
+.wh-top .card-head { margin-bottom: 0; align-items: center; gap: 14px; }
+.wh-top .card-head .card-icon { width: 44px; height: 44px; border-radius: 12px; }
+.wh-top .card-head .card-icon svg { width: 20px; height: 20px; }
+.wh-top .card-head .card-titles h2 { margin: 0 0 2px; font-size: 24px; line-height: 1.2; }
+.wh-top .card-head .card-titles p { margin: 0; color: var(--ink-muted); font-size: 14px; }
+
+/* Warehouse header: branch badge sits at the right end of the title row */
+.wh-top .page-head { justify-content: space-between; flex-wrap: nowrap; }
+.wh-top .page-head > .card-head { flex: 1 1 auto; min-width: 0; }
+.wh-top #branch-badge { flex: 0 0 auto; margin-left: auto; }
+.wh-top #branch-badge > * { height: 40px; box-sizing: border-box; display: inline-block; line-height: 38px; padding-top: 0; padding-bottom: 0; white-space: nowrap; }
+/* title row, divider, then the tab bar -- same structure as the Transactions header */
+.wh-top .page-head { padding-bottom: 18px; border-bottom: 1px solid var(--border); margin-bottom: 0; }
+.wh-top #warehouse-section-tabs.tabs {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 0;
+  background: #060a13; border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4); padding: 5px;
+}
+.wh-top #warehouse-section-tabs button { padding: 8px 16px; border: 1px solid transparent; color: var(--ink-muted); }
+.wh-top #warehouse-section-tabs button:hover:not(.active) { color: var(--ink); background: var(--bg-muted); }
+.wh-top #warehouse-section-tabs button.active { background: var(--surface-raised); color: var(--ink); box-shadow: 0 2px 8px rgba(79, 140, 255, 0.35); }
+:root[data-theme="light"] .wh-top #warehouse-section-tabs.tabs { background: var(--surface-raised); box-shadow: none; }
+@media (max-width: 720px) {
+  .wh-top #warehouse-section-tabs.tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .wh-top #warehouse-section-tabs button { flex-shrink: 0; white-space: nowrap; }
+}
+@media (max-width: 720px) { .wh-top .page-head { flex-wrap: wrap; } }
+
+/* Warehouse form cards (Push to warehouse, Branch-to-branch transfer, Log a waybill complaint):
+   same roomy padding as the history cards */
+.wh-form-card { padding: 26px 28px; }
+.wh-form-card > h3 { margin: 0 0 6px !important; font-size: 17px; }
+.wh-form-card > p { margin: 0 0 22px !important; }
+.wh-form-card .error-banner { margin-bottom: 16px; }
+
+
+/* ===== Staff / Team page: same header card, tab bar and tables as Warehouse ===== */
+.staff-top .tabs {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 18px 0 0;
+  background: #060a13; border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4); padding: 5px;
+}
+.staff-top .tabs button { padding: 8px 16px; border: 1px solid transparent; background: transparent; color: var(--ink-muted); font-size: 13.5px; }
+.staff-top .tabs button:hover:not(.active) { color: var(--ink); background: var(--bg-muted); }
+.staff-top .tabs button.active { background: var(--surface-raised); color: var(--ink); box-shadow: 0 2px 8px rgba(79, 140, 255, 0.35); }
+:root[data-theme="light"] .staff-top .tabs { background: var(--surface-raised); box-shadow: none; }
+@media (max-width: 720px) {
+  .staff-top { margin: 16px !important; }
+  .staff-top .tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+  .staff-top .tabs button { flex-shrink: 0; white-space: nowrap; }
+}
+/* the section panels below the header card: tighter top gap, smaller section titles */
+/* The Team header card and each section's title row are one fused panel
+   (same idea as Transactions): the card loses its bottom edge and the
+   section block continues it, with the hairline between them. */
+.staff-top { border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.staff-top ~ .main { padding-top: 0; }
+.staff-fuse {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 22px 24px; margin-bottom: 20px;
+}
+.staff-fuse .page-head { margin: 0; padding: 0; border: 0; align-items: center; gap: 16px; flex-wrap: nowrap; }
+.staff-fuse .page-head h2 { font-size: 18px; margin: 0 0 4px; }
+.staff-fuse .page-head .btn { flex: 0 0 auto; white-space: nowrap; }
+.staff-fuse > .toolbar { margin: 18px 0 0 !important; }
+.staff-fuse > .toolbar .segmented { background: #060a13; }
+/* sub-tab filter rows (role filter, status filters) sit just under the fused panel */
+/* Staff tab: the filter row for whichever sub-tab is open joins the fused panel,
+   with the branch badge pushed to the right end. */
+.staff-fuse-open { border-bottom: 0; border-radius: 0; margin-bottom: 0; padding-bottom: 20px; }
+#active-panel > .toolbar, #applications-panel > .toolbar, #resets-panel > .toolbar {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 18px 24px; margin: 0 0 20px; align-items: center; gap: 12px;
+}
+#active-panel > .toolbar select,
+#applications-panel > .toolbar select,
+#resets-panel > .toolbar select { height: 40px; }
+#active-panel > .toolbar #branch-badge { margin-left: auto; }
+#active-panel > .toolbar #branch-badge > * { height: 40px; box-sizing: border-box; display: inline-block; line-height: 38px; padding-top: 0; padding-bottom: 0; white-space: nowrap; }
+@media (max-width: 720px) { .staff-fuse .page-head { flex-wrap: wrap; } }
+
+/* tables that fill their card edge to edge (no inset, no second border) */
+.table-card > .wh-table.wh-flush { width: 100%; margin: 0; border: none; border-radius: 0; }
+.wh-table th.th-actions { text-align: right; }
+
+/* Action columns: header and buttons share the same right edge in every table that has an Actions/Action header */
+.wh-table:has(th.th-actions) tbody td:last-child { text-align: right; white-space: nowrap; }
+.wh-table:has(th.th-actions) tbody td:last-child .row-actions,
+.wh-table:has(th.th-actions) tbody td:last-child .row-actions-line { justify-content: flex-end; }
+.wh-table:has(th.th-actions) tbody td:last-child .btn,
+.wh-table:has(th.th-actions) tbody td:last-child .action-link { margin-left: 0; }
+
+
+/* ===== Reports page: one fused header card, padded table headings ===== */
+.rep-top.page-head { display: block !important; padding: 22px 24px 20px; margin-bottom: 16px; }
+.rep-top .rep-row {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  padding-bottom: 18px; border-bottom: 1px solid var(--border);
+}
+.rep-top .rep-row .card-head { flex: 1 1 320px; min-width: 0; }
+.rep-top .rep-row .top-actions { flex: 0 0 auto; }
+.rep-top .page-top-filters .toolbar { justify-content: flex-end; width: 100%; }
+.rep-top #branch-badge { margin-left: auto; }
+/* staff view has no branch badge: drop the empty filter row and the divider above it */
+.rep-top .page-top-filters:not(:has(#branch-badge)) { display: none; }
+.rep-top:not(:has(#branch-badge)) .rep-row { border-bottom: 0; padding-bottom: 0; }
+@media (max-width: 720px) { .rep-top.page-head { padding: 16px; } }
+
+/* title + hint + control inside a table card's head row */
+.wh-card-head-row h3 { margin: 0 0 4px; font-size: 17px; }
+.wh-card-head-row p { margin: 0; color: var(--ink-faint); font-size: 13px; max-width: 760px; }
+/* wide tables (coupon traceability) scroll inside their card instead of being clipped */
+.table-card:has(> .wh-table:not(.wh-flush)) { overflow-x: auto; }
+
+/* Reports / Performance tabs, moved inside the header card: same dark pill bar as Transactions */
+.rep-tabs {
+  margin: 18px 0 0; background: #060a13; border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4); padding: 5px;
+}
+.rep-tabs > * { display: flex !important; flex-wrap: wrap; gap: 6px; margin: 0 !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+.rep-tabs a, .rep-tabs button {
+  background: transparent !important; border: 1px solid transparent !important; color: var(--ink-muted) !important;
+  border-radius: 8px !important; padding: 8px 16px !important; box-shadow: none !important; text-decoration: none; font-size: 13.5px;
+}
+.rep-tabs a:hover, .rep-tabs button:hover { color: var(--ink) !important; background: var(--bg-muted) !important; }
+.rep-tabs .rep-tab-current, .rep-tabs .active, .rep-tabs [aria-current] {
+  background: var(--surface-raised) !important; color: var(--ink) !important; box-shadow: 0 2px 8px rgba(79, 140, 255, 0.35) !important;
+}
+:root[data-theme="light"] .rep-tabs { background: var(--surface-raised); box-shadow: none; }
+@media (max-width: 720px) { .rep-tabs > * { flex-wrap: nowrap; overflow-x: auto; } }
+
+/* Sales summary now lives inside the Reports header card */
+.rep-top .section-eyebrow { margin: 22px 0 12px; }
+.rep-top .kpi-row { margin-bottom: 0; }
+.rep-top .kpi-card { background: var(--surface-raised); }
+
+
+/* ===== Dashboard: fused header card (title, controls, KPIs), black-header tables ===== */
+.dash-top .rep-row { border-bottom: 1px solid var(--border) !important; padding-bottom: 18px !important; }
+.dash-top .rep-row .top-actions { justify-content: flex-end; }
+.dash-top .kpi-row { margin: 20px 0 0; }
+.dash-top .kpi-card { background: var(--surface-raised); }
+.dashboard-grid-2 > .section-card { display: flex; flex-direction: column; }
+
+#sales-by-worker-table { margin: 0; }
+.table-card > .wh-table.wh-flush { margin: 0; }
+.overview-subgrid-2 .wh-table.wh-flush { border: 0; border-radius: 0; }
+
+
+/* ===== Dashboard cards: padded header, divider, dark pill tabs, inset body panel ===== */
+.dash-card { padding: 0 !important; overflow: hidden; }
+.dash-card > .card-head, .dash-card > .card-head-row { margin: 0 !important; padding: 22px 26px 20px; border-bottom: 1px solid var(--border); align-items: center; }
+.dash-card > .card-head-row .card-head { align-items: center; }
+.dash-card .card-head .card-icon { width: 44px; height: 44px; border-radius: 12px; }
+.dash-card .card-head .card-icon svg { width: 20px; height: 20px; }
+.dash-card .card-head .card-titles h3 { margin: 0 0 2px; font-size: 20px; line-height: 1.25; }
+.dash-card .card-head .card-titles p { margin: 0; font-size: 14.5px; color: var(--ink-muted); }
+.dash-card-body { padding: 24px 26px 26px; }
+.dash-card .tabs { margin: 0; background: #060a13; border: 1px solid var(--border); border-radius: 12px; padding: 5px; box-shadow: inset 0 1px 3px rgba(0,0,0,.4); gap: 4px; }
+.dash-card .tabs button { padding: 8px 16px; border-radius: 8px; border: 1px solid transparent; color: var(--ink-muted); font-size: 13.5px; font-weight: 600; background: transparent; }
+.dash-card .tabs button:hover:not(.active) { color: var(--ink); background: var(--bg-muted); }
+.dash-card .tabs button.active { background: var(--surface-raised); border-color: var(--border); color: var(--success); box-shadow: none; }
+:root[data-theme="light"] .dash-card .tabs { background: var(--surface-raised); box-shadow: none; }
+.dash-inset { background: #060a13; border: 1px solid var(--border); border-radius: 14px; padding: 18px; min-height: 260px; }
+:root[data-theme="light"] .dash-inset { background: var(--bg-muted); }
+#team-performance-bars.dash-inset { display: flex; flex-direction: column; justify-content: center; }
+#team-performance-bars .bar-chart-empty { height: auto !important; min-height: 220px; background: none; border: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-muted); font-size: 15px; }
+.dash-caption { text-align: center; color: var(--ink-faint); font-size: 12.5px; margin: 14px 0 0; }
+.dashboard-grid-2 > .dash-card .dash-card-body { flex: 1 1 auto; display: flex; flex-direction: column; }
+.dashboard-grid-2 > .dash-card .dash-inset { flex: 1 1 auto; }
+.dash-card .table-scroll.dash-card-body { padding: 0; }
+.dash-card #sales-by-worker-table { border: 0; border-radius: 0; }
+@media (max-width: 720px) { .dash-card > .card-head, .dash-card > .card-head-row { padding: 16px; } .dash-card-body { padding: 16px; } }
+
+
+/* Dashboard: Live activity feed and Team Performance leaderboard, both scroll inside their panel */
+.dashboard-grid-2 > .dash-card .dash-inset { flex: none; height: 420px; overflow-y: auto; }
+.dash-inset::-webkit-scrollbar { width: 8px; }
+.dash-inset::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+#team-performance-bars.dash-inset { justify-content: flex-start; }
+#team-performance-bars.dash-inset:has(.bar-chart-empty) { justify-content: center; }
+#live-activity-list.dash-inset { padding: 6px 18px; }
+.la-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.la-row:last-child { border-bottom: 0; }
+.la-avatar { flex: 0 0 38px; height: 38px; border-radius: 50%; background: rgba(52, 211, 153, 0.18); color: var(--success); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+.la-main { flex: 1 1 auto; min-width: 0; }
+.la-name { font-weight: 600; color: var(--ink); font-size: 14px; }
+.la-meta { color: var(--ink-faint); font-size: 12px; margin-top: 2px; }
+.la-amt { text-align: right; display: flex; flex-direction: column; gap: 2px; flex: 0 0 auto; }
+.la-amt strong { color: var(--ink); font-size: 14px; }
+.la-amt a { font-size: 12px; color: var(--accent); text-decoration: none; }
+.tp-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.tp-row:last-child { border-bottom: 0; }
+.tp-rank { flex: 0 0 30px; height: 30px; border-radius: 50%; background: var(--surface-raised); border: 1px solid var(--border); color: var(--ink-muted); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+.tp-top .tp-rank { background: rgba(52, 211, 153, 0.18); border-color: transparent; color: var(--success); }
+.tp-main { flex: 1 1 auto; min-width: 0; }
+.tp-line { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.tp-name { font-weight: 600; color: var(--ink); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-amt { font-weight: 700; color: var(--ink); font-size: 14px; white-space: nowrap; }
+.tp-track { height: 6px; border-radius: 6px; background: var(--surface-raised); margin: 8px 0 6px; overflow: hidden; }
+.tp-fill { height: 100%; border-radius: 6px; background: var(--accent); }
+.tp-top .tp-fill { background: var(--success); }
+.tp-meta { color: var(--ink-faint); font-size: 12px; }
+
+
+/* Dashboard: avatars with photos, entry animation, tabs pinned right */
+.dash-card > .card-head-row { flex-wrap: nowrap; }
+.dash-card > .card-head-row .tabs { margin-left: auto; flex: 0 0 auto; }
+.tp-avatar, .la-avatar { position: relative; overflow: hidden; }
+.tp-avatar { flex: 0 0 42px; height: 42px; border-radius: 50%; background: rgba(52, 211, 153, 0.18); color: var(--success); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+.tp-avatar img, .la-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tp-rank { flex-basis: 26px; height: 26px; font-size: 12px; }
+@keyframes tpSlideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes tpGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.tp-row { opacity: 0; animation: tpSlideIn .45s ease-out forwards; }
+.tp-fill { transform-origin: left center; transform: scaleX(0); animation: tpGrow .8s cubic-bezier(.2,.8,.2,1) forwards; }
+@media (prefers-reduced-motion: reduce) { .tp-row, .tp-fill { animation: none; opacity: 1; transform: none; } }
+
+
+/* Dashboard: photo zoom, no rank numbers */
+.tp-rank { display: none; }
+.has-photo { cursor: zoom-in; }
+.has-photo:hover { box-shadow: 0 0 0 2px var(--success); }
+.photo-zoom-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(2, 6, 14, .82); display: flex; align-items: center; justify-content: center; cursor: zoom-out; animation: tpSlideIn .2s ease-out; }
+.photo-zoom-overlay figure { margin: 0; text-align: center; }
+.photo-zoom-overlay img { max-width: min(86vw, 560px); max-height: 78vh; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.6); object-fit: contain; }
+.photo-zoom-overlay figcaption { color: #e2e8f0; margin-top: 14px; font-weight: 600; }
+
+
+/* Dashboard: Inventory Overview in the same card style */
+.dash-overview { background-image: none !important; }
+.dash-overview > .card-head-row { background: none !important; }
+.dash-overview .dash-card-body { display: flex; flex-direction: column; gap: 18px; }
+.dash-overview .overview-stats { gap: 14px; }
+.dash-overview .overview-stats .cell, .dash-overview .overview-stats .cell:first-child, .dash-overview .overview-stats .cell:not(:first-child) {
+  padding: 16px 20px; border: 1px solid var(--border); border-left: 1px solid var(--border); border-radius: 14px; background: var(--surface-raised);
+}
+.dash-overview .overview-subgrid-3, .dash-overview .overview-subgrid-2 { display: grid; gap: 18px; border: 0 !important; }
+.dash-overview .overview-subgrid-3 { grid-template-columns: repeat(3, 1fr); }
+.dash-overview .overview-subgrid-2 { grid-template-columns: repeat(2, 1fr); }
+.dash-overview .overview-subgrid-3 .cell, .dash-overview .overview-subgrid-2 .cell,
+.dash-overview .overview-subgrid-3 .cell:not(:first-child), .dash-overview .overview-subgrid-2 .cell:not(:first-child) {
+  background: #060a13; border: 1px solid var(--border); border-radius: 14px; padding: 20px; min-width: 0;
+}
+.dash-overview .cell-table { overflow-x: auto; }
+.dash-overview .cell-table .wh-table { border-radius: 10px; }
+:root[data-theme="light"] .dash-overview .overview-subgrid-3 .cell, :root[data-theme="light"] .dash-overview .overview-subgrid-2 .cell { background: var(--bg-muted); }
+@media (max-width: 900px) { .dash-overview .overview-subgrid-3, .dash-overview .overview-subgrid-2, .dash-overview .overview-stats { grid-template-columns: 1fr; } }
+
+
+/* Inventory Overview: flat, consistent colour grading (no gradient wash), explicit padding */
+.overview-card.dash-overview { background: var(--surface) !important; background-image: none !important; padding: 0 !important; overflow: hidden; }
+.overview-card.dash-overview::before, .overview-card.dash-overview::after,
+.overview-card.dash-overview > .card-head-row::before, .overview-card.dash-overview > .card-head-row::after { content: none !important; background: none !important; }
+.overview-card.dash-overview > .card-head-row { background: var(--surface) !important; background-image: none !important; padding: 22px 26px 20px !important; margin: 0 !important; border-bottom: 1px solid var(--border) !important; }
+.overview-card.dash-overview > .dash-card-body { padding: 24px 26px 26px !important; background: var(--surface); }
+.overview-card.dash-overview .overview-stats .cell { background: var(--surface-raised) !important; }
+.overview-card.dash-overview .overview-stats .cell .label { margin-bottom: 8px; }
+.overview-card.dash-overview .overview-subgrid-3 .cell, .overview-card.dash-overview .overview-subgrid-2 .cell { background: #060a13 !important; padding: 22px !important; }
+.overview-card.dash-overview .card-head .card-icon { background: rgba(52, 211, 153, 0.18); color: var(--success); }
+.overview-card.dash-overview .pill-btn.link { background: var(--surface-raised); border: 1px solid var(--border); padding: 9px 16px; }
+
+
+/* Inventory Overview: match the reference exactly (light wash header, divider stat strip, bordered panels) */
+.overview-card.dash-overview > .card-head-row {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.11) 0%, rgba(16, 185, 129, 0.02) 40%, transparent 55%, rgba(79, 140, 255, 0.12) 100%) !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+.overview-card.dash-overview > .dash-card-body { padding: 0 !important; gap: 0 !important; display: block; }
+.overview-card.dash-overview .overview-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border);
+  border-bottom: 1px solid var(--border); margin: 0;
+}
+.overview-card.dash-overview .overview-stats .cell,
+.overview-card.dash-overview .overview-stats .cell:first-child,
+.overview-card.dash-overview .overview-stats .cell:not(:first-child) {
+  background: var(--surface) !important; border: 0 !important; border-radius: 0 !important; padding: 20px 26px !important;
+}
+.overview-card.dash-overview .overview-subgrid-3 { padding: 24px 26px; gap: 24px; }
+.overview-card.dash-overview .overview-subgrid-3 .cell,
+.overview-card.dash-overview .overview-subgrid-3 .cell:not(:first-child) {
+  background: #060a13 !important; border: 1px solid var(--border) !important; border-radius: 14px !important; padding: 20px !important;
+}
+.overview-card.dash-overview .overview-subgrid-2 { gap: 0; border-top: 1px solid var(--border) !important; }
+.overview-card.dash-overview .overview-subgrid-2 .cell,
+.overview-card.dash-overview .overview-subgrid-2 .cell:not(:first-child) {
+  background: transparent !important; border: 0 !important; border-radius: 0 !important; padding: 24px 26px !important;
+}
+.overview-card.dash-overview .overview-subgrid-2 .cell:not(:first-child) { border-left: 1px solid var(--border) !important; }
+.overview-card.dash-overview .pill-btn.link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; }
+.overview-card.dash-overview .pill-btn.link:hover { text-decoration: underline; }
+@media (max-width: 900px) {
+  .overview-card.dash-overview .overview-stats { grid-template-columns: 1fr; }
+  .overview-card.dash-overview .overview-subgrid-2 .cell:not(:first-child) { border-left: 0 !important; border-top: 1px solid var(--border) !important; }
+}
+
+
+/* Category breakdown: short, scrolls inside its own frame with a fixed header */
+.dash-overview .cat-scroll { max-height: 320px; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.dash-overview .cat-scroll .wh-table { border: 0; border-radius: 0; overflow: visible; }
+.dash-overview .cat-scroll .wh-table thead th { position: sticky; top: 0; z-index: 1; padding-top: 13px; padding-bottom: 13px; }
+.dash-overview .cat-scroll .wh-table tbody td { padding-top: 12px; padding-bottom: 12px; }
+.dash-overview .cat-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.dash-overview .cat-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+
+/* Revenue analysis: reference look (blue→green light wash, divider stat strip, inset chart panel) */
+.dash-rev > .card-head-row { background: linear-gradient(90deg, rgba(79, 140, 255, 0.13) 0%, rgba(79, 140, 255, 0.03) 40%, transparent 60%, rgba(16, 185, 129, 0.12) 100%); }
+.dash-rev .card-head .card-icon { background: rgba(79, 140, 255, 0.18); color: var(--accent); }
+.dash-rev .tabs button.active { color: var(--accent); }
+.dash-rev > .dash-card-body { padding: 0; }
+.dash-rev .stat-trio.plain { gap: 1px; background: var(--border); margin: 0; border-bottom: 1px solid var(--border); }
+.dash-rev .stat-trio.plain .cell, .dash-rev .stat-trio.plain .cell:first-child, .dash-rev .stat-trio.plain .cell:not(:first-child) {
+  background: var(--surface); border: 0; border-radius: 0; padding: 20px 26px;
+}
+.dash-rev .chart-container { height: auto; min-height: 320px; margin: 24px 26px 26px; padding: 18px; background: #060a13; border: 1px solid var(--border); border-radius: 14px; }
+:root[data-theme="light"] .dash-rev .chart-container { background: var(--bg-muted); }
+@media (max-width: 720px) { .dash-rev .stat-trio.plain { grid-template-columns: 1fr; } .dash-rev .chart-container { margin: 16px; } }
+
+
+/* Revenue chart: y-axis gridlines + labels, full-width plot, centred empty state */
+.dash-rev .chart-container { height: 380px; min-height: 0; box-sizing: border-box; }
+#revenue-bar-chart { display: block; height: 100%; padding: 0; }
+.rc { position: relative; height: 100%; }
+.rc-grid { position: absolute; left: 0; right: 0; top: 8px; bottom: 28px; }
+.rc-tick { position: absolute; left: 56px; right: 0; height: 0; border-top: 1px solid rgba(148, 163, 184, 0.12); }
+.rc-tick span { position: absolute; right: calc(100% + 10px); top: 0; transform: translateY(-50%); font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; }
+.rc-bars { position: absolute; left: 56px; right: 0; top: 8px; bottom: 0; display: flex; gap: 10px; }
+.rc-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.rc-area { flex: 1 1 auto; display: flex; align-items: flex-end; justify-content: center; }
+.rc-fill { position: relative; width: 56%; max-width: 54px; background: var(--accent); border-radius: 6px 6px 0 0; transform-origin: bottom; animation: rcGrow .7s cubic-bezier(.2,.8,.2,1) both; }
+.rc-col.best .rc-fill { background: var(--success); }
+.rc-fill em { position: absolute; bottom: calc(100% + 5px); left: 50%; transform: translateX(-50%); font-style: normal; font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+.rc-lbl { height: 28px; line-height: 28px; text-align: center; font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; }
+@keyframes rcGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.rc-empty { position: absolute; left: 56px; right: 0; top: 0; bottom: 28px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center; color: var(--ink-faint); font-size: 13px; }
+.rc-empty strong { color: var(--ink); font-size: 15px; }
+.rc-empty-icon { width: 70px; height: 70px; border-radius: 50%; background: rgba(148, 163, 184, 0.1); color: var(--ink-muted); display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+.rc-empty-icon svg { width: 28px; height: 28px; }
+@media (prefers-reduced-motion: reduce) { .rc-fill { animation: none; } }
+
+/* Team Performance header: keep the title on one line beside the tabs */
+.dashboard-grid-2 > .dash-card > .card-head-row { gap: 12px; }
+.dashboard-grid-2 > .dash-card > .card-head-row .card-titles h3 { white-space: nowrap; font-size: 18px; }
+.dashboard-grid-2 > .dash-card > .card-head-row .card-titles p { white-space: nowrap; font-size: 13.5px; }
+.dashboard-grid-2 > .dash-card > .card-head-row .tabs { padding: 4px; gap: 2px; }
+.dashboard-grid-2 > .dash-card > .card-head-row .tabs button { padding: 7px 11px; font-size: 13px; }
+@media (max-width: 1200px) { .dashboard-grid-2 > .dash-card > .card-head-row { flex-wrap: wrap; } .dashboard-grid-2 > .dash-card > .card-head-row .tabs { margin-left: 0; } }
+.dashboard-grid-2 > .dash-card > .card-head, .dashboard-grid-2 > .dash-card > .card-head-row { min-height: 88px; box-sizing: border-box; }
+.dashboard-grid-2 > .dash-card > .card-head { align-items: center; }
+.dashboard-grid-2 > .dash-card > .card-head .card-titles h3 { font-size: 18px; white-space: nowrap; }
+.dashboard-grid-2 > .dash-card > .card-head .card-titles p { font-size: 13.5px; }
+.dashboard-grid-2 > .dash-card > .card-head, .dashboard-grid-2 > .dash-card > .card-head-row { height: 88px; padding-top: 0 !important; padding-bottom: 0 !important; }
+
+.rc-empty-icon { background: rgba(148, 163, 184, 0.12); color: #94a3b8; }
+.rc-empty-icon svg { width: 30px; height: 30px; stroke-width: 1.7; }
+.rc-empty strong { font-size: 16px; font-weight: 700; color: #f1f5f9; }
+.rc-empty > span:last-child { font-size: 13px; color: #8a97ad; }
+
+.rc-empty-icon { width: 70px; height: 70px; background: rgba(148, 163, 184, 0.12); color: #94a3b8; }
+.rc-empty-icon svg { width: 30px; height: 30px; stroke-width: 1.6; }
+.rc-empty strong { font-size: 15.5px; font-weight: 600; color: #e8edf7; }
+.rc-empty > span:last-child { font-size: 13.5px; color: #8190a8; }
+.rc-empty-icon svg { width: 38px; height: 38px; stroke-width: 1.4; }
+.dash-rev .chart-container { background: #070d1f; }
+
+/* ===== POS cart: faded cart icon behind items (Oct 2026) =====
+   Same cart icon as the empty state (64px, thicker 2.4 stroke), kept behind the
+   items at low opacity. To make it fainter or stronger, change
+   stroke-opacity='0.18' below; for thickness change stroke-width='2.4' (0 = invisible, 1 = fully solid). */
+.cart-card #cart-body:not(:has(.cart-empty)) {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238d9db8' stroke-opacity='0.18' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center 45%;
+  background-size: 64px 64px;
+}

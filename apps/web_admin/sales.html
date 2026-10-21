@@ -1,0 +1,1035 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Transactions — Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="login-brand">
+      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+    <nav class="nav-gate-pending">
+      <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>
+      <a href="pos.html" data-nav="pos" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg></span><span>POS</span></a>
+      <a href="inventory.html" data-nav="inventory" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventory</span></a>
+      <a href="sales.html" data-nav="sales" class="nav-item active"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v18l-2.5-1.5L13 20.5l-2.5-1.5L8 20.5 6 19V2.5Z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/></svg></span><span>Transactions</span></a>
+      <a href="invoice.html" data-nav="invoice" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l3 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7l3-4Z"/><path d="M4 7h16"/><path d="M9 11h6M9 15h6"/></svg></span><span>Invoice</span></a>
+      <a href="warehouse.html" data-nav="warehouse" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M2.5 12h19"/></svg></span><span>Warehouse</span></a>
+      <a href="reports.html" data-nav="reports" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 12.9a9.2 9.2 0 1 1-9.1-10"/><path d="M21.2 12.9H12V3.7a9.2 9.2 0 0 1 9.2 9.2Z"/></svg></span><span>Reports</span></a>
+      <a href="staff.html" data-nav="staff" class="nav-item" title="Staff, Branches, Roles &amp; Shifts"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6.2M21.5 20a6 6 0 0 0-5-5.9"/></svg></span><span>Team</span></a>
+    </nav>
+    <button type="button" class="theme-toggle" id="theme-toggle-btn">
+      <span id="theme-toggle-text">Dark mode</span>
+      <span class="icon-swap"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+    </button>
+    <div class="sidebar-footer">
+      <div id="current-user-name" style="display:none"></div>
+      <div id="current-user-role" style="display:none"></div>
+      <a href="#" id="logout-link" class="btn-danger-text signout-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Sign Out</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- Merged top card: page title + tab bar share one padded panel -->
+    <div class="page-top">
+    <div class="page-head">
+      <div class="card-head" style="margin-bottom:0;">
+        <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v18l-2.5-1.5L13 20.5l-2.5-1.5L8 20.5 6 19V2.5Z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/></svg></span>
+        <div class="card-titles">
+          <h2 class="display" style="margin:0;">Transactions</h2>
+          <p>All sales, open bookings, refunds, and credit — open a receipt for any of them.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs" id="main-tabs">
+      <button type="button" class="btn btn-ghost btn-sm tab-btn active" data-tab="sales">Sales</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="bookings">Open Bookings</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="refunds">Refund History</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="credit">Credit List History</button>
+      <!-- Platform update spec section 6: "Pending Change and Losses
+           should be folded into the Transactions menu, not standalone
+           nav items" -- folded in the exact same way Credit List was
+           previously (see the comment on #credit-section below). -->
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="pending-change">Pending Change</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="losses">Losses</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" data-tab="website-orders">Website Orders</button>
+    </div>
+    </div>
+
+    <div id="sales-section">
+    <div class="filter-card">
+      <div class="toolbar">
+        <div class="field-inline">
+          <label for="from-date">From</label>
+          <input type="date" id="from-date" />
+        </div>
+        <div class="field-inline">
+          <label for="to-date">To</label>
+          <input type="date" id="to-date" />
+        </div>
+        <span id="branch-badge"></span>
+        <select id="cashier-filter">
+          <option value="">All cashiers</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" id="filter-btn">Filter</button>
+        <button class="btn btn-ghost btn-sm" id="clear-btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <table id="sales-table">
+        <thead>
+          <tr>
+            <th>Receipt #</th>
+            <th>Date &amp; time</th>
+            <th>Cashier</th>
+            <th>Discount</th>
+            <th>Total</th>
+            <th>Change</th>
+            <th>Receipt</th>
+          </tr>
+        </thead>
+        <tbody id="sales-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state" style="display:none;">
+        <div class="display">No sales found</div>
+        <p>Try widening the date range or picking a different branch.</p>
+      </div>
+    </div>
+    </div>
+
+    <!-- Open Bookings tab (September 2026 change spec section 12) --
+         part-payment reservations awaiting completion or cancellation
+         (see js/sales.js loadBookings()) at the top, with every event
+         on every open booking -- not just the currently-open ones --
+         stacked below it. -->
+    <div id="bookings-section" style="display:none;">
+      <div class="section-title">Open bookings</div>
+      <div class="section-hint">Part-payment reservations waiting on the customer to come back</div>
+      <div class="table-card" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>Date</th><th>Cashier</th><th>Items</th><th>Initial price</th><th>Deposit paid</th><th>Balance due</th><th>Pickup note</th><th>Action</th></tr></thead>
+          <tbody id="bookings-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="bookings-empty" style="display:none;">
+          <div class="display">No open bookings</div>
+        </div>
+      </div>
+
+      <div class="section-title">Booking history</div>
+      <div class="section-hint">Every open booking event -- deposits, top-ups, swaps, cancellations, and completions</div>
+      <div class="table-card">
+        <table id="booking-history-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Event</th>
+              <th>Staff</th>
+              <th>Details</th>
+              <th class="th-actions">Receipts</th>
+            </tr>
+          </thead>
+          <tbody id="booking-history-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="booking-history-empty" style="display:none;">
+          <div class="display">No booking activity yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Refund history -- moved here from the Invoice page (spec:
+         "Refunds are not purchase invoices... Refund History must be
+         separated from Purchase Invoices"). Processing a NEW refund
+         still happens from a sale's own receipt (see the Refund…
+         button in the receipt modal below); this tab is the
+         browsable record of every refund already processed. -->
+    <div id="refunds-section" style="display:none;">
+      <!-- Explanatory write-up + icon, sitting above the history table and
+           visually separate from it (Sept 2026 dictated request). -->
+      <div class="info-card">
+        <span class="card-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10a7 7 0 0 1 12-4.9M21 14a7 7 0 0 1-12 4.9"/><path d="M3 4v6h6M21 20v-6h-6"/></svg></span>
+        <div>
+          <h3>Refund History</h3>
+          <p>Money paid back to a customer for a returned item or a swapped item. Processing a new refund happens from a sale's own receipt (the "Refund…" button); this is the browsable record of every refund already processed, referencing the original sale, cashier, and reason.</p>
+        </div>
+      </div>
+      <div class="table-card">
+        <table id="refunds-table">
+          <thead>
+            <tr>
+              <th>Refunded</th>
+              <th>Source</th>
+              <th>Original sale</th>
+              <th>Original cashier</th>
+              <th>Refunded by</th>
+              <th>Reason</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th class="th-actions">Receipts</th>
+            </tr>
+          </thead>
+          <tbody id="refunds-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="refunds-empty" style="display:none;">
+          <div class="display">No refunds on record</div>
+          <p>Refunds processed from a sale's receipt will appear here, referencing the original sale, cashier, and reason.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Credit List History tab (folded in from the old standalone
+         Credit List page -- September 2026 change spec section 12:
+         "Credit List... should not be a standalone nav item; it
+         should be a tab on this page"). IDs below are namespaced
+         credit-* / cr- where they'd otherwise collide with an
+         existing Sales/Refunds/Bookings element of the same generic
+         name (empty-state, filter-btn, branch-badge, etc.) now that
+         everything lives in one DOM -- js/credit.js has been updated
+         to match. -->
+    <div id="credit-section" style="display:none;">
+      <!-- Explanatory write-up + icon, sitting above the history table and
+           visually separate from it (Sept 2026 dictated request). -->
+      <div class="info-card">
+        <span class="card-icon warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg></span>
+        <div>
+          <h3>Credit List</h3>
+          <p>Customers taking goods now and paying later. Visible to every staff account and to whichever role is set up as auditor.</p>
+        </div>
+      </div>
+      <div class="filter-card">
+        <div class="toolbar">
+          <span id="credit-list-branch-badge"></span>
+          <select id="credit-status-filter">
+            <option value="">All statuses</option>
+            <option value="outstanding">Outstanding</option>
+            <option value="partially_paid">Partially paid</option>
+            <option value="paid">Paid</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" id="credit-filter-btn">Filter</button>
+        </div>
+      </div>
+      <div class="table-card">
+        <table id="credit-table">
+          <thead>
+            <tr>
+              <th>Opened</th>
+              <th>Customer</th>
+              <th>Phone</th>
+              <th>Branch</th>
+              <th>Opened by</th>
+              <th>Amount</th>
+              <th>Balance</th>
+              <th>Status</th>
+              <th class="th-actions">Receipts</th>
+            </tr>
+          </thead>
+          <tbody id="credit-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="credit-empty-state" style="display:none;">
+          <div class="display">No credit entries found</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pending Change tab (folded in from the old standalone Pending
+         Change page -- platform update spec section 6). Full
+         settlement-method handling (section 2) lives in
+         js/pending-change.js: cash settles directly, transfer/airtime
+         routes through the Pending Approval sub-tab for a Branch
+         Manager/Super Admin to confirm sent (section 2.4). -->
+    <div id="pending-change-section" style="display:none;">
+      <!-- Explanatory write-up + icon (Sept 2026 dictated request). -->
+      <div class="info-card">
+        <span class="card-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+        <div>
+          <h3>Pending Change</h3>
+          <p>Change owed to a customer that couldn't be handed over on the spot — tied to the sale it came from.</p>
+        </div>
+        <span id="pending-change-branch-badge" style="margin-left:auto;"></span>
+      </div>
+
+      <!-- Outstanding, Pending Approval, and Settled (Sept 2026 dictated
+           request: "should also be, like, a table on their own, but not
+           part of the table itself") -- three always-visible stacked
+           tables, matching the Open Bookings / Booking history pattern
+           above, instead of one table switched between by tabs. -->
+      <div class="section-title">Outstanding</div>
+      <div class="section-hint">Change still owed to a customer, not yet settled</div>
+      <div class="table-card" style="margin-bottom:24px;">
+        <table id="pending-change-table">
+          <thead>
+            <tr>
+              <th>Recorded</th>
+              <th>Reference</th>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Method</th>
+              <th>Branch</th>
+              <th>Notes</th>
+              <th>Recorded by</th>
+              <th>Action</th>
+              <th>Receipt</th>
+            </tr>
+          </thead>
+          <tbody id="pending-change-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="pending-change-empty" style="display:none;">
+          <div class="display" id="pending-change-empty-title">No change owed right now</div>
+          <p>When a sale can't be given its full change back, it's recorded here from the receipt.</p>
+        </div>
+      </div>
+
+      <div class="section-title">Pending Approval</div>
+      <div class="section-hint">Transfer/airtime settlements awaiting a Branch Manager or Super Admin to confirm sent</div>
+      <div class="table-card" style="margin-bottom:24px;" id="pending-approval-section">
+        <table id="pending-approval-table">
+          <thead>
+            <tr>
+              <th>Recorded</th>
+              <th>Reference</th>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Method</th>
+              <th>Branch</th>
+              <th>Notes</th>
+              <th>Recorded by</th>
+              <th>Action</th>
+              <th>Receipt</th>
+            </tr>
+          </thead>
+          <tbody id="pending-approval-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="pending-approval-empty" style="display:none;">
+          <div class="display">Nothing awaiting approval</div>
+        </div>
+      </div>
+
+      <div class="section-title">Settled</div>
+      <div class="section-hint">Change that has already been fully handed back or paid out</div>
+      <div class="table-card">
+        <table id="settled-change-table">
+          <thead>
+            <tr>
+              <th>Recorded</th>
+              <th>Reference</th>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Method</th>
+              <th>Branch</th>
+              <th>Notes</th>
+              <th>Recorded by</th>
+              <th>Settled</th>
+              <th>Receipt</th>
+            </tr>
+          </thead>
+          <tbody id="settled-change-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="settled-change-empty" style="display:none;">
+          <div class="display">Nothing settled yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settle modal (platform update spec item 5): the cashier
+         reconfirms exactly how an *outstanding* cash-owed change was
+         actually handed back when the customer returned -- amount and
+         method are re-entered here rather than assumed from how it
+         was first logged, since the customer may ask for a different
+         method today (e.g. was recorded as cash-owed, but they'd
+         rather have a transfer now). js/pending-change.js's
+         openSettleChangeModal() populates and drives this. Choosing
+         cash settles immediately; choosing transfer/airtime here
+         submits it into the same Pending Approval queue a
+         transfer/airtime request gets at creation, since real money
+         moving still needs a Branch Manager/Super Admin to confirm
+         it was sent. -->
+    <div class="modal-backdrop" id="settle-change-backdrop">
+      <div class="modal" style="max-width:420px;">
+        <h3>Settle change</h3>
+        <p class="modal-sub" id="settle-change-sub">Owed: ₦0.00</p>
+        <div id="settle-change-error" class="error-banner"></div>
+        <form id="settle-change-form">
+          <div class="field">
+            <label for="settle-change-amount">Amount given back (₦) *</label>
+            <input type="number" id="settle-change-amount" min="0.01" step="0.01" required />
+          </div>
+          <div class="field">
+            <label for="settle-change-method">Given by *</label>
+            <select id="settle-change-method">
+              <option value="cash">Cash</option>
+              <option value="transfer">Bank transfer</option>
+              <option value="airtime">Airtime top-up</option>
+            </select>
+          </div>
+          <div id="settle-change-transfer-fields" style="display:none;">
+            <div class="field">
+              <label for="settle-change-bank-name">Bank name</label>
+              <select id="settle-change-bank-name"></select>
+            </div>
+            <div class="field">
+              <label for="settle-change-account-number">Account number</label>
+              <input type="text" id="settle-change-account-number" inputmode="numeric" maxlength="10" />
+            </div>
+            <div class="field">
+              <label for="settle-change-account-name">Account name</label>
+              <input type="text" id="settle-change-account-name" placeholder="For confirmation" />
+            </div>
+          </div>
+          <div id="settle-change-airtime-fields" style="display:none;">
+            <div class="field">
+              <label for="settle-change-airtime-phone">Phone number for top-up</label>
+              <input type="tel" id="settle-change-airtime-phone" placeholder="e.g. 0803xxxxxxx" />
+            </div>
+            <div class="field">
+              <label for="settle-change-airtime-network">Network</label>
+              <select id="settle-change-airtime-network">
+                <option value="">Auto-detect from phone number</option>
+                <option value="MTN">MTN</option>
+                <option value="Airtel">Airtel</option>
+                <option value="Glo">Glo</option>
+                <option value="9mobile">9mobile</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="settle-change-cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="settle-change-submit" style="flex:1;">Confirm</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Losses tab (folded in from the old standalone Losses page --
+         platform update spec section 6). -->
+    <div id="losses-section" style="display:none;">
+      <!-- Sept 2026 dictated request: the write-up, "+ Record a loss",
+           the totals (now four -- Today/This Week/This Month/Overall),
+           and the Category/Month filters + All/Expired tabs all live
+           together in ONE bordered section, separate from the history
+           table below -- not as several separate floating blocks. -->
+      <div class="overview-card" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px;">
+          <div class="card-head" style="margin-bottom:0;">
+            <span class="card-icon danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></span>
+            <div class="card-titles">
+              <h3>Losses</h3>
+              <p>Every loss in one place: damaged, expired, stolen, and sold-below-price — permanently kept and searchable by month, even though the dashboard total resets each month.</p>
+            </div>
+          </div>
+          <!-- Direct entry point (previously this table was read-only;
+               recording a loss meant navigating to Inventory > a
+               product's Restock history > a specific batch). This
+               button opens the same recording form, but starts from a
+               product search instead of requiring you to already be
+               looking at a batch. -->
+          <button type="button" class="btn btn-primary" id="direct-loss-open-btn" style="width:auto;flex-shrink:0;">+ Record a loss</button>
+        </div>
+
+        <div class="kpi-row">
+          <!-- Today and This Week (Sept 2026 dictated request) sit
+               alongside the existing Overall/This Month totals, all
+               fed from GET /inventory/losses/summary with different
+               date bounds -- see js/losses.js loadLossesSummaryCards(). -->
+          <div class="kpi-card danger">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>
+            <div class="label">Total losses today</div>
+            <div class="value" id="losses-today-total">—</div>
+          </div>
+          <div class="kpi-card danger">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h2M14 14h2M8 18h2"/></svg></span>
+            <div class="label">Total losses this week</div>
+            <div class="value" id="losses-week-total">—</div>
+          </div>
+          <!-- Always the current calendar month, regardless of what's
+               selected in the Month filter below -- previously this
+               number was actually just a sum of whatever rows the table
+               filters happened to show, so it silently changed meaning
+               depending on the filter state. Now it's a fixed, real
+               "this month" figure from the summary endpoint. -->
+          <div class="kpi-card danger">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            <div class="label">Total losses this month</div>
+            <div class="value" id="losses-month-total">—</div>
+          </div>
+          <!-- Overall (all-time) total -- fed straight from
+               GET /inventory/losses/summary with no date bounds, same
+               endpoint the dashboard's Losses card uses. Independent of
+               the table filters below, so it always reads the true
+               all-time figure. -->
+          <div class="kpi-card danger">
+            <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>
+            <div class="label">Total losses overall</div>
+            <div class="value" id="losses-alltime-total">—</div>
+          </div>
+        </div>
+
+        <div class="filters-row" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin:16px 0 0;">
+          <div class="field" style="margin:0;">
+            <label for="losses-category">Category</label>
+            <select id="losses-category">
+              <option value="">All categories</option>
+              <option value="damaged">Damaged</option>
+              <option value="expired">Expired</option>
+              <option value="theft">Stolen</option>
+            </select>
+          </div>
+          <div class="field" style="margin:0;">
+            <label for="losses-month">Month</label>
+            <input type="month" id="losses-month" />
+          </div>
+          <div class="field" style="margin:0;">
+            <button type="button" class="btn btn-ghost" id="losses-clear-filters">Clear filters</button>
+          </div>
+        </div>
+        <div class="tabs" style="margin:16px 0 0;">
+          <button type="button" class="btn btn-ghost btn-sm tab-btn active" data-loss-tab="all">All</button>
+          <button type="button" class="btn btn-ghost btn-sm tab-btn" data-loss-tab="expired">Expired (parallel to Low Stock's Expiry Alert)</button>
+        </div>
+      </div>
+
+      <!-- Pending confirmations (theft) and unreviewed reports
+           (damaged/expired) -- same underlying data and actions as
+           the Dashboard's loss-review banner (GET
+           /inventory/stock-adjustments/pending-review, confirm-theft,
+           mark-reviewed), surfaced here too since this is the page
+           someone actually comes to in order to act on a loss, not
+           just to be told about it in passing on the Dashboard. Kept
+           as its own block (rather than folded into the overview card
+           above) since it's an action queue with its own mini-table,
+           not a stat or a filter. -->
+      <div id="losses-review-section" style="display:none;margin-bottom:20px;">
+        <div class="section-title" style="color:var(--danger);">🔔 Needs your review</div>
+        <div class="table-card">
+          <table id="losses-review-table">
+            <thead>
+              <tr>
+                <th>Image</th>
+                <th>Product Name</th>
+                <th>Reason</th>
+                <th>Quantity</th>
+                <th>Value</th>
+                <th>Branch</th>
+                <th>Details</th>
+                <th class="th-actions">Receipts</th>
+              </tr>
+            </thead>
+            <tbody id="losses-review-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Reflects whatever the Category/Month filters above are
+           currently narrowed to -- kept separate from the fixed KPI
+           cards above, which always show the true today/week/month/
+           overall totals no matter how this table is filtered. -->
+      <div id="losses-filtered-total-line" style="margin:0 0 10px;font-size:13px;color:var(--ink-muted);"></div>
+      <div class="table-card">
+        <table id="losses-table">
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Product Name</th>
+              <th>Category</th>
+              <th>Quantity</th>
+              <th>Value</th>
+              <th>Branch</th>
+              <th>Recorded by</th>
+              <th>Date</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="losses-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="losses-empty" style="display:none;">
+          <div class="display">No losses recorded</div>
+          <p>Nothing matches these filters.</p>
+        </div>
+      </div>
+    </div>
+    <!-- Website Orders tab: orders placed on the customer storefront.
+         Logic lives in js/website-orders.js (GET/PATCH /storefront/orders). -->
+    <div id="website-orders-section" style="display:none;">
+      <div class="info-card">
+        <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.2a2 2 0 0 0 2-1.5L21 8H6"/><circle cx="10" cy="20.5" r="1.3"/><circle cx="18" cy="20.5" r="1.3"/></svg></span>
+        <div>
+          <h3>Website Orders</h3>
+          <p>Orders placed on the online store. When an order's items sit in more than one branch, each branch gets its own receipt: gather the parts at the suggested branch, then send them as one parcel and record the waybill here.</p>
+        </div>
+      </div>
+      <div class="filter-card">
+        <div class="toolbar">
+          <select id="wo-status-filter">
+            <option value="">All statuses</option>
+            <option value="new">New</option>
+            <option value="processing">Processing</option>
+            <option value="waybilled">Waybilled</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <button type="button" class="btn btn-ghost btn-sm" id="wo-refresh-btn">Refresh</button>
+          <span class="wo-muted" id="wo-count"></span>
+        </div>
+      </div>
+      <div class="table-card wo-table-wrap">
+        <table id="wo-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Deliver to</th>
+              <th>Pick list</th>
+              <th>Amounts</th>
+              <th>Receipts</th>
+              <th>Status &amp; waybill</th>
+            </tr>
+          </thead>
+          <tbody id="wo-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="wo-empty" style="display:none;">
+          <div class="display">No website orders</div>
+          <p>Orders placed on the storefront appear here.</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+
+<!-- Record-a-loss modal, reached directly from the Losses tab (see
+     js/losses.js). Same submission (POST /inventory/stock-adjustments)
+     and same accountability/evidence fields as the batch-first version
+     on Inventory > Restock history -- this one just starts by asking
+     which product and which batch instead of assuming you already
+     know. -->
+<div class="modal-backdrop" id="direct-loss-modal-backdrop">
+  <div class="modal" style="max-width:440px;">
+    <h3>Record a loss</h3>
+    <div id="direct-loss-modal-error" class="error-banner"></div>
+    <form id="direct-loss-modal-form">
+      <div class="field item-autocomplete-wrap" id="direct-loss-product-field">
+        <label for="direct-loss-product">Product *</label>
+        <input type="text" id="direct-loss-product" placeholder="Start typing a product name…" autocomplete="off" required />
+        <div class="item-autocomplete-dropdown" id="direct-loss-product-suggestions" style="display:none;"></div>
+        <p class="hint" id="direct-loss-product-info" style="margin-top:6px;"></p>
+      </div>
+      <div class="field" id="direct-loss-batch-field" style="display:none;">
+        <label for="direct-loss-batch">Batch *</label>
+        <select id="direct-loss-batch" required></select>
+        <p class="hint" id="direct-loss-batch-hint"></p>
+      </div>
+      <div class="field">
+        <label for="direct-loss-quantity">Quantity lost *</label>
+        <input type="number" id="direct-loss-quantity" min="1" step="1" required />
+      </div>
+      <div class="field">
+        <label for="direct-loss-reason">Reason *</label>
+        <select id="direct-loss-reason" required>
+          <option value="expired">Expired</option>
+          <option value="damaged">Damaged</option>
+          <option value="theft">Stolen</option>
+        </select>
+      </div>
+      <div class="field" id="direct-loss-damage-by-field" style="display:none;">
+        <label for="direct-loss-damage-by">Damaged by *</label>
+        <select id="direct-loss-damage-by">
+          <option value="">Select…</option>
+          <option value="customer">Customer</option>
+          <option value="staff">Staff member</option>
+        </select>
+      </div>
+      <div class="field" id="direct-loss-damage-staff-field" style="display:none;">
+        <label for="direct-loss-damage-staff-name">Staff member *</label>
+        <select id="direct-loss-damage-staff-name">
+          <option value="">Select…</option>
+        </select>
+      </div>
+      <div class="field" id="direct-loss-theft-caused-by-field" style="display:none;">
+        <label for="direct-loss-theft-caused-by">Stolen by *</label>
+        <select id="direct-loss-theft-caused-by">
+          <option value="">Select…</option>
+          <option value="customer">Customer</option>
+          <option value="staff">Staff member</option>
+        </select>
+      </div>
+      <div class="field" id="direct-loss-theft-by-staff-field" style="display:none;">
+        <label for="direct-loss-theft-by-staff-name">Staff member *</label>
+        <select id="direct-loss-theft-by-staff-name">
+          <option value="">Select…</option>
+        </select>
+      </div>
+      <div class="field" id="direct-loss-theft-time-field" style="display:none;">
+        <label for="direct-loss-theft-noticed-at">Approx. time noticed missing (optional)</label>
+        <input type="time" id="direct-loss-theft-noticed-at" />
+      </div>
+      <div class="field">
+        <label for="direct-loss-notes" id="direct-loss-notes-label">Notes (optional)</label>
+        <textarea id="direct-loss-notes" rows="2" maxlength="500"></textarea>
+      </div>
+      <div class="field" id="direct-loss-evidence-field" style="display:none;">
+        <label for="direct-loss-evidence">Photo or video evidence *</label>
+        <input type="file" id="direct-loss-evidence" accept="image/*,video/*" />
+        <p class="hint" id="direct-loss-evidence-status"></p>
+      </div>
+      <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+        <button type="button" class="btn btn-ghost" id="direct-loss-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="direct-loss-modal-submit" style="flex:1;" disabled>Record loss</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="image-lightbox-backdrop">
+  <div class="modal" style="text-align:center;">
+    <img id="image-lightbox-img" src="" alt="" style="max-width:100%; max-height:75vh; border-radius:10px; object-fit:contain;" />
+    <button type="button" class="btn btn-ghost" id="image-lightbox-close" style="margin-top:14px;">Close</button>
+  </div>
+</div>
+
+<!-- Refund detail -- full printable refund receipt, reusing the same
+     receipt-sheet styling as the sale/booking receipt (spec: Refund →
+     Details must look like an actual receipt/document, not plain text) -->
+<div class="modal-backdrop" id="refund-history-detail-backdrop">
+  <div class="modal receipt-modal">
+    <div class="modal-actions" style="margin-bottom:16px;">
+      <button type="button" class="btn btn-ghost" id="refund-history-detail-close">Close</button>
+      <button type="button" class="btn btn-primary" id="refund-history-detail-print">Print refund receipt</button>
+    </div>
+    <div class="receipt-sheet" id="refund-history-detail-sheet"></div>
+  </div>
+</div>
+
+<!-- Booking action modal (complete/cancel) -->
+<div class="modal-backdrop" id="booking-action-backdrop">
+  <div class="modal">
+    <h3 style="margin-bottom:12px;" id="booking-action-title">Complete booking</h3>
+    <div id="booking-action-error" class="error-banner"></div>
+    <div id="booking-action-complete-fields">
+      <div id="booking-storage-fee-note" class="hint" style="margin-bottom:10px;display:none;"></div>
+      <div class="field" style="margin-bottom:14px;">
+        <label for="booking-pickup-date">Pickup date (optional)</label>
+        <input type="date" id="booking-pickup-date" />
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label for="booking-payment-amount">Amount to add (₦)</label>
+        <input type="number" id="booking-payment-amount" min="0" step="1" />
+      </div>
+      <div class="field" style="margin-bottom:14px;">
+        <label for="booking-complete-method">Payment method</label>
+        <select id="booking-complete-method">
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="transfer">Transfer</option>
+        </select>
+      </div>
+      <div id="booking-history-section" style="margin-bottom:14px;">
+        <label style="display:block;margin-bottom:6px;">Payment history</label>
+        <div id="booking-history-list" style="max-height:140px;overflow-y:auto;border:1px solid var(--border,#eee);border-radius:8px;padding:8px;font-size:13px;"></div>
+      </div>
+    </div>
+    <div id="booking-action-cancel-fields" style="display:none;">
+      <div class="field" style="margin-bottom:14px;">
+        <label for="booking-cancel-reason">Reason *</label>
+        <div class="reason-presets" style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-ghost btn-sm" data-reason-preset="Already sold out -- resold to another customer">Already sold out</button>
+        </div>
+        <input type="text" id="booking-cancel-reason" placeholder="e.g. customer no longer wants it" required />
+      </div>
+      <!-- September 2026 change spec section 10: cancelling a booking
+           with a deposit paid now actively triggers this refund --
+           same-day cash if that's how it was paid, bank transfer
+           otherwise. See js/sales.js updateBookingCancelRefundFields(). -->
+      <div id="booking-cancel-refund-fields" style="display:none;">
+        <div class="field" style="margin-bottom:14px;">
+          <label for="booking-cancel-refund-method">Refund method</label>
+          <select id="booking-cancel-refund-method">
+            <option value="cash">Cash, handed back now</option>
+            <option value="transfer">Bank transfer</option>
+          </select>
+          <p class="hint" id="booking-cancel-refund-hint" style="margin-top:4px;"></p>
+        </div>
+        <div id="booking-cancel-refund-bank-fields" style="display:none;">
+          <div class="field" style="margin-bottom:14px;">
+            <label for="booking-cancel-refund-bank-name">Bank name</label>
+            <select id="booking-cancel-refund-bank-name"></select>
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label for="booking-cancel-refund-account-number">Account number</label>
+            <input type="text" id="booking-cancel-refund-account-number" inputmode="numeric" maxlength="10" />
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label for="booking-cancel-refund-account-name">Account name</label>
+            <input type="text" id="booking-cancel-refund-account-name" placeholder="For confirmation" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="booking-action-close">Close</button>
+      <button type="button" class="btn btn-primary" id="booking-action-confirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Change item on an open booking (spec section 1) -->
+<div class="modal-backdrop" id="change-item-backdrop">
+  <div class="modal" style="max-width:480px;">
+    <h3>Change item</h3>
+    <p class="modal-sub">Swap this booking for a different product. The deposit already paid stays put; only the total and balance change.</p>
+    <div id="change-item-error" class="error-banner"></div>
+    <div class="field" id="change-item-product-field">
+      <label for="change-item-product">Product *</label>
+      <select id="change-item-product" required><option value="">Select a product…</option></select>
+    </div>
+    <div class="field">
+      <label for="change-item-category">Category</label>
+      <select id="change-item-category"><option value="">All categories</option></select>
+      <p class="hint">Fills in on its own once you pick a product above — or set it first to narrow the product list down to that category.</p>
+    </div>
+    <div class="field">
+      <label for="change-item-quantity">Quantity *</label>
+      <input type="number" id="change-item-quantity" min="1" step="1" value="1" required />
+    </div>
+    <div class="field">
+      <label for="change-item-price">New total (₦)</label>
+      <input type="number" id="change-item-price" min="0" step="0.01" />
+      <p class="hint" id="change-item-hint" style="margin-top:4px;"></p>
+    </div>
+    <!-- September 2026 change spec section 9: only relevant when the
+         new item costs less than the deposit already paid -- same
+         same-day-cash / bank-transfer routing as booking cancellation
+         (section 10). See js/sales.js updateChangeItemRefundFields(). -->
+    <div id="change-item-refund-fields" style="display:none;">
+      <div class="field">
+        <label for="change-item-refund-method">The difference is owed back — how?</label>
+        <select id="change-item-refund-method">
+          <option value="cash">Cash, handed back now</option>
+          <option value="transfer">Bank transfer</option>
+        </select>
+        <p class="hint" id="change-item-refund-hint" style="margin-top:4px;"></p>
+      </div>
+      <div id="change-item-refund-bank-fields" style="display:none;">
+        <div class="field">
+          <label for="change-item-refund-bank-name">Bank name</label>
+          <select id="change-item-refund-bank-name"></select>
+        </div>
+        <div class="field">
+          <label for="change-item-refund-account-number">Account number</label>
+          <input type="text" id="change-item-refund-account-number" inputmode="numeric" maxlength="10" />
+        </div>
+        <div class="field">
+          <label for="change-item-refund-account-name">Account name</label>
+          <input type="text" id="change-item-refund-account-name" placeholder="For confirmation" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+      <button type="button" class="btn btn-ghost" id="change-item-close">Close</button>
+      <button type="button" class="btn btn-primary" id="change-item-confirm" style="flex:1;">Change item</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record payment / detail modal -->
+<div class="modal-backdrop" id="credit-detail-backdrop">
+  <div class="modal" style="max-width:520px;">
+    <h3 style="margin-bottom:4px;">Credit detail</h3>
+    <p class="modal-sub" id="credit-detail-readout"></p>
+    <div id="credit-detail-error" class="error-banner"></div>
+    <div id="credit-payment-history" style="margin:10px 0;max-height:140px;overflow-y:auto;border:1px solid var(--border,#eee);border-radius:8px;padding:8px;font-size:13px;"></div>
+    <form id="credit-payment-form">
+      <div class="field">
+        <label for="credit-payment-amount">Amount received now (₦)</label>
+        <input type="number" id="credit-payment-amount" min="0.01" step="0.01" required />
+      </div>
+      <div class="field">
+        <label for="credit-payment-method">Payment method</label>
+        <select id="credit-payment-method">
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="transfer">Transfer</option>
+        </select>
+      </div>
+      <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+        <button type="button" class="btn btn-ghost" id="credit-detail-close">Close</button>
+        <button type="button" class="btn btn-ghost" id="credit-detail-print">Print receipt</button>
+        <button type="submit" class="btn btn-primary" id="credit-payment-submit" style="flex:1;">Record payment</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Printable credit receipt -->
+<div class="modal-backdrop" id="credit-receipt-backdrop">
+  <div class="modal receipt-modal">
+    <div class="receipt-modal-actions">
+      <button type="button" class="btn btn-ghost" id="credit-receipt-close">Close</button>
+      <button type="button" class="btn btn-primary" id="credit-receipt-print">Print receipt</button>
+    </div>
+    <div class="receipt-sheet" id="credit-receipt-sheet"></div>
+  </div>
+</div>
+
+<!-- Receipt modal -->
+<div class="modal-backdrop" id="receipt-modal-backdrop">
+  <div class="modal receipt-modal">
+    <div class="modal-actions" style="margin-bottom:16px;">
+      <button type="button" class="btn btn-ghost" id="receipt-close">Back to sales</button>
+      <button type="button" class="btn btn-ghost" id="receipt-refund-toggle">Refund…</button>
+      <button type="button" class="btn btn-primary" id="receipt-print">Print receipt</button>
+    </div>
+    <div class="table-card" id="refund-panel" style="display:none;margin-bottom:16px;padding:16px;">
+      <div id="refund-error" class="error-banner"></div>
+      <div class="hint" id="refund-original-sale-info" style="margin-bottom:10px;"></div>
+      <table>
+        <thead><tr><th>Item</th><th>Sold qty</th><th>Refund qty</th><th>Restock?</th><th>Spoiled?</th></tr></thead>
+        <tbody id="refund-tbody"></tbody>
+      </table>
+      <div class="field" style="margin-top:12px;">
+        <label for="refund-photo">Photo of returned/damaged item <span style="color:var(--danger);">*required</span></label>
+        <input type="file" id="refund-photo" accept="image/*" required />
+      </div>
+      <div class="field" style="margin-top:12px;">
+        <label for="refund-reason">Reason for refund <span style="color:var(--danger);">*required</span></label>
+        <input type="text" id="refund-reason" maxlength="200" required />
+      </div>
+      <div class="field" style="margin-top:12px;">
+        <label for="refund-want">What does the customer want?</label>
+        <select id="refund-want">
+          <option value="refund">Refund</option>
+          <option value="exchange">Swap Item(s) for another product</option>
+        </select>
+      </div>
+      <div id="refund-method-fields">
+        <div class="field">
+          <label for="refund-method">Refund method</label>
+          <!-- September 2026 change spec section 10: "All refunds,
+               system-wide, must go through bank transfer -- remove
+               cash as a refund method entirely" (except the same-day
+               booking cancellation/change case, which has its own
+               separate flow entirely and isn't this panel). -->
+          <select id="refund-method" disabled>
+            <option value="transfer" selected>Bank transfer</option>
+          </select>
+          <div class="hint" id="refund-method-hint" style="margin-top:4px;">Refunds are always paid out by bank transfer.</div>
+        </div>
+      </div>
+      <div id="refund-bank-fields" style="display:none;">
+        <div class="field">
+          <label for="refund-bank-name">Bank name</label>
+          <select id="refund-bank-name"></select>
+        </div>
+        <div class="field">
+          <label for="refund-account-number">Account number</label>
+          <input type="text" id="refund-account-number" inputmode="numeric" maxlength="10" />
+        </div>
+        <div class="field">
+          <label for="refund-account-name">Account name</label>
+          <input type="text" id="refund-account-name" placeholder="For confirmation" />
+        </div>
+        <div class="hint">Once you click Process Refund, the customer will be told management will process this within 24 hours.</div>
+      </div>
+      <div id="refund-exchange-fields" style="display:none;">
+        <div class="field">
+          <label for="refund-exchange-search">Item to give instead</label>
+          <input type="text" id="refund-exchange-search" placeholder="Search product…" />
+          <select id="refund-exchange-variant"></select>
+        </div>
+        <div class="field">
+          <label for="refund-exchange-qty">Quantity</label>
+          <input type="number" id="refund-exchange-qty" min="1" value="1" style="width:80px;" />
+        </div>
+        <div class="hint" id="refund-exchange-price-preview" style="margin:6px 0;"></div>
+        <div id="refund-exchange-topup-fields" style="display:none;">
+          <div class="field">
+            <label for="refund-exchange-method">Top-up amount owed, once paid — payment method</label>
+            <select id="refund-exchange-method">
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="transfer">Transfer</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="refund-exchange-topup-amount">Top-up amount collected (₦)</label>
+            <input type="number" id="refund-exchange-topup-amount" min="0" step="0.01" />
+          </div>
+        </div>
+        <div id="refund-exchange-settlement-fields" style="display:none;">
+          <div class="field">
+            <label for="refund-settlement-method">The difference is owed back to the customer — how?</label>
+            <!-- September 2026 change spec section 10: cash removed
+                 here too -- an exchange payout is still "the store
+                 paying money back", same as a plain refund. -->
+            <select id="refund-settlement-method" disabled>
+              <option value="transfer" selected>Bank transfer</option>
+            </select>
+          </div>
+          <div id="refund-settlement-bank-fields" style="display:none;">
+            <div class="field">
+              <label for="refund-settlement-bank-name">Bank name</label>
+              <select id="refund-settlement-bank-name"></select>
+            </div>
+            <div class="field">
+              <label for="refund-settlement-account-number">Account number</label>
+              <input type="text" id="refund-settlement-account-number" inputmode="numeric" maxlength="10" />
+            </div>
+            <div class="field">
+              <label for="refund-settlement-account-name">Account name</label>
+              <input type="text" id="refund-settlement-account-name" placeholder="For confirmation" />
+            </div>
+            <div class="hint">The customer will be told management will process this within 24 hours.</div>
+          </div>
+        </div>
+      </div>
+      <div id="refund-settlement-note" class="hint" style="margin-top:8px;"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="refund-submit">Process refund</button>
+      </div>
+    </div>
+    <div class="receipt-sheet" id="receipt-sheet"></div>
+  </div>
+</div>
+
+<!-- Generic confirmation step -- reused before any action that finalizes a
+     change (add payment, change item) so a mis-tap on the primary button
+     can't silently apply it. Body content is filled in dynamically. -->
+<div class="modal-backdrop" id="generic-confirm-backdrop">
+  <div class="modal">
+    <h3 style="margin-bottom:4px;" id="generic-confirm-title">Confirm</h3>
+    <p class="modal-sub" style="margin-bottom:14px;" id="generic-confirm-sub">Review before you continue.</p>
+    <div id="generic-confirm-body" style="background:var(--bg-muted);border-radius:10px;padding:14px;margin-bottom:4px;font-size:13.5px;line-height:1.7;"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="generic-confirm-cancel">Go back</button>
+      <button type="button" class="btn btn-primary" id="generic-confirm-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/api.js"></script>
+<script src="js/nigerian-banks.js"></script>
+<script src="js/permissions.js"></script>
+<script src="js/receipt.js"></script>
+<script src="js/sales.js"></script>
+<script src="js/credit.js"></script>
+<script src="js/pending-change.js"></script>
+<script src="js/confirm-modal.js"></script>
+<script src="js/losses.js"></script>
+<script src="js/website-orders.js"></script>
+</body>
+</html>
+<!-- PATCH3E-SWAP-LABELS -->

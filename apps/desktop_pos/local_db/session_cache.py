@@ -10,7 +10,7 @@ from local_db.models import SessionCache
 _SESSION_ROW_ID = 1  # always a single row
 
 
-def save_session(session: Session, api: ApiClient, last_branch_id: str | None = None) -> None:
+def save_session(session: Session, api: ApiClient) -> None:
     user = api.current_user or {}
     existing = session.get(SessionCache, _SESSION_ROW_ID)
     if existing is None:
@@ -24,21 +24,26 @@ def save_session(session: Session, api: ApiClient, last_branch_id: str | None = 
     existing.branch_id = str(user["branch_id"]) if user.get("branch_id") else None
     existing.access_token = api.access_token or ""
     existing.refresh_token = api.refresh_token or ""
-    if last_branch_id is not None:
-        existing.last_branch_id = last_branch_id
 
     session.commit()
 
 
-def save_last_branch(session: Session, branch_id: str) -> None:
-    existing = session.get(SessionCache, _SESSION_ROW_ID)
-    if existing is not None:
-        existing.last_branch_id = branch_id
-        session.commit()
-
-
 def load_session(session: Session) -> SessionCache | None:
     return session.get(SessionCache, _SESSION_ROW_ID)
+
+
+def save_last_branch(session: Session, branch_id: str) -> None:
+    """Remembers the branch this device was last switched to, so the
+    POS window can restore it on the next launch (see
+    pos_window.py:_load_branches). No-ops if there's no session row
+    yet (shouldn't normally happen -- a branch can't be selected
+    before login -- but guards against it rather than raising).
+    """
+    existing = session.get(SessionCache, _SESSION_ROW_ID)
+    if existing is None:
+        return
+    existing.last_branch_id = branch_id
+    session.commit()
 
 
 def clear_session(session: Session) -> None:

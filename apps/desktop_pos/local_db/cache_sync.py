@@ -9,7 +9,7 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from api_client import ApiClient
-from local_db.models import CachedBranch, CachedStockBatch, CachedVariant
+from local_db.models import CachedBranch, CachedCoupon, CachedStockBatch, CachedVariant
 
 
 def _parse_iso(value: str | None) -> datetime | None:
@@ -53,6 +53,7 @@ def pull_catalog(api: ApiClient, session: Session, branch_id: str) -> None:
                     product_id=product["id"],
                     product_name=product["name"],
                     variant_name=variant["variant_name"],
+                    category=product.get("category") or "Uncategorized",
                     sku=variant["sku"],
                     barcode=variant.get("barcode"),
                     selling_price_kobo=round(variant["selling_price_naira"] * 100),
@@ -78,4 +79,39 @@ def pull_catalog(api: ApiClient, session: Session, branch_id: str) -> None:
             )
         )
 
+    session.commit()
+
+def pull_coupons(api: ApiClient, session: Session) -> None:
+    """Refreshes the local coupon cache from the cloud's active
+    coupons. Call this after login and via "Sync Now" -- same trigger
+    points as pull_branches/pull_catalog -- so a coupon issued from
+    the web admin portal becomes redeemable at the till without
+    needing a full app restart. This is what pos_window.py's
+    "This code isn't in the local cache yet. Tap 'Sync Now'..."
+    message is telling the cashier to do.
+
+    Unlike pull_catalog, this does NOT delete-and-reinsert wholesale:
+    a coupon redeemed locally but not yet pushed to the cloud (see
+    OutboxSale sync) would have its local "redeemed" status clobbered
+    back to "active" by a naive wholesale replace, making it
+    redeemable twice. Instead this only inserts coupons the cache
+    doesn't already have, and only overwrites status for coupons the
+    cloud reports as no longer active (voided/expired there).
+    """
+    coupons = api.list_coupons()
+    existing_codes = {row.code for row in session.query(CachedCoupon).all()}
+
+    for coupon in coupons:
+        if coupon["code"] in existing_codes:
+            continue
+        expires_at = _parse_iso(coupon["expires_at"]) or datetime.utcnow()
+        session.add(
+            CachedCoupon(
+                id=coupon["id"],
+                code=coupon["code"],
+                discount_amount_kobo=round(coupon["discount_amount_naira"] * 100),
+                status=coupon["status"],
+                expires_at=expires_at,
+            )
+        )
     session.commit()

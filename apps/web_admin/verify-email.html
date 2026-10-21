@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Verify Email — Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="login-shell">
+  <div class="status-page">
+    <div class="login-brand" style="justify-content:center;">
+      <span class="swatch-mark"><span></span><span></span><span></span></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+    <div id="status-icon" class="status-icon">⏳</div>
+    <h2 class="display" id="status-title" style="font-size:16px;">Verifying…</h2>
+    <p id="status-body">Confirming your new email address.</p>
+    <a href="index.html" class="btn btn-ghost" id="back-link" style="display:none;width:auto;padding:10px 20px;margin-top:8px;">Back to Sign In</a>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+  const title = document.getElementById('status-title');
+  const body = document.getElementById('status-body');
+  const icon = document.getElementById('status-icon');
+
+  async function run() {
+    if (!token) {
+      icon.textContent = '✕';
+      title.textContent = 'Missing token';
+      body.textContent = 'This link is missing its verification token.';
+      document.getElementById('back-link').style.display = 'inline-block';
+      return;
+    }
+    try {
+      await Api.verifyEmailChange(token);
+      icon.textContent = '✓';
+      title.textContent = 'Email verified';
+      body.textContent = 'Your new email address is now active. Sign in with it any time.';
+    } catch (err) {
+      icon.textContent = '✕';
+      title.textContent = 'Could not verify';
+      body.textContent = err.message;
+    }
+    document.getElementById('back-link').style.display = 'inline-block';
+  }
+  run();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Staff &amp; Branches — Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="login-brand">
+      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+    <nav class="nav-gate-pending">
+      <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>
+      <a href="pos.html" data-nav="pos" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg></span><span>POS</span></a>
+      <a href="inventory.html" data-nav="inventory" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventory</span></a>
+      <a href="sales.html" data-nav="sales" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v18l-2.5-1.5L13 20.5l-2.5-1.5L8 20.5 6 19V2.5Z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/></svg></span><span>Transactions</span></a>
+      <a href="invoice.html" data-nav="invoice" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l3 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7l3-4Z"/><path d="M4 7h16"/><path d="M9 11h6M9 15h6"/></svg></span><span>Invoice</span></a>
+      <a href="warehouse.html" data-nav="warehouse" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M2.5 12h19"/></svg></span><span>Warehouse</span></a>
+      <a href="reports.html" data-nav="reports" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 12.9a9.2 9.2 0 1 1-9.1-10"/><path d="M21.2 12.9H12V3.7a9.2 9.2 0 0 1 9.2 9.2Z"/></svg></span><span>Reports</span></a>
+      <a href="staff.html" data-nav="staff" class="nav-item active" title="Staff, Branches, Roles &amp; Shifts"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6.2M21.5 20a6 6 0 0 0-5-5.9"/></svg></span><span>Team</span></a>
+    </nav>
+    <button type="button" class="theme-toggle" id="theme-toggle-btn">
+      <span id="theme-toggle-text">Dark mode</span>
+      <span class="icon-swap"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+    </button>
+    <div class="sidebar-footer">
+      <div id="current-user-name" style="display:none"></div>
+      <div id="current-user-role" style="display:none"></div>
+      <a href="#" id="logout-link" class="btn-danger-text signout-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Sign Out</span></a>
+    </div>
+  </aside>
+
+  <!-- Content column: .app-shell is display:flex with exactly two
+       intended children (sidebar + this column). The tab bar below
+       and all four #tab-* panels are wrapped together here so
+       .app-shell only ever sees two flex items -- without this
+       wrapper, .tabs became its own third flex item and, by flex's
+       default align-items:stretch, stretched to the full page height,
+       rendering as a narrow vertical strip between the sidebar and
+       the content instead of a slim bar across the top of it. -->
+  <div class="content-col" style="flex:1;min-width:0;display:flex;flex-direction:column;">
+
+  <!-- Item 14 fix: this tabs bar used to live *inside* #tab-staff, so
+       switching to Branches/Roles/Shifts (which hides #tab-staff)
+       hid the tab bar itself along with it, trapping the user on
+       whichever tab they'd clicked until they left and re-entered
+       Staff & Branches. Moved here as an always-visible sibling of
+       all four tab panels so it's never hidden by any of them. -->
+  <div class="page-top wh-top staff-top" style="margin:40px 48px 0 24px;">
+    <div class="page-head">
+      <div class="card-head">
+        <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6.2M21.5 20a6 6 0 0 0-5-5.9"/></svg></span>
+        <div class="card-titles">
+          <h2 class="display">Team</h2>
+          <p>Staff accounts, branches, roles and shifts, all in one place.</p>
+        </div>
+      </div>
+    </div>
+    <div class="tabs" id="staff-section-tabs">
+      <button type="button" class="btn btn-ghost btn-sm tab-btn active" id="tab-btn-staff" data-consolidated-tab="staff">Staff</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" id="tab-btn-branches" data-consolidated-tab="branches">Branches</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" id="tab-btn-roles" data-consolidated-tab="roles">Roles</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" id="tab-btn-shifts" data-consolidated-tab="shifts">Shifts</button>
+    </div>
+  </div>
+
+  <div id="tab-staff" class="main">
+
+    <div class="staff-fuse staff-fuse-open">
+      <div class="page-head">
+        <div>
+          <h2 class="display">Staff</h2>
+          <p>Manage staff and manager accounts, and review staff applications.</p>
+        </div>
+        <button class="btn btn-primary" id="new-staff-btn" style="width:auto;">+ New staff</button>
+      </div>
+
+      <div class="toolbar" style="margin-bottom:4px;">
+        <div class="segmented" id="staff-tabs">
+          <button type="button" class="segmented-btn active" data-tab="active">Active Staff</button>
+          <button type="button" class="segmented-btn" data-tab="applications">Applications <span id="applications-badge" class="badge-count" style="display:none;"></span></button>
+          <button type="button" class="segmented-btn" data-tab="resets">Password Resets <span id="resets-badge" class="badge-count" style="display:none;"></span></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="active-panel">
+    <div class="toolbar">
+      <select id="role-filter">
+        <option value="">All roles</option>
+        <option value="super_admin">Super admin</option>
+        <option value="branch_manager">Branch manager</option>
+        <option value="staff">Cashiers</option>
+      </select>
+      <label class="checkbox">
+        <input type="checkbox" id="include-inactive" />
+        Show deactivated
+      </label>
+      <span id="branch-badge"></span>
+    </div>
+
+    <div class="table-card">
+      <table id="staff-table" class="wh-table wh-flush">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Role</th>
+            <th>Branch</th>
+            <th>Status</th>
+            <th class="th-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="staff-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state" style="display:none;">
+        <div class="display">No staff yet</div>
+        <p>Add your first staff account to get started.</p>
+      </div>
+    </div>
+    </div>
+
+    <div id="applications-panel" style="display:none;">
+      <div class="toolbar">
+        <select id="application-status-filter">
+          <option value="">All statuses</option>
+          <option value="under_review" selected>Under review</option>
+          <option value="accepted">Accepted</option>
+          <option value="rejected">Rejected</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+      <div class="table-card">
+        <table id="applications-table" class="wh-table wh-flush">
+          <thead>
+            <tr>
+              <th>Applicant</th>
+              <th>Email</th>
+              <th>Submitted</th>
+              <th>Status</th>
+              <th class="th-actions">Action</th>
+            </tr>
+          </thead>
+          <tbody id="applications-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="applications-empty-state" style="display:none;">
+          <div class="display">No applications</div>
+          <p>Staff applications will show up here once someone registers.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="resets-panel" style="display:none;">
+      <div class="toolbar">
+        <select id="reset-status-filter">
+          <option value="open" selected>Open (waiting or approved)</option>
+          <option value="pending">Waiting for approval</option>
+          <option value="approved">Approved</option>
+          <option value="used">Changed</option>
+          <option value="rejected">Rejected</option>
+          <option value="">All</option>
+        </select>
+      </div>
+      <div class="table-card">
+        <table id="resets-table" class="wh-table wh-flush">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Branch</th>
+              <th>Requested</th>
+              <th>Status</th>
+              <th class="th-actions">Action</th>
+            </tr>
+          </thead>
+          <tbody id="resets-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="resets-empty-state" style="display:none;">
+          <div class="display">No reset requests</div>
+          <p>When someone taps "Forgot Password", their request will show up here.</p>
+        </div>
+      </div>
+
+      <h3 class="display" style="font-size:16px;margin:28px 0 10px;">Password reset history</h3>
+      <div class="table-card">
+        <table id="reset-history-table" class="wh-table wh-flush">
+          <thead>
+            <tr>
+              <th>Staff</th>
+              <th>Branch</th>
+              <th>Requested</th>
+              <th>Decision</th>
+              <th>Password changed</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="reset-history-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="reset-history-empty" style="display:none;">
+          <div class="display">No history yet</div>
+          <p>Every reset request and what happened to it will be listed here.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="tab-branches" class="main" style="display:none;">
+    <div class="staff-fuse">
+      <div class="page-head">
+        <div>
+          <h2 class="display">Branches</h2>
+          <p>Locations staff and inventory are organized by.</p>
+        </div>
+        <button class="btn btn-primary" id="new-branch-btn" style="width:auto;">+ New branch</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <table id="branches-table" class="wh-table wh-flush">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Address</th>
+            <th>Shift closing time</th>
+            <th class="th-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="branches-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="branches-empty-state" style="display:none;">
+        <div class="display">No branches yet</div>
+        <p>Add your first branch to start assigning staff and stock to it.</p>
+      </div>
+    </div>
+  </div>
+  <div id="tab-roles" class="main" style="display:none;">
+    <div class="staff-fuse">
+      <div class="page-head">
+        <div>
+          <h2 class="display">Roles</h2>
+          <p>Define who can do what — a role's permissions apply to everyone currently assigned it.</p>
+        </div>
+        <button class="btn btn-primary" id="new-role-btn" style="width:auto;">+ New role</button>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <table id="roles-table" class="wh-table wh-flush">
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Type</th>
+            <th>Permissions</th>
+            <th>Accounts</th>
+            <th class="th-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="roles-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="roles-empty-state" style="display:none;">
+        <div class="display">No roles yet</div>
+      </div>
+    </div>
+  </div>
+  <div id="tab-shifts" class="main" style="display:none;">
+    <div class="staff-fuse">
+      <div class="page-head">
+        <div>
+          <h2 class="display">Shifts</h2>
+          <p>When each staff member opened and closed a till, with the amount they started and ended with — spec: proper lodge-time management, one place to see it all.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div style="display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border,#eee);flex-wrap:wrap;">
+        <span id="branch-badge"></span>
+        <select id="status-filter" style="max-width:180px;">
+          <option value="">All statuses</option>
+          <option value="open">Currently open</option>
+          <option value="closed">Closed</option>
+        </select>
+        <button type="button" class="btn btn-ghost" id="filter-btn" style="width:auto;">Filter</button>
+      </div>
+      <table id="shifts-table" class="wh-table wh-flush">
+        <thead>
+          <tr>
+            <th>Opened</th>
+            <th>Closed</th>
+            <th>Staff</th>
+            <th>Branch</th>
+            <th>Opening Cash</th>
+            <th>Closing counted</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="shifts-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="shifts-empty-state" style="display:none;">
+        <div class="display">No shifts recorded yet</div>
+      </div>
+    </div>
+
+    <div class="table-card" style="margin-top:24px;">
+      <h3 class="wh-card-title">Staff not closing their shifts</h3>
+      <p class="wh-card-sub">Shifts the system had to auto-close at midnight in the last 30 days — worth a word with these staff.</p>
+      <table id="unclosed-table" class="wh-table">
+        <thead>
+          <tr>
+            <th>Staff</th>
+            <th>Branch</th>
+            <th>Opened</th>
+            <th>Auto-closed at</th>
+          </tr>
+        </thead>
+        <tbody id="unclosed-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="unclosed-empty-state" style="display:none;">
+        <div class="display">Nobody's missed a close-out lately</div>
+      </div>
+    </div>
+    <!-- Staff Shift Compliance -- built on top of the shift records
+         above, not a replacement for them (spec: "Do not rebuild the
+         existing shift system from scratch"). Computed live from shift
+         + compliance-event history, nothing here is hand-entered. -->
+    <div class="table-card" style="margin-top:24px;">
+      <div class="wh-card-head-row">
+        <div>
+          <h3 style="margin:0;">Shift Compliance</h3>
+          <p style="margin:4px 0 0;color:var(--ink-muted);font-size:13px;">Per-staff accountability, so you can tell who's reliable without watching the branch in person.</p>
+        </div>
+        <select id="compliance-status-filter" style="max-width:220px;">
+          <option value="">All statuses</option>
+          <option value="Good Standing">Good Standing</option>
+          <option value="Warning">Warning</option>
+          <option value="Management Review">Management Review</option>
+        </select>
+      </div>
+      <table id="compliance-table" class="wh-table">
+        <thead>
+          <tr>
+            <th>Staff</th>
+            <th>Branch</th>
+            <th>Total shifts</th>
+            <th>Manual</th>
+            <th>Auto-closed</th>
+            <th>Late</th>
+            <th>Warnings</th>
+            <th>Pending ack.</th>
+            <th>Status</th>
+            <th class="th-actions">History</th>
+          </tr>
+        </thead>
+        <tbody id="compliance-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="compliance-empty-state" style="display:none;">
+        <div class="display">No shift history yet</div>
+      </div>
+    </div>
+
+    <div class="table-card" style="margin-top:24px;">
+      <div class="wh-card-head-row">
+        <h3 style="margin:0;">Compliance events</h3>
+        <select id="compliance-events-filter" style="max-width:220px;">
+          <option value="">All events</option>
+          <option value="pending">Pending acknowledgement</option>
+          <option value="acknowledged">Acknowledged</option>
+        </select>
+      </div>
+      <table id="compliance-events-table" class="wh-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Staff</th>
+            <th>Branch</th>
+            <th>Occurrence</th>
+            <th>Level</th>
+            <th>Acknowledged</th>
+            <th>Admin follow-up</th>
+            <th class="th-actions">Action</th>
+          </tr>
+        </thead>
+        <tbody id="compliance-events-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="compliance-events-empty-state" style="display:none;">
+        <div class="display">No compliance events logged yet</div>
+      </div>
+    </div>
+
+    <!-- Shift-behavior detail for one staff member -- spec section 15,
+         opened by clicking "View history" on a Shift Compliance row. -->
+    <div class="modal-backdrop" id="shift-behavior-backdrop">
+      <div class="modal" style="max-width:720px;">
+        <h3 id="shift-behavior-title" style="margin-bottom:4px;">Shift behavior</h3>
+        <p class="modal-sub" style="margin-bottom:14px;">Every recorded shift for this staff member, most recent first.</p>
+        <div style="max-height:60vh;overflow:auto;">
+          <table class="wh-table">
+            <thead>
+              <tr><th>Date</th><th>Branch</th><th>Opened</th><th>Closed</th><th>Opening Cash</th><th>Closing counted</th><th>Status</th><th>Violation</th></tr>
+            </thead>
+            <tbody id="shift-behavior-tbody"></tbody>
+          </table>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="shift-behavior-close">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- "Not the staff's fault" override -- spec section 18. -->
+    <div class="modal-backdrop" id="shift-exempt-backdrop">
+      <div class="modal">
+        <h3 style="margin-bottom:4px;">Mark as system/administrative closure</h3>
+        <p class="modal-sub" style="margin-bottom:14px;">This removes the compliance violation this auto-close created — use it when the staff member genuinely wasn't at fault (server downtime, a sync failure, you closing it on their behalf, etc.).</p>
+        <div id="shift-exempt-error" class="error-banner"></div>
+        <div class="field">
+          <label for="shift-exempt-reason">Reason</label>
+          <input type="text" id="shift-exempt-reason" placeholder="e.g. Server was down that evening" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="shift-exempt-cancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="shift-exempt-confirm">Confirm exemption</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+</div>
+
+<!-- Create / Edit modal -->
+<div class="modal-backdrop" id="user-modal-backdrop">
+  <div class="modal">
+    <h3 id="user-modal-title">New staff</h3>
+    <p class="modal-sub" id="user-modal-sub">Create a staff account.</p>
+    <div id="modal-error" class="error-banner"></div>
+    <form id="user-form">
+      <input type="hidden" id="user-id" />
+      <div class="field">
+        <label for="full_name">Full name</label>
+        <input type="text" id="full_name" required />
+      </div>
+      <div class="field" id="role-field">
+        <label for="role">Role</label>
+        <select id="role">
+          <option value="staff">Cashiers</option>
+          <option value="branch_manager">Branch manager</option>
+          <option value="super_admin">Super admin</option>
+        </select>
+      </div>
+      <div class="field" id="branch-field">
+        <label for="branch_id">Branch</label>
+        <select id="branch_id">
+          <option value="">No branch assigned</option>
+        </select>
+      </div>
+      <div class="field" id="new-branch-field" style="display:none;">
+        <label for="new_branch_name">New branch name</label>
+        <input type="text" id="new_branch_name" placeholder="e.g. Lekki Branch" />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" />
+      </div>
+      <div class="field">
+        <label for="phone">Phone</label>
+        <input type="text" id="phone" />
+      </div>
+      <div class="field" id="password-field">
+        <label for="password">Password</label>
+        <input type="password" id="password" minlength="8" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="user-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="user-modal-save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reset password modal -->
+<div class="modal-backdrop" id="reset-modal-backdrop">
+  <div class="modal">
+    <h3>Reset password</h3>
+    <p class="modal-sub" id="reset-modal-sub">Set a new password for this account.</p>
+    <div id="reset-modal-error" class="error-banner"></div>
+    <form id="reset-form">
+      <div class="field">
+        <label for="new_password">New password</label>
+        <input type="password" id="new_password" minlength="8" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="reset-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Reset</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="restrict-modal-backdrop">
+  <div class="modal">
+    <h3>Restrict access</h3>
+    <p class="modal-sub" id="restrict-modal-sub">Turn off specific abilities for this branch manager. Everything left checked stays available to them.</p>
+    <div id="restrict-modal-error" class="error-banner"></div>
+    <form id="restrict-form">
+      <div class="field" id="restrict-checklist"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="restrict-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save restrictions</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="grant-modal-backdrop">
+  <div class="modal">
+    <h3>Grant extra access</h3>
+    <p class="modal-sub" id="grant-modal-sub">Give this staff member one or two extra abilities without upgrading their role.</p>
+    <div id="grant-modal-error" class="error-banner"></div>
+    <form id="grant-form">
+      <div class="field" id="grant-checklist"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="grant-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save extra access</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- Application review modal -->
+<div class="modal-backdrop" id="review-modal-backdrop">
+  <div class="modal" style="max-width:560px;">
+    <h3>Review application</h3>
+    <p class="modal-sub" id="review-modal-sub"></p>
+    <div id="review-modal-error" class="error-banner"></div>
+
+    <div id="review-details" style="max-height:340px;overflow-y:auto;margin-bottom:14px;font-size:13.5px;line-height:1.7;"></div>
+
+    <div id="review-accept-fields">
+      <div class="field">
+        <label for="review-branch">Branch</label>
+        <select id="review-branch"></select>
+      </div>
+      <div class="field" id="review-role-field">
+        <label for="review-role">Role</label>
+        <select id="review-role">
+          <option value="staff">Cashiers</option>
+          <option value="branch_manager">Branch manager</option>
+          <option value="super_admin">Super admin</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="flex-wrap:wrap;">
+      <button type="button" class="btn btn-danger-text" id="review-delete-btn">Delete account</button>
+      <button type="button" class="btn btn-ghost" id="review-modal-cancel">Close</button>
+      <button type="button" class="btn btn-danger" id="review-reject-btn">Reject</button>
+      <button type="button" class="btn btn-primary" id="review-accept-btn">Accept</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal-backdrop" id="branch-modal-backdrop">
+  <div class="modal">
+    <h3>New branch</h3>
+    <p class="modal-sub">Add a new store location -- each branch manages its own warehouse internally, nothing to configure here.</p>
+    <div id="branches-modal-error" class="error-banner"></div>
+    <form id="branch-form">
+      <div class="field">
+        <label for="branch-state">State</label>
+        <select id="branch-state" required>
+          <option value="">Select a state…</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="branch-lga">Local government area</label>
+        <select id="branch-lga" required disabled>
+          <option value="">Select a state first…</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="name">Branch name</label>
+        <input type="text" id="name" required />
+      </div>
+      <div class="field">
+        <label for="address">Street address</label>
+        <input type="text" id="address" placeholder="e.g. 12 Allen Avenue" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="branch-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Shift closing grace period -- spec section 19: "The administrator
+     should be able to configure the grace period rather than
+     hard-code it." Leaving the expected-close time blank disables the
+     Late Close check for that branch entirely. -->
+<div class="modal-backdrop" id="shift-settings-modal-backdrop">
+  <div class="modal">
+    <h3 style="margin-bottom:4px;" id="shift-settings-branch-name">Shift closing time</h3>
+    <p class="modal-sub" style="margin-bottom:14px;">A manual close after this time (plus the grace period) is recorded as a Late Close. Leave the time blank to turn this off for this branch.</p>
+    <div id="shift-settings-error" class="error-banner"></div>
+    <form id="shift-settings-form">
+      <div class="field">
+        <label for="shift-settings-time">Expected closing time</label>
+        <input type="time" id="shift-settings-time" />
+      </div>
+      <div class="field">
+        <label for="shift-settings-grace">Grace period (minutes)</label>
+        <input type="number" id="shift-settings-grace" min="0" max="240" value="10" />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="shift-settings-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- Create/edit role modal -->
+<div class="modal-backdrop" id="role-modal-backdrop">
+  <div class="modal" style="max-width:520px;">
+    <h3 style="margin-bottom:4px;" id="role-modal-title">New role</h3>
+    <p style="margin:0 0 16px;color:var(--ink-faint);font-size:13px;" id="role-modal-hint">
+      A brand-new role starts with no permissions — check off exactly what it should be able to do.
+    </p>
+    <div id="role-modal-error" class="error-banner"></div>
+
+    <div class="field" style="margin-bottom:14px;">
+      <label for="role-display-name">Display name</label>
+      <input type="text" id="role-display-name" placeholder="e.g. Assistant Branch Manager" />
+    </div>
+    <div class="field" id="role-name-field" style="margin-bottom:16px;">
+      <label for="role-name">Role ID (used internally, can't change later)</label>
+      <input type="text" id="role-name" placeholder="e.g. assistant_branch_manager" />
+    </div>
+
+    <div class="field" style="margin-bottom:8px;">
+      <label>Permissions</label>
+    </div>
+    <div id="role-permissions-list" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:16px;"></div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="role-modal-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="role-modal-save">Save role</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="toast" id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/permissions.js"></script>
+<script src="js/staff.js"></script>
+<script src="js/ng_states_lgas.js"></script>
+<script src="js/branches.js"></script>
+<script src="js/confirm-modal.js"></script>
+<script src="js/roles.js"></script>
+<script src="js/prompt-modal.js"></script>
+<script src="js/shifts.js"></script>
+<script>
+document.querySelectorAll("[data-consolidated-tab]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-consolidated-tab]").forEach((b) => b.classList.toggle("active", b === btn));
+    ["staff", "branches", "roles", "shifts"].forEach((name) => {
+      const el = document.getElementById(`tab-${name}`);
+      if (el) el.style.display = name === btn.dataset.consolidatedTab ? "" : "none";
+    });
+  });
+});
+// Item 15: the dashboard's unclosed-shift alert links here as
+// staff.html?tab=shifts -- land straight on the Shifts tab instead of
+// making the admin click through from Staff.
+const requestedTab = new URLSearchParams(window.location.search).get('tab');
+if (requestedTab) {
+  document.getElementById(`tab-btn-${requestedTab}`)?.click();
+}
+</script>
+</body>
+</html>

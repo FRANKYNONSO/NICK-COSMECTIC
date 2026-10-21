@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ site_name }} — Contact{% endblock %}
+{% block content %}
+<h1>Contact Us</h1>
+<p>Have a question about an order or a product? Reach us here:</p>
+<ul class="contact-list">
+    <li><strong>Phone:</strong> {{ phone }}</li>
+    <li><strong>WhatsApp:</strong> {{ whatsapp }}</li>
+    <li><strong>Email:</strong> <a href="mailto:{{ email }}">{{ email }}</a></li>
+    <li><strong>Address:</strong> {{ address }}</li>
+</ul>
+{% endblock %}

@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Inventory — Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="login-brand">
+      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+    <nav class="nav-gate-pending">
+      <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>
+      <a href="pos.html" data-nav="pos" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg></span><span>POS</span></a>
+      <a href="inventory.html" data-nav="inventory" class="nav-item active"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventory</span></a>
+      <a href="sales.html" data-nav="sales" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v18l-2.5-1.5L13 20.5l-2.5-1.5L8 20.5 6 19V2.5Z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/></svg></span><span>Transactions</span></a>
+      <a href="invoice.html" data-nav="invoice" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l3 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7l3-4Z"/><path d="M4 7h16"/><path d="M9 11h6M9 15h6"/></svg></span><span>Invoice</span></a>
+      <a href="warehouse.html" data-nav="warehouse" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M2.5 12h19"/></svg></span><span>Warehouse</span></a>
+      <a href="reports.html" data-nav="reports" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 12.9a9.2 9.2 0 1 1-9.1-10"/><path d="M21.2 12.9H12V3.7a9.2 9.2 0 0 1 9.2 9.2Z"/></svg></span><span>Reports</span></a>
+      <a href="staff.html" data-nav="staff" class="nav-item" title="Staff, Branches, Roles &amp; Shifts"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6.2M21.5 20a6 6 0 0 0-5-5.9"/></svg></span><span>Team</span></a>
+    </nav>
+    <button type="button" class="theme-toggle" id="theme-toggle-btn">
+      <span id="theme-toggle-text">Dark mode</span>
+      <span class="icon-swap"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+    </button>
+    <div class="sidebar-footer">
+      <div id="current-user-name" style="display:none"></div>
+      <div id="current-user-role" style="display:none"></div>
+      <a href="#" id="logout-link" class="btn-danger-text signout-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Sign Out</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="table-card inventory-card">
+      <div class="inventory-card-head">
+        <div class="card-head" style="margin-bottom:0;">
+          <span class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
+          <div class="card-titles">
+            <h2 class="display" style="margin:0;">Product Inventory</h2>
+            <p>Manage your catalog and stock levels.</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <button class="btn btn-ghost" id="select-mode-btn" aria-pressed="false" style="width:auto;display:none;">Select items</button>
+          <button class="btn btn-ghost" id="deletion-history-btn" style="width:auto;">Deletion history</button>
+          <button class="btn btn-primary" id="new-product-btn" style="width:auto;">+ Add product</button>
+        </div>
+      </div>
+
+      <div class="toolbar inventory-toolbar">
+        <input type="search" id="search-input" placeholder="Search name or barcode" style="padding:7px 10px;border-radius:7px;border:1px solid var(--border);font:inherit;min-width:200px;" />
+        <span id="branch-badge"></span>
+        <select id="category-filter">
+          <option value="">All categories</option>
+        </select>
+        <label class="checkbox">
+          <input type="checkbox" id="low-stock-only" />
+          Low stock only
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="out-of-stock-only" />
+          Out of stock only
+        </label>
+        <label class="checkbox">
+          <input type="checkbox" id="needs-invoice-only" />
+          Awaiting invoice
+        </label>
+      </div>
+
+      <div class="table-scroll">
+      <table class="inv-table" id="products-table">
+        <thead>
+          <tr>
+            <th class="c-img">Image</th>
+            <th class="c-name">Product name</th>
+            <th class="c-barcode">Barcode</th>
+            <th class="c-price">Price</th>
+            <th class="c-stock">Stock</th>
+            <th class="c-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="products-tbody"></tbody>
+      </table>
+      </div>
+      <div class="empty-state" id="empty-state" style="display:none;">
+        <div class="display">No products found</div>
+        <p>Try a different search, or add your first product.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Sticky bar for the "select several items -> add to Restock List"
+     flow -- see js/inventory.js's restock-select-check wiring. Only
+     ever shown once at least one row is checked. -->
+<div id="restock-bulk-bar" class="restock-bulk-bar">
+  <span id="restock-bulk-count">0 items selected</span>
+  <button type="button" class="btn btn-primary" id="restock-bulk-add-btn" style="width:auto;">Add to Restock List</button>
+</div>
+<style>
+.restock-bulk-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: var(--surface-raised, var(--surface)); border-top: 1px solid var(--border);
+  padding: 12px 24px; display: none; align-items: center; gap: 16px; justify-content: space-between;
+  box-shadow: 0 -4px 16px rgba(0,0,0,.12);
+}
+.restock-bulk-bar.show { display: flex; }
+</style>
+
+<!-- Create / Edit product modal -->
+<div class="modal-backdrop" id="product-modal-backdrop">
+  <div class="modal" style="max-width:760px;">
+    <h3 id="product-modal-title">Add product</h3>
+    <p class="modal-sub" id="product-modal-sub">Type the full product name directly (e.g. "Nivea Cocoa Butter Lotion") -- brand is optional and only helps with search/filtering.</p>
+    <div id="modal-error" class="error-banner"></div>
+    <form id="product-form">
+      <input type="hidden" id="product-id" />
+      <!-- Item 5: Brand is a straightforward optional field now --
+           it no longer feeds into building the product name (see
+           Product name below), it's purely for search/filtering.
+           Item 4: hidden entirely on Edit -- an existing product's
+           brand isn't part of this quick-edit form. -->
+      <div class="field item-autocomplete-wrap" data-add-only="true">
+        <label for="p-brand-input">Brand (optional)</label>
+        <input type="text" id="p-brand-input" autocomplete="off" placeholder="Search existing brands, or leave blank" />
+        <input type="hidden" id="p-brand" />
+        <div class="item-autocomplete-dropdown" id="p-brand-dropdown" style="display:none;"></div>
+        <button type="button" class="btn-ghost btn-sm" id="p-quick-add-brand" style="margin-top:6px;">+ Quick Add Brand</button>
+      </div>
+      <div class="field" style="position:relative;" data-add-only="true">
+        <label for="p-name">Product name</label>
+        <input type="text" id="p-name" required autocomplete="off" placeholder="Type the full product name, e.g. Skin Beauty Orange" />
+        <div id="p-name-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:5;background:var(--surface,#1a2238);border:1px solid var(--border);border-radius:8px;max-height:220px;overflow-y:auto;"></div>
+        </div>
+      <!-- Item 4: on Edit, name is fixed (shown read-only) -- renaming
+           an existing product isn't part of this quick-edit form. -->
+      <div class="field" data-edit-only="true" style="display:none;">
+        <label>Product name</label>
+        <div id="p-name-static" class="field-static"></div>
+      </div>
+      <!-- Category comes right after Product name (spec section 15:
+           Product -> Category -> ...), before SKU/barcode. -->
+      <div class="field item-autocomplete-wrap" data-add-only="true">
+        <label for="p-category-input">Category</label>
+        <input type="text" id="p-category-input" autocomplete="off" placeholder="Search existing categories, or leave blank for Uncategorized" />
+        <input type="hidden" id="p-category" />
+        <div class="item-autocomplete-dropdown" id="p-category-dropdown" style="display:none;"></div>
+        <button type="button" class="btn-ghost btn-sm" id="p-quick-add-category" style="margin-top:6px;">+ Quick Add Category</button>
+      </div>
+      <!-- Item 4: read-only by default on Edit -- this is a
+           correction option for a mis-categorized product, not a
+           "pick a category" flow, so it starts collapsed to a plain
+           readout with a small link to reveal the picker above. -->
+      <div class="field" data-edit-only="true" style="display:none;">
+        <label>Category</label>
+        <div id="p-category-static" class="field-static"></div>
+        <button type="button" class="btn-ghost btn-sm" id="p-category-correct-btn" style="margin-top:6px;">Change category (fix mis-categorization)</button>
+      </div>
+      <div class="field">
+        <label>Size</label>
+        <input type="hidden" id="p-size" value="" />
+        <select id="p-size-label-select" style="width:100%;">
+          <option value="">No label</option>
+          <option value="BIG">BIG</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="SMALL">SMALL</option>
+          <option value="__custom__">Custom label?</option>
+        </select>
+        <input type="text" id="p-size-label-custom" placeholder="Type a custom label, e.g. Jumbo" style="display:none;margin-top:8px;width:100%;" />
+        <p style="font-size:12px;color:var(--ink-faint);margin:10px 0 6px;">Precise measurement (optional) -- shown as smaller detail under the label</p>
+        <div style="display:flex;gap:8px;">
+          <input type="number" id="p-size-measurement-amount" min="0" step="0.01" placeholder="e.g. 500" style="flex:1 1 auto;min-width:0;width:auto;" />
+          <select id="p-size-measurement-unit" style="flex:0 0 auto;width:auto;min-width:70px;">
+            <optgroup label="Weight">
+              <option value="mg">mg</option>
+              <option value="g" selected>g</option>
+              <option value="kg">kg</option>
+            </optgroup>
+            <optgroup label="Volume">
+              <option value="ml">ml</option>
+              <option value="cl">cl</option>
+              <option value="L">L</option>
+            </optgroup>
+            <optgroup label="Length">
+              <option value="mm">mm</option>
+              <option value="cm">cm</option>
+              <option value="m">m</option>
+            </optgroup>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button type="button" class="btn-ghost btn-sm" id="p-unit-add-btn">+ Add unit</button>
+          <button type="button" class="btn-ghost btn-sm" id="p-unit-manage-btn">Manage units</button>
+        </div>
+        <div id="p-unit-manage-panel" style="display:none;margin-top:8px;"></div>
+        <div id="p-size-category-suggestions" style="display:none;margin-top:8px;"></div>
+      </div>
+      <div class="field" data-add-only="true">
+        <label for="p-sku">Product SKU</label>
+        <input type="text" id="p-sku" autocomplete="off" placeholder="Auto-filled from the name — edit if you want your own code" />
+      </div>
+      <div class="field">
+        <label for="p-barcode">Barcode</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="p-barcode" style="flex:1;" />
+          <button type="button" class="btn btn-ghost btn-sm" id="p-barcode-scan-btn">📷 Scan</button>
+        </div>
+        <video id="p-barcode-scan-video" style="display:none;width:100%;margin-top:8px;border-radius:8px;" playsinline muted></video>
+        <p id="p-barcode-scan-hint" style="display:none;font-size:12px;color:var(--ink-faint);margin-top:6px;"></p>
+      </div>
+      <div class="field" id="p-price-wrap">
+        <label for="p-price">Selling price</label>
+        <div style="position:relative;"><span aria-hidden="true" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-weight:600;pointer-events:none;">₦</span><input type="number" id="p-price" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 5000" style="padding-left:34px;" required /></div>
+      </div>
+      <!-- September 2026 change spec section 22 -- a standing
+           quantity-threshold rule (e.g. "10+ pieces -> ₦4,500/unit
+           instead of ₦5,000"), applied automatically at POS. Optional
+           -- both blank means no wholesale tier for this product. -->
+      <div class="field" id="p-wholesale-wrap" style="display:flex;gap:12px;">
+        <div style="flex:1;">
+          <label for="p-wholesale-price">Wholesale price (optional)</label>
+          <div style="position:relative;"><span aria-hidden="true" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--ink-faint);font-weight:600;pointer-events:none;">₦</span><input type="number" id="p-wholesale-price" min="0" step="0.01" inputmode="decimal" placeholder="e.g. 4500" style="padding-left:34px;" /></div>
+        </div>
+        <div style="flex:1;">
+          <label for="p-wholesale-min-qty">Min. quantity to trigger it</label>
+          <input type="number" id="p-wholesale-min-qty" min="1" step="1" placeholder="e.g. 10" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="p-reorder">Reorder at</label>
+        <input type="number" id="p-reorder" min="0" step="1" value="5" />
+      </div>
+      <!-- PATCH5A-PACK-SIZES -->
+      <div class="field" id="p-pack-sizes-wrap">
+        <label>Pieces in a pack (optional)</label>
+        <p style="font-size:12px;color:var(--ink-faint);margin:0 0 8px 0;">Type how many pieces are in one pack of this product. Invoice and warehouse screens will fill the number in for you. You can still change it on each invoice. Leave a box blank if the number changes every time. A dozen is always 12.</p>
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;">
+            <label for="p-pack-carton">Pieces in one carton</label>
+            <input type="number" id="p-pack-carton" min="1" step="1" placeholder="e.g. 48" />
+          </div>
+          <div style="flex:1;">
+            <label for="p-pack-bag">Pieces in one bag</label>
+            <input type="number" id="p-pack-bag" min="1" step="1" placeholder="e.g. 48" />
+          </div>
+          <div style="flex:1;">
+            <label for="p-pack-roll">Pieces in one roll</label>
+            <input type="number" id="p-pack-roll" min="1" step="1" placeholder="e.g. 48" />
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="p-expiration">Expiration date (optional)</label>
+        <input type="date" id="p-expiration" />
+      </div>
+      <div class="field" id="p-hidden-from-staff-wrap" style="display:none;border:1px solid var(--warning,#e0a030);background:color-mix(in srgb, var(--warning,#e0a030) 10%, transparent);border-radius:10px;padding:12px 14px;">
+        <label class="checkbox" style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+          <input type="checkbox" id="p-hidden-from-staff" style="width:18px;height:18px;flex-shrink:0;" />
+          <span style="font-weight:600;">Hide this product from staff</span>
+        </label>
+        <p style="font-size:12px;color:var(--ink-faint);margin:6px 0 0 28px;">Staff won't see it in Inventory, Warehouse, Low Stock, or POS search. Super-admin only.</p>
+      </div>
+      <div class="field">
+        <label for="p-image-file">Product photo</label>
+        <img id="p-image-preview" style="display:none;max-width:120px;max-height:120px;border-radius:8px;margin-bottom:8px;" alt="" />
+        <input type="file" id="p-image-file" accept="image/*" />
+      </div>
+
+      <div class="field" id="p-initial-stock-wrap" data-add-only="true" style="border-top:1px solid var(--border);padding-top:14px;">
+        <label>Starting stock</label>
+        <p style="font-size:12px;color:var(--ink-faint);margin:0 0 8px;">How many pieces are you stocking right now, for <strong id="p-initial-branch-hint"></strong>? You can always add more later from Warehouse → Receive stock.</p>
+        <!-- Always visible and required (spec section 2) -- never
+             gated behind a checkbox, UNLESS "Add to catalog only"
+             above is checked (spec section 15), which hides this
+             entirely; a draft product has no stock yet by definition.
+             Branch is not picked here (spec section 5): starting
+             stock always belongs to whichever branch is currently
+             active (see the Branch badge in the header, set from the
+             Dashboard) -- the field is disabled entirely when the
+             header is on "All branches", since starting stock has to
+             belong to one specific branch. -->
+        <input type="number" id="p-initial-qty" min="0" step="1" value="0" required />
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="product-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="product-modal-save">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Add Product -> Invoice Workflow (Sept 2026 spec): after a new
+     product is saved, offer to start or extend an invoice draft for
+     it. Fully skippable -- adding a product must never force
+     completing an invoice (see js/inventory.js). -->
+<div class="modal-backdrop" id="invoice-prompt-backdrop">
+  <div class="modal" style="max-width:500px;">
+    <h3>Create an invoice for this product?</h3>
+    <p class="modal-sub" id="invoice-prompt-product-name"></p>
+    <div id="invoice-prompt-error" class="error-banner"></div>
+
+    <div id="invoice-prompt-existing-wrap" style="display:none;margin-bottom:14px;">
+      <label for="invoice-prompt-existing-select">Choose a draft invoice</label>
+      <select id="invoice-prompt-existing-select"></select>
+    </div>
+
+    <!-- Revealed after clicking "Create a new invoice draft" below --
+         asks for just the supplier name (optional, but front-and-center
+         so drafts don't pile up indistinguishable from each other) --
+         same search-or-type-new pattern as the main Invoice page. -->
+    <div id="invoice-prompt-new-wrap" style="display:none;margin-bottom:14px;">
+      <label for="invoice-prompt-supplier-input">Supplier (optional, but helps tell drafts apart)</label>
+      <div class="item-autocomplete-wrap" style="position:relative;">
+        <input type="text" id="invoice-prompt-supplier-input" autocomplete="off" placeholder="Type to search suppliers, or type a new name?" />
+        <div class="item-autocomplete-dropdown" id="invoice-prompt-supplier-dropdown" style="display:none;"></div>
+      </div>
+      <p class="hint" id="invoice-prompt-supplier-hint" style="margin-top:6px;"></p>
+    </div>
+
+    <div class="modal-actions" style="flex-direction:column;gap:10px;">
+      <button type="button" class="btn btn-primary" id="invoice-prompt-new-draft" style="width:100%;">Create a new invoice draft</button>
+      <button type="button" class="btn btn-primary" id="invoice-prompt-new-confirm" style="width:100%;display:none;">Create draft</button>
+      <button type="button" class="btn btn-ghost" id="invoice-prompt-existing-toggle" style="width:100%;">Add to an existing draft invoice</button>
+      <button type="button" class="btn btn-primary" id="invoice-prompt-existing-confirm" style="width:100%;display:none;">Add to selected draft</button>
+      <button type="button" class="btn btn-ghost" id="invoice-prompt-back" style="width:100%;display:none;">Back</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Restock modal (September 2026 change spec section 7) -- unlike the
+     old inventory.html "Restock" concept, this never creates stock out
+     of thin air: it always pulls from this branch's own warehouse
+     ledger (js/api.js Api.pullToStore -> the already-gated
+     /warehouse/pull-to-store endpoint), and is capped at whatever
+     quantity that ledger actually shows available. If nothing's
+     available, the form is disabled with a link out to Warehouse to
+     receive it there first. -->
+<div class="modal-backdrop" id="restock-modal-backdrop">
+  <div class="modal" style="max-width:420px;">
+    <h3>Restock from warehouse</h3>
+    <p class="modal-sub" id="restock-modal-product-name"></p>
+    <div id="restock-modal-error" class="error-banner"></div>
+    <p id="restock-modal-available" style="font-size:13px;color:var(--ink-muted);margin:0 0 12px;"></p>
+    <form id="restock-modal-form">
+      <div class="field">
+        <label for="restock-unit-label">Unit (e.g. carton, pack, piece)</label>
+        <input type="text" id="restock-unit-label" value="piece" required />
+      </div>
+      <div class="field">
+        <label for="restock-pieces-per-unit">Pieces per unit</label>
+        <input type="number" id="restock-pieces-per-unit" min="1" step="1" value="1" required />
+      </div>
+      <div class="field">
+        <label for="restock-unit-count">Number of units to pull</label>
+        <input type="number" id="restock-unit-count" min="1" step="1" value="1" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="restock-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="restock-modal-submit">Pull to shop floor</button>
+      </div>
+    </form>
+    <p id="restock-modal-empty" style="display:none;font-size:13px;color:var(--ink-muted);margin-top:8px;">
+      Nothing available in this branch's warehouse for this product yet. <a href="warehouse.html">Receive stock into the warehouse</a> first.
+    </p>
+  </div>
+</div>
+
+<!-- PATCH4A-SHELF-LIMIT-WINDOW -->
+<!-- Shelf limit window: opened by the "Shelf limit" button on a product row
+     (branch managers and super admins). Logic is at the end of js/inventory.js. -->
+<div class="modal-backdrop" id="shelf-limit-backdrop">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="shelf-limit-title">Shelf limit</h3>
+    <p class="modal-sub" id="shelf-limit-branch"></p>
+    <div id="shelf-limit-error" class="error-banner"></div>
+    <p id="shelf-limit-status" style="font-size:13px;color:var(--ink-muted);margin:0 0 12px;"></p>
+    <form id="shelf-limit-form">
+      <div class="field">
+        <label for="shelf-limit-max">Most pieces on the shelf</label>
+        <input type="number" id="shelf-limit-max" min="0" step="1" value="24" required />
+      </div>
+      <div class="field">
+        <label for="shelf-limit-alert">Tell me when the shelf is down to (pieces)</label>
+        <input type="number" id="shelf-limit-alert" min="0" step="1" value="5" required />
+      </div>
+      <p style="font-size:13px;color:var(--ink-muted);margin:0 0 12px;">Numbers are in pieces. Once you save, receiving goods and pushing from the warehouse will not put more than this on the shelf.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="shelf-limit-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="shelf-limit-submit">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Stock history modal (PATCH8B-STOCK-HISTORY-TITLE) -->
+<div class="modal-backdrop" id="history-modal-backdrop">
+  <div class="modal" style="max-width:640px;">
+    <h3 id="history-modal-title">Stock history</h3>
+    <p class="modal-sub">Every batch received for this product, most recent first.</p>
+    <div id="history-modal-body" style="max-height:360px;overflow-y:auto;">
+      <table>
+        <thead><tr><th>Received</th><th>Branch</th><th>Cartons → pcs</th><th>Cost/unit</th><th>Expiry</th><th></th></tr></thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+      <!-- PATCH8A-PRODUCT-RETURNS-CREDIT -->
+      <h4 style="margin:18px 0 4px;">Returns and credit</h4>
+      <p class="modal-sub">Refunds and goods taken on credit for this product, most recent first.</p>
+      <table>
+        <thead><tr><th>Date</th><th>Branch</th><th>What happened</th><th>Qty</th><th>Detail</th></tr></thead>
+        <tbody id="history-returns-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="history-modal-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Record loss modal (spec section 1) -- filed against one specific
+     batch from the Stock history above: expired/damaged/missing/
+     defective/supplier-return/other stock that will never be sold. -->
+<div class="modal-backdrop" id="loss-modal-backdrop">
+  <div class="modal" style="max-width:420px;">
+    <h3>Record a loss</h3>
+    <p class="modal-sub" id="loss-modal-batch-readout"></p>
+    <div id="loss-modal-error" class="error-banner"></div>
+    <form id="loss-modal-form">
+      <div class="field">
+        <label for="loss-quantity">Quantity lost *</label>
+        <input type="number" id="loss-quantity" min="1" step="1" required />
+      </div>
+      <div class="field">
+        <label for="loss-reason">Reason *</label>
+        <select id="loss-reason" required>
+          <option value="expired">Expired</option>
+          <option value="damaged">Damaged</option>
+          <option value="theft">Stolen</option>
+        </select>
+      </div>
+      <!-- Item 11: accountability fields, shown only for their one
+           matching reason. Damaged/Stolen are unretrievable losses --
+           these need someone answerable for what happened. ("Sold
+           below price" was a separate checkout-discount flow; it was
+           removed entirely per the September 2026 change spec.) -->
+      <div class="field" id="loss-damage-by-field" style="display:none;">
+        <label for="loss-damage-by">Damaged by *</label>
+        <select id="loss-damage-by">
+          <option value="">Select?</option>
+          <option value="customer">Customer</option>
+          <option value="staff">Staff member</option>
+        </select>
+      </div>
+      <div class="field" id="loss-damage-staff-field" style="display:none;">
+        <label for="loss-damage-staff-name">Staff member *</label>
+        <select id="loss-damage-staff-name">
+          <option value="">Select?</option>
+        </select>
+      </div>
+      <!-- September 2026 change spec section 4: WHO did it -- mirrors
+           the damaged-by customer/staff pair. -->
+      <div class="field" id="loss-theft-caused-by-field" style="display:none;">
+        <label for="loss-theft-caused-by">Stolen by *</label>
+        <select id="loss-theft-caused-by">
+          <option value="">Select?</option>
+          <option value="customer">Customer</option>
+          <option value="staff">Staff member</option>
+        </select>
+      </div>
+      <div class="field" id="loss-theft-by-staff-field" style="display:none;">
+        <label for="loss-theft-by-staff-name">Staff member *</label>
+        <select id="loss-theft-by-staff-name">
+          <option value="">Select?</option>
+        </select>
+      </div>
+      <div class="field" id="loss-theft-time-field" style="display:none;">
+        <label for="loss-theft-noticed-at">Approx. time noticed missing (optional)</label>
+        <input type="time" id="loss-theft-noticed-at" />
+      </div>
+      <div class="field">
+        <label for="loss-notes" id="loss-notes-label">Notes (optional)</label>
+        <textarea id="loss-notes" rows="2" maxlength="500"></textarea>
+      </div>
+      <!-- Section 4: "All three [damaged/stolen/expired] require
+           image or video evidence upload." Not shown/required for the
+           other reasons (missing/defective/supplier_return/other/
+           recount), which predate this change and aren't in scope. -->
+      <div class="field" id="loss-evidence-field" style="display:none;">
+        <label for="loss-evidence">Photo or video evidence *</label>
+        <input type="file" id="loss-evidence" accept="image/*,video/*" />
+        <p class="hint" id="loss-evidence-status"></p>
+      </div>
+      <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+        <button type="button" class="btn btn-ghost" id="loss-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="loss-modal-submit" style="flex:1;">Record loss</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Click-to-enlarge image lightbox -- same pattern as low-stock.html -->
+<div class="modal-backdrop" id="image-lightbox-backdrop">
+  <div class="modal" style="text-align:center;">
+    <img id="image-lightbox-img" src="" alt="" style="max-width:100%; max-height:75vh; border-radius:10px; object-fit:contain;" />
+    <button type="button" class="btn btn-ghost" id="image-lightbox-close" style="margin-top:14px;">Close</button>
+  </div>
+</div>
+
+<!-- Delete-with-reason modal (spec section 8) -- a product must never
+     just disappear; the user must say why before deletion proceeds. -->
+<div class="modal-backdrop" id="delete-reason-backdrop">
+  <div class="modal" style="max-width:440px;">
+    <h3>Why are you deleting this item?</h3>
+    <p class="modal-sub" id="delete-reason-product-name"></p>
+    <div class="field">
+      <label for="delete-reason-select">Reason</label>
+      <select id="delete-reason-select">
+        <option value="" selected disabled>Select a reason?</option>
+        <option value="damaged">Damaged</option>
+        <option value="expired">Expired</option>
+        <option value="lost">Lost</option>
+        <option value="spoiled">Spoiled</option>
+        <option value="incorrect_entry">Incorrect product entry</option>
+        <option value="duplicate">Duplicate product</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="field" id="delete-reason-note-field" style="display:none;">
+      <label for="delete-reason-note">Please explain</label>
+      <textarea id="delete-reason-note" rows="3" maxlength="1000" placeholder="Why is this being deleted?"></textarea>
+    </div>
+    <p class="hint" id="delete-reason-stock-hint" style="display:none;"></p>
+    <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+      <button type="button" class="btn btn-ghost" id="delete-reason-cancel" style="flex:1;">Cancel</button>
+      <button type="button" class="btn btn-danger" id="delete-reason-confirm" style="flex:1;" disabled>Delete item</button>
+    </div>
+  </div>
+</div>
+
+<!-- Inventory Deletion History (spec section 9) -- traceable,
+     auditable record of every deleted product: reason, quantity,
+     who, when, branch, and whether it was classified as a loss. -->
+<div class="modal-backdrop" id="deletion-history-backdrop">
+  <div class="modal" style="max-width:760px;">
+    <h3>Deletion history</h3>
+    <p class="modal-sub">Every product deleted from inventory, with the reason on record.</p>
+    <div style="max-height:60vh;overflow-y:auto;">
+      <table>
+        <thead>
+          <tr><th>Deleted</th><th>Product</th><th>Qty written off</th><th>Reason</th><th>By</th><th>Branch</th><th>Loss?</th><th></th></tr>
+        </thead>
+        <tbody id="deletion-history-tbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="deletion-history-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generic confirm modal (Sept 2026 change) -- replaces native
+     browser confirm() popups, which render as a plain notification
+     bar instead of an app-styled dialog, and may not behave
+     consistently once this is packaged/deployed as a standalone app.
+     Driven entirely by js/inventory.js's showConfirmModal() helper. -->
+<div class="modal-backdrop" id="confirm-modal-backdrop">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="confirm-modal-title">Are you sure?</h3>
+    <p class="modal-sub" id="confirm-modal-message"></p>
+    <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+      <button type="button" class="btn btn-ghost" id="confirm-modal-cancel" style="flex:1;">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirm-modal-confirm" style="flex:1;">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/permissions.js"></script>
+<script src="js/prompt-modal.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/nav-tabs.js"></script>
+</body>
+</html>

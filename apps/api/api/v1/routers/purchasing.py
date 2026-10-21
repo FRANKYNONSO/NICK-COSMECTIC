@@ -13,9 +13,10 @@ from api.v1.schemas.purchasing import (
     ReceivePurchaseOrderRequest,
     SupplierCreate,
     SupplierOut,
+    SupplierUpdate,
 )
 from infrastructure.db.models import (
-    ProductVariant,
+    Product,
     PurchaseOrder,
     PurchaseOrderItem,
     StockBatch,
@@ -44,13 +45,45 @@ async def create_supplier(
 
 @router.get("/suppliers", response_model=list[SupplierOut])
 async def list_suppliers(
+    search: str | None = None,
     session: AsyncSession = Depends(get_db_session),
     _: User = Depends(get_current_user),
 ) -> list[Supplier]:
-    result = await session.execute(
-        select(Supplier).where(Supplier.is_deleted.is_(False)).order_by(Supplier.name)
-    )
+    # `search` (spec section 14/34: searchable dropdowns everywhere a
+    # reusable record is picked) does a prefix-or-contains match on
+    # name so typing "Jam" finds "James" -- same UX as the product
+    # search the Credit List and invoice item picker already use.
+    stmt = select(Supplier).where(Supplier.is_deleted.is_(False))
+    if search:
+        stmt = stmt.where(Supplier.name.ilike(f"%{search.strip()}%"))
+    stmt = stmt.order_by(Supplier.name)
+    result = await session.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.patch("/suppliers/{supplier_id}", response_model=SupplierOut)
+async def update_supplier(
+    supplier_id: uuid.UUID,
+    body: SupplierUpdate,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_permission("manage_suppliers")),
+) -> Supplier:
+    """Spec section 14: "If the user confirms Update, the new
+    information becomes the information automatically used the next
+    time [this supplier] is selected." Only ever called when the
+    person explicitly confirms updating the saved record -- filing an
+    invoice with different address/phone typed in does NOT call this
+    on its own (see purchase_invoices.create_purchase_invoice).
+    """
+    supplier = await session.get(Supplier, supplier_id)
+    if supplier is None or supplier.is_deleted:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Supplier not found")
+    data = body.model_dump(exclude_unset=True)
+    for field, value in data.items():
+        setattr(supplier, field, value.strip() if isinstance(value, str) else value)
+    await session.commit()
+    await session.refresh(supplier)
+    return supplier
 
 
 # ------------------------------------------------------- PURCHASE ORDERS
@@ -68,7 +101,7 @@ def _po_to_out(po: PurchaseOrder, items: list[PurchaseOrderItem]) -> PurchaseOrd
         items=[
             PurchaseOrderItemOut(
                 id=i.id,
-                variant_id=i.variant_id,
+                product_id=i.product_id,
                 quantity_ordered=i.quantity_ordered,
                 quantity_received=i.quantity_received,
                 unit_cost_naira=Money(i.unit_cost_kobo).naira,
@@ -91,10 +124,10 @@ async def create_purchase_order(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Supplier not found")
 
     for line in body.items:
-        variant = await session.get(ProductVariant, line.variant_id)
+        variant = await session.get(Product, line.product_id)
         if variant is None or variant.is_deleted:
             raise HTTPException(
-                status.HTTP_404_NOT_FOUND, detail=f"Product variant {line.variant_id} not found"
+                status.HTTP_404_NOT_FOUND, detail=f"Product variant {line.product_id} not found"
             )
 
     po = PurchaseOrder(
@@ -109,7 +142,7 @@ async def create_purchase_order(
     items = [
         PurchaseOrderItem(
             purchase_order_id=po.id,
-            variant_id=line.variant_id,
+            product_id=line.product_id,
             quantity_ordered=line.quantity_ordered,
             unit_cost_kobo=Money.from_naira(line.unit_cost_naira).kobo,
         )
@@ -185,7 +218,7 @@ async def mark_purchase_order_ordered(
 
     po.status = "ordered"
     po.ordered_by = current_user.id
-    po.ordered_at = datetime.utcnow()
+    po.ordered_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(po)
 
@@ -243,7 +276,7 @@ async def receive_purchase_order(
             )
 
         batch = StockBatch(
-            variant_id=po_item.variant_id,
+            product_id=po_item.product_id,
             branch_id=po.branch_id,
             purchase_order_item_id=po_item.id,
             batch_number=line.batch_number,

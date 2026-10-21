@@ -5,9 +5,9 @@ import pytest
 from nickcosmetics_core.application.sales_service import CheckoutLine, SalesService
 from nickcosmetics_core.domain.inventory.stock import StockBatch
 from nickcosmetics_core.domain.money import Money
-from nickcosmetics_core.domain.sales.sale import SaleChannel
+from nickcosmetics_core.domain.sales.sale import PaymentMethod, PaymentTender, SaleChannel
 from nickcosmetics_core.domain.users.user import Role, User
-from nickcosmetics_core.exceptions import InsufficientStockError
+from nickcosmetics_core.exceptions import InsufficientStockError, PaymentMismatchError
 from tests.fakes import FakeSaleRepository, FakeStockBatchRepository
 
 
@@ -107,6 +107,73 @@ def test_checkout_raises_when_stock_insufficient():
             channel=SaleChannel.POS,
             local_ref_id="local-ref-002",
             lines=[CheckoutLine("variant-1", 999, Money.from_naira(1500))],
+        )
+
+
+def test_checkout_combines_line_and_sale_discounts():
+    stock_repo = FakeStockBatchRepository(_make_batches())
+    sale_repo = FakeSaleRepository()
+    service = SalesService(stock_repo, sale_repo)
+
+    sale = service.checkout(
+        sale_id="sale-1",
+        branch_id="branch-1",
+        served_by="user-1",
+        channel=SaleChannel.POS,
+        local_ref_id="local-ref-003",
+        lines=[
+            CheckoutLine(
+                variant_id="variant-1",
+                quantity=5,
+                unit_price=Money.from_naira(1500),
+                discount=Money.from_naira(200),
+            )
+        ],
+        discount=Money.from_naira(100),
+    )
+
+    # subtotal 7500, minus (200 line + 100 sale) = 7200
+    assert sale.discount == Money.from_naira(300)
+    assert sale.total == Money.from_naira(7200)
+
+
+def test_checkout_accepts_split_payment_and_records_change():
+    stock_repo = FakeStockBatchRepository(_make_batches())
+    sale_repo = FakeSaleRepository()
+    service = SalesService(stock_repo, sale_repo)
+
+    sale = service.checkout(
+        sale_id="sale-1",
+        branch_id="branch-1",
+        served_by="user-1",
+        channel=SaleChannel.POS,
+        local_ref_id="local-ref-004",
+        lines=[CheckoutLine("variant-1", 5, Money.from_naira(1500))],
+        payments=[
+            PaymentTender(PaymentMethod.CASH, Money.from_naira(5000)),
+            PaymentTender(PaymentMethod.TRANSFER, Money.from_naira(3000)),
+        ],
+    )
+
+    assert sale.amount_tendered == Money.from_naira(8000)
+    assert sale.change_due == Money.from_naira(500)
+    assert sale.payment_method == PaymentMethod.CASH  # primary = first tender
+
+
+def test_checkout_rejects_undertendered_payment():
+    stock_repo = FakeStockBatchRepository(_make_batches())
+    sale_repo = FakeSaleRepository()
+    service = SalesService(stock_repo, sale_repo)
+
+    with pytest.raises(PaymentMismatchError):
+        service.checkout(
+            sale_id="sale-1",
+            branch_id="branch-1",
+            served_by="user-1",
+            channel=SaleChannel.POS,
+            local_ref_id="local-ref-005",
+            lines=[CheckoutLine("variant-1", 5, Money.from_naira(1500))],
+            payments=[PaymentTender(PaymentMethod.CASH, Money.from_naira(1000))],
         )
 
 

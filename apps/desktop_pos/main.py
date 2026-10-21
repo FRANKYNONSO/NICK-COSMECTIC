@@ -12,6 +12,7 @@ from local_db.session import get_session, init_local_db
 from local_db.session_cache import clear_session, load_session, save_session
 from ui.login_window import LoginWindow
 from ui.pos_window import POSWindow
+from ui.theme import apply_theme
 
 
 class AppController:
@@ -88,6 +89,8 @@ def main() -> None:
     app.setApplicationName("Nick Cosmetics POS")
 
     controller = AppController()  # noqa: F841 -- keeps windows alive
+
+    apply_theme(app)
 
     sys.exit(app.exec())
 

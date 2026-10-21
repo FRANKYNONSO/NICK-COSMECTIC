@@ -23,10 +23,24 @@ class SupplierOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SupplierUpdate(BaseModel):
+    """Spec section 14: when the person editing an invoice changes a
+    supplier's address/phone and confirms "Update", this is what
+    actually updates the shared record so it's what autofills next
+    time. Every field optional -- only what's actually being changed
+    needs to be sent.
+    """
+
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    contact_phone: str | None = None
+    contact_email: str | None = None
+    address: str | None = None
+
+
 # ------------------------------------------------------- PURCHASE ORDERS
 
 class PurchaseOrderItemIn(BaseModel):
-    variant_id: uuid.UUID
+    product_id: uuid.UUID
     quantity_ordered: int = Field(gt=0)
     unit_cost_naira: float = Field(ge=0)
 
@@ -40,7 +54,7 @@ class PurchaseOrderCreate(BaseModel):
 
 class PurchaseOrderItemOut(BaseModel):
     id: uuid.UUID
-    variant_id: uuid.UUID
+    product_id: uuid.UUID
     quantity_ordered: int
     quantity_received: int
     unit_cost_naira: float

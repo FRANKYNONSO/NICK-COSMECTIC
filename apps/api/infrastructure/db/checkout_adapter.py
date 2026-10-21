@@ -1,4 +1,4 @@
-﻿"""Adapter bridging the async SQLAlchemy database with the
+"""Adapter bridging the async SQLAlchemy database with the
 synchronous, framework-agnostic SalesService in nickcosmetics_core.
 
 Pattern: async pre-fetch -> run domain logic in-memory (sync, fast, no
@@ -36,12 +36,12 @@ class PreloadedStockBatchRepository(StockBatchRepository):
     def __init__(self, orm_batches: list[ORMStockBatch]):
         self._orm_by_id: dict[uuid.UUID, ORMStockBatch] = {b.id: b for b in orm_batches}
 
-    def get_batches_for_variant(self, variant_id: str, branch_id: str) -> list[DomainStockBatch]:
-        vid, bid = uuid.UUID(variant_id), uuid.UUID(branch_id)
+    def get_batches_for_variant(self, product_id: str, branch_id: str) -> list[DomainStockBatch]:
+        vid, bid = uuid.UUID(product_id), uuid.UUID(branch_id)
         return [
             DomainStockBatch(
                 id=str(b.id),
-                variant_id=str(b.variant_id),
+                variant_id=str(b.product_id),
                 branch_id=str(b.branch_id),
                 quantity_received=b.quantity_received,
                 quantity_remaining=b.quantity_remaining,
@@ -50,7 +50,7 @@ class PreloadedStockBatchRepository(StockBatchRepository):
                 received_at=b.received_at,
             )
             for b in self._orm_by_id.values()
-            if b.variant_id == vid and b.branch_id == bid
+            if b.product_id == vid and b.branch_id == bid
         ]
 
     def save_batch(self, batch: DomainStockBatch) -> None:
@@ -85,12 +85,13 @@ class PreloadedSaleRepository(SaleRepository):
             if self._existing_sale.payment_method
             else None,
             status=SaleStatus(self._existing_sale.status),
+            notes=self._existing_sale.notes,
             created_at=self._existing_sale.created_at,
         )
         for item in self._existing_items:
             sale.add_item(
                 SaleItem(
-                    variant_id=str(item.variant_id),
+                    variant_id=str(item.product_id),
                     stock_batch_id=str(item.stock_batch_id) if item.stock_batch_id else "",
                     quantity=item.quantity,
                     unit_price=Money(item.unit_price_kobo),
@@ -103,14 +104,28 @@ class PreloadedSaleRepository(SaleRepository):
 
 
 async def load_stock_batch_repo(
-    session: AsyncSession, variant_ids: list[uuid.UUID], branch_id: uuid.UUID
+    session: AsyncSession, product_ids: list[uuid.UUID], branch_id: uuid.UUID
 ) -> PreloadedStockBatchRepository:
+    # SELECT ... FOR UPDATE: lock these batch rows until the caller
+    # commits or rolls back, so two cashiers selling the last unit at
+    # the same moment are made to queue -- the second one only reads
+    # the batches AFTER the first has committed, sees the reduced
+    # quantity, and gets a proper "not enough stock" instead of both
+    # succeeding. populate_existing makes sure the values we read here
+    # are the fresh, locked ones and not stale copies this session
+    # may have loaded earlier. Rows are locked in one fixed order
+    # (received_at, id) everywhere in the app so two requests can't
+    # lock the same rows in opposite order and deadlock.
     result = await session.execute(
-        select(ORMStockBatch).where(
-            ORMStockBatch.variant_id.in_(variant_ids),
+        select(ORMStockBatch)
+        .where(
+            ORMStockBatch.product_id.in_(product_ids),
             ORMStockBatch.branch_id == branch_id,
             ORMStockBatch.quantity_remaining > 0,
         )
+        .order_by(ORMStockBatch.received_at, ORMStockBatch.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
     )
     return PreloadedStockBatchRepository(list(result.scalars().all()))
 
@@ -149,6 +164,7 @@ def persist_new_sale(
         total_kobo=domain_sale.total.kobo,
         payment_method=payment_method,
         local_ref_id=domain_sale.local_ref_id,
+        notes=domain_sale.notes,
     )
     session.add(orm_sale)
 
@@ -156,7 +172,7 @@ def persist_new_sale(
         session.add(
             ORMSaleItem(
                 sale_id=orm_sale.id,
-                variant_id=uuid.UUID(item.variant_id),
+                product_id=uuid.UUID(item.variant_id),
                 stock_batch_id=uuid.UUID(item.stock_batch_id) if item.stock_batch_id else None,
                 quantity=item.quantity,
                 unit_price_kobo=item.unit_price.kobo,

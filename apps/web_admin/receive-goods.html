@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Receive Goods - Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="login-brand">
+      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+    <nav class="nav-gate-pending">
+      <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>
+      <a href="pos.html" data-nav="pos" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg></span><span>POS</span></a>
+      <a href="inventory.html" data-nav="inventory" class="nav-item active"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventory</span></a>
+      <a href="sales.html" data-nav="sales" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v18l-2.5-1.5L13 20.5l-2.5-1.5L8 20.5 6 19V2.5Z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/></svg></span><span>Transactions</span></a>
+      <a href="invoice.html" data-nav="invoice" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l3 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7l3-4Z"/><path d="M4 7h16"/><path d="M9 11h6M9 15h6"/></svg></span><span>Invoice</span></a>
+      <a href="warehouse.html" data-nav="warehouse" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M2.5 12h19"/></svg></span><span>Warehouse</span></a>
+      <a href="reports.html" data-nav="reports" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 12.9a9.2 9.2 0 1 1-9.1-10"/><path d="M21.2 12.9H12V3.7a9.2 9.2 0 0 1 9.2 9.2Z"/></svg></span><span>Reports</span></a>
+      <a href="staff.html" data-nav="staff" class="nav-item" title="Staff, Branches, Roles &amp; Shifts"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6.2M21.5 20a6 6 0 0 0-5-5.9"/></svg></span><span>Team</span></a>
+    </nav>
+    <button type="button" class="theme-toggle" id="theme-toggle-btn">
+      <span id="theme-toggle-text">Dark mode</span>
+      <span class="icon-swap"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+    </button>
+    <div class="sidebar-footer">
+      <div id="current-user-name" style="display:none"></div>
+      <div id="current-user-role" style="display:none"></div>
+      <a href="#" id="logout-link" class="btn-danger-text signout-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Sign Out</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h2 class="display">Receive Goods</h2>
+        <p>Type the quantities received for each product, then save a draft. Total = Warehouse + Shelf. Saving a draft does not change stock: confirming the receipt comes in a later step.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span id="branch-badge"></span>
+      </div>
+    </div>
+
+    <div class="table-card" id="rg-drafts-card">
+      <div style="padding:16px;">
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+          <strong>Saved drafts for this branch</strong>
+          <span id="rg-drafts-note" style="font-size:12.5px; color:var(--ink-muted);"></span>
+        </div>
+        <div id="rg-drafts-list" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </div>
+
+    <div class="table-card" id="rg-header-card">
+      <div style="padding:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px;">
+        <label style="display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--ink-muted);">Supplier (optional)
+          <input id="rg-supplier" type="text" autocomplete="off" style="padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;" />
+        </label>
+        <label style="display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--ink-muted);">Invoice reference (optional)
+          <input id="rg-ref" type="text" autocomplete="off" style="padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;" />
+        </label>
+        <label style="display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--ink-muted);">Delivered at (leave blank if it just arrived)
+          <input id="rg-delivered" type="datetime-local" style="padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;" />
+        </label>
+        <label style="display:flex; flex-direction:column; gap:6px; font-size:12.5px; color:var(--ink-muted);">Notes (optional)
+          <input id="rg-notes" type="text" autocomplete="off" style="padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;" />
+        </label>
+      </div>
+    </div>
+
+    <div class="table-card" id="rg-card">
+      <div id="rg-toolbar" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:16px;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px;">Branch
+          <select id="rg-branch" style="padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;"></select>
+        </label>
+        <input id="rg-search" type="search" placeholder="Search name, SKU or barcode" autocomplete="off" style="flex:1; min-width:220px; padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit;" />
+        <span id="rg-count" style="font-size:12.5px;color:var(--ink-muted);"></span>
+      </div>
+      <div style="overflow-x:auto;">
+      <table id="rg-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Total</th>
+            <th>Warehouse</th>
+            <th>Shelf</th>
+            <th>Shelf limit</th>
+            <th>Capacity</th>
+            <th>Received</th>
+            <th>To shelf</th>
+            <th>To warehouse</th>
+            <th>Cost / piece (NGN)</th>
+            <th>Check</th>
+          </tr>
+        </thead>
+        <tbody id="rg-tbody"></tbody>
+      </table>
+      </div>
+      <div class="empty-state" id="rg-empty" style="display:none;">
+        <div class="display">No products yet</div>
+        <p>Add products on the Products page first, then come back to record a delivery.</p>
+      </div>
+      <div class="empty-state" id="rg-nomatch" style="display:none;">
+        <div class="display">No match</div>
+        <p>No product matches that search.</p>
+      </div>
+      <div class="empty-state" id="rg-no-branch" style="display:none;">
+        <div class="display">Add a branch first</div>
+        <p>Stock is tracked per branch. Create a branch on the Team page.</p>
+      </div>
+      <div class="empty-state" id="rg-no-access" style="display:none;">
+        <div class="display">Not available</div>
+        <p>Only a branch manager or super admin can receive goods.</p>
+      </div>
+      <div id="rg-footer" style="padding:16px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+        <div id="rg-summary" style="font-size:13px; color:var(--ink-muted);">No quantities entered yet.</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button type="button" class="btn btn-ghost" id="rg-new" style="width:auto; display:none;">Start a new receipt</button>
+          <button type="button" class="btn btn-primary" id="rg-save" style="width:auto;" disabled>Save draft</button>
+        </div>
+      </div>
+      <div id="rg-saved" style="display:none; padding:0 16px 16px; font-size:13.5px;"></div>
+      <div id="rg-error" style="display:none; padding:0 16px 16px; font-size:13.5px; color:var(--danger,#e5484d);"></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/permissions.js"></script>
+<script src="js/receive-goods.js"></script>
+<script src="js/nav-tabs.js"></script>
+</body>
+</html>

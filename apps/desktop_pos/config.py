@@ -1,14 +1,21 @@
-﻿import os
+"""App configuration, loaded from environment variables (with a local
+.env override if present -- see .env.example for the full list).
+"""
+
+from pathlib import Path
 
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
-# Points at the cloud API by default. Once the API is deployed (not
-# just running in local Docker), change this via a .env file next to
-# main.py -- e.g. API_BASE_URL=https://api.nickcosmetics.com/api/v1
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://localhost:8000/api/v1")
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000/api/v1")
 
-# Where the local SQLite offline database lives (used starting in the
-# offline-first increment, not yet wired into checkout in this version).
-LOCAL_DB_PATH = os.environ.get("LOCAL_DB_PATH", "nick_pos_local.db")
+# Local SQLite file for offline-first operation (see local_db/models.py).
+# Lives next to this file by default so the app works out of the box
+# with zero setup; override via LOCAL_DB_PATH in .env if you want it
+# somewhere else (e.g. a shared/synced folder).
+LOCAL_DB_PATH = os.getenv(
+    "LOCAL_DB_PATH",
+    str(Path(__file__).parent / "pos_local.db"),
+)

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Skincare advisor | {{ site_name }}{% endblock %}
+{% block content %}
+<section class="adv" id="adv-root" data-total="7">
+  <div class="adv-head">
+    <h1>Skincare advisor</h1>
+    <p class="adv-sub">Answer a few quick questions and we will suggest products from our own shop that may suit you.</p>
+  </div>
+
+  <div class="adv-progress" aria-live="polite">
+    <div class="adv-progress-bar"><span id="adv-bar"></span></div>
+    <p id="adv-step-label">Step 1 of 7</p>
+  </div>
+
+  <div class="adv-card" id="adv-card">
+
+    <div class="adv-step" data-step="1">
+      <h2>Where are you?</h2>
+      <p class="adv-hint">Optional. We use it only to check today's weather. We do not save your location.</p>
+      <label class="adv-field">State
+        <input type="text" id="adv-state" maxlength="60" autocomplete="off" placeholder="e.g. Taraba">
+      </label>
+      <label class="adv-field">City or town
+        <input type="text" id="adv-city" maxlength="60" autocomplete="off" placeholder="e.g. Jalingo">
+      </label>
+      <button type="button" class="adv-link" id="adv-geo">Use my device location instead</button>
+      <p class="adv-note" id="adv-geo-note" hidden></p>
+    </div>
+
+    <div class="adv-step" data-step="2" hidden>
+      <h2>What is your skin type?</h2>
+      <div class="adv-options" data-name="skin_type" data-multi="0">
+        <button type="button" class="adv-opt" data-value="dry">Dry</button>
+        <button type="button" class="adv-opt" data-value="oily">Oily</button>
+        <button type="button" class="adv-opt" data-value="combination">Combination</button>
+        <button type="button" class="adv-opt" data-value="normal">Normal</button>
+        <button type="button" class="adv-opt" data-value="sensitive">Sensitive</button>
+        <button type="button" class="adv-opt" data-value="unknown" id="adv-notsure">I am not sure</button>
+      </div>
+      <div class="adv-quiz" id="adv-quiz" hidden>
+        <p class="adv-hint">Quick check. Think about your face a few hours after washing, with nothing on it.</p>
+        <p class="adv-q">How does it feel?</p>
+        <div class="adv-options" data-quiz="feel">
+          <button type="button" class="adv-opt" data-value="tight">Tight or flaky</button>
+          <button type="button" class="adv-opt" data-value="comfy">Comfortable</button>
+          <button type="button" class="adv-opt" data-value="shiny_t">Shiny on forehead and nose only</button>
+          <button type="button" class="adv-opt" data-value="shiny_all">Shiny all over</button>
+        </div>
+        <p class="adv-q">Does new skincare often sting or turn your skin red?</p>
+        <div class="adv-options" data-quiz="react">
+          <button type="button" class="adv-opt" data-value="yes">Yes, often</button>
+          <button type="button" class="adv-opt" data-value="no">No, rarely</button>
+        </div>
+        <p class="adv-note" id="adv-quiz-result" hidden></p>
+      </div>
+    </div>
+
+    <div class="adv-step" data-step="3" hidden>
+      <h2>What would you like help with?</h2>
+      <p class="adv-hint">Pick all that apply, or skip.</p>
+      <div class="adv-options" data-name="concerns" data-multi="1">
+        <button type="button" class="adv-opt" data-value="dryness">Dryness</button>
+        <button type="button" class="adv-opt" data-value="oil control">Oil control</button>
+        <button type="button" class="adv-opt" data-value="dark spots">Dark spots</button>
+        <button type="button" class="adv-opt" data-value="acne">Acne</button>
+        <button type="button" class="adv-opt" data-value="sun protection">Sun protection</button>
+        <button type="button" class="adv-opt" data-value="brightening">Brightening</button>
+        <button type="button" class="adv-opt" data-value="sensitive skin">Sensitive skin</button>
+        <button type="button" class="adv-opt" data-value="baby care">Baby care</button>
+      </div>
+    </div>
+
+    <div class="adv-step" data-step="4" hidden>
+      <h2>What does your day look like?</h2>
+      <div class="adv-options" data-name="routine" data-multi="0">
+        <button type="button" class="adv-opt" data-value="indoor">Mostly indoors</button>
+        <button type="button" class="adv-opt" data-value="outdoor">Mostly outdoors</button>
+        <button type="button" class="adv-opt" data-value="mixed">A mix of both</button>
+      </div>
+    </div>
+
+    <div class="adv-step" data-step="5" hidden>
+      <h2>Sun and sweat</h2>
+      <p class="adv-q">How much sun do you get in a normal day?</p>
+      <div class="adv-options" data-name="sun_exposure" data-multi="0">
+        <button type="button" class="adv-opt" data-value="low">A little</button>
+        <button type="button" class="adv-opt" data-value="medium">Some</button>
+        <button type="button" class="adv-opt" data-value="high">A lot</button>
+      </div>
+      <p class="adv-q">Do you sweat a lot?</p>
+      <div class="adv-options" data-name="sweating" data-multi="0">
+        <button type="button" class="adv-opt" data-value="low">Not much</button>
+        <button type="button" class="adv-opt" data-value="high">Yes, a lot</button>
+      </div>
+    </div>
+
+    <div class="adv-step" data-step="6" hidden>
+      <h2>What are you looking for?</h2>
+      <div class="adv-options" data-name="product_type" data-multi="0">
+        <button type="button" class="adv-opt" data-value="any">Anything</button>
+        <button type="button" class="adv-opt" data-value="lotion">Lotion</button>
+        <button type="button" class="adv-opt" data-value="soap">Soap</button>
+        <button type="button" class="adv-opt" data-value="oil">Oil</button>
+        <button type="button" class="adv-opt" data-value="makeup">Makeup</button>
+      </div>
+    </div>
+
+    <div class="adv-step" data-step="7" hidden>
+      <h2>What is your budget?</h2>
+      <div class="adv-options" data-name="budget" data-multi="0">
+        <button type="button" class="adv-opt" data-value="any">No limit</button>
+        <button type="button" class="adv-opt" data-value="under_3000">Under &#8358;3,000</button>
+        <button type="button" class="adv-opt" data-value="3000_8000">&#8358;3,000 to &#8358;8,000</button>
+        <button type="button" class="adv-opt" data-value="8000_20000">&#8358;8,000 to &#8358;20,000</button>
+        <button type="button" class="adv-opt" data-value="over_20000">Over &#8358;20,000</button>
+      </div>
+    </div>
+
+    <div class="adv-nav" id="adv-nav">
+      <button type="button" class="adv-back" id="adv-back">Back</button>
+      <button type="button" class="adv-skip" id="adv-skip">Skip</button>
+      <button type="button" class="btn-primary adv-next" id="adv-next">Next</button>
+    </div>
+  </div>
+
+  <div class="adv-results" id="adv-results" hidden aria-live="polite">
+    <h2>Our suggestions</h2>
+    <p class="adv-note" id="adv-weather" hidden></p>
+    <p class="adv-note" id="adv-msg" hidden></p>
+    <div class="adv-list" id="adv-list"></div>
+    <p class="adv-caution">These are general suggestions based on your answers, not medical advice. If you have a skin problem that is serious, painful or does not go away, please see a doctor or pharmacist.</p>
+    <div class="adv-nav">
+      <button type="button" class="adv-back" id="adv-restart">Start again</button>
+      <a class="adv-link" href="/shop">Browse the whole shop</a>
+    </div>
+  </div>
+</section>
+<script src="/static/js/advisor.js"></script>
+{% endblock %}

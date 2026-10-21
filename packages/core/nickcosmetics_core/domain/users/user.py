@@ -23,7 +23,9 @@ _PERMISSIONS: dict[Role, set[str]] = {
         "manage_products",
         "manage_inventory",
         "manage_suppliers",
+        "manage_coupons",
         "view_all_reports",
+        "view_low_stock",
         "view_financials",
         "configure_system",
         "view_audit_logs",
@@ -33,29 +35,62 @@ _PERMISSIONS: dict[Role, set[str]] = {
         "view_own_sales",
         "remove_super_admin",
         "transfer_ownership",
+        # Download a filtered account-statement (per-staff or
+        # store-wide) of sales/credit history. On by default for
+        # super_admin/branch_manager, but -- per spec -- it's a plain
+        # permission like any other, so a super_admin can grant it to
+        # an individual staff account via the per-account permission
+        # override in users.py without needing a code change.
+        "download_statements",
     },
     Role.BRANCH_MANAGER: {
+        # "manage_users" deliberately excluded here (as of the
+        # branch_manager view-only-staff migration): a branch manager
+        # can view/list staff (that's gated on role alone in
+        # api/v1/routers/users.py, not this permission table) but not
+        # edit their credentials, deactivate, or delete them, by
+        # default. A super_admin can grant a specific, trusted branch
+        # manager that edit capability by creating a custom role that
+        # includes "manage_users" (via the Roles page) and assigning
+        # that one person to it -- see the migration's docstring.
         "manage_products",
         "manage_inventory",
         "manage_suppliers",
+        "manage_coupons",
         "view_all_reports",
+        "view_low_stock",
         "view_financials",
         "view_audit_logs",
         "manage_sync",
         "process_sale",
         "view_own_sales",
-        # deliberately excluded: manage_users (super admin removal),
-        # remove_super_admin, transfer_ownership, configure_system
+        "download_statements",
+        # deliberately excluded: remove_super_admin, transfer_ownership,
+        # configure_system, manage_backups -- branch_manager has full
+        # operational parity with super_admin but not these: they're
+        # account-security/ownership actions, not day-to-day management.
+        # Role escalation (PATCH /users/{id}/role) also stays
+        # super_admin-only at the router level in users.py, independent
+        # of this table, so a branch_manager can't promote anyone
+        # (including themselves) to super_admin.
     },
     Role.STAFF: {
         "process_sale",
         "view_own_sales",
         "search_products",
         "view_stock",
+        "view_low_stock",
         "register_customer",
         "change_own_password",
     },
 }
+
+
+# Every permission name that exists anywhere in the table above --
+# used by the API layer to reject typos/unknown permission names when
+# a super_admin sets per-account restrictions (see
+# api/v1/routers/users.py's update_user_permissions).
+ALL_PERMISSIONS: frozenset[str] = frozenset().union(*_PERMISSIONS.values())
 
 
 @dataclass
@@ -68,16 +103,31 @@ class User:
     phone: str | None = None
     is_active: bool = True
     last_login_at: datetime | None = None
+    # Permission names revoked from this specific account by a
+    # super_admin, on top of whatever the role table above grants --
+    # e.g. a branch_manager who normally has "manage_coupons" but has
+    # been individually restricted from it. Never applies to
+    # super_admin: that role is intentionally the one tier an override
+    # can't touch, so there's no path to a super_admin locking
+    # themselves (or every super_admin) out by mistake. Set via
+    # PATCH /users/{id}/permissions, super_admin-only -- see
+    # api/v1/routers/users.py.
+    denied_permissions: frozenset[str] = field(default_factory=frozenset)
     _password_hash: str = field(default="", repr=False)
 
     def can(self, action: str) -> bool:
-        """Check whether this user's role permits `action`.
+        """Check whether this user's role permits `action`, minus any
+        per-account restriction a super_admin has placed on them.
 
         Usage in API layer:
             if not current_user.can("manage_inventory"):
                 raise PermissionDeniedError(...)
         """
-        return action in _PERMISSIONS.get(self.role, set())
+        if action not in _PERMISSIONS.get(self.role, set()):
+            return False
+        if self.role != Role.SUPER_ADMIN and action in self.denied_permissions:
+            return False
+        return True
 
     def can_view_sales_of(self, other_user_id: str) -> bool:
         """Staff can only ever see their own sales; managers/admins see all."""

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Application Status — Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="login-shell">
+  <div class="status-page">
+    <div class="login-brand" style="justify-content:center;">
+      <span class="swatch-mark"><span></span><span></span><span></span></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+
+    <div id="status-icon" class="status-icon">⏳</div>
+    <h2 class="display" id="status-title">Application Status: Under Review</h2>
+    <p id="status-body">Your staff application is currently being reviewed. You'll be able to sign in to the full dashboard once an administrator approves your account.</p>
+
+    <div id="error-banner" class="error-banner"></div>
+
+    <button class="btn btn-ghost" id="logout-link" style="margin-top:12px;">Sign out</button>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  Auth.requireAuth();
+
+  document.getElementById('logout-link').addEventListener('click', () => Auth.logout());
+
+  const errorBanner = document.getElementById('error-banner');
+
+  Api.myApplicationStatus().then((application) => {
+    localStorage.setItem('nc_app_status', application.status);
+
+    if (application.status === 'accepted') {
+      window.location.href = 'dashboard.html';
+      return;
+    }
+
+    const icon = document.getElementById('status-icon');
+    const title = document.getElementById('status-title');
+    const body = document.getElementById('status-body');
+
+    if (application.status === 'rejected') {
+      icon.textContent = '✕';
+      title.textContent = 'Application Status: Rejected';
+      body.textContent = application.rejection_reason
+        ? `Your staff application was not approved. Reason given: ${application.rejection_reason}`
+        : 'Your staff application was not approved. Please contact an administrator for details.';
+    } else if (application.status === 'suspended') {
+      icon.textContent = '⏸';
+      title.textContent = 'Account Suspended';
+      body.textContent = 'Your staff account has been suspended. Please contact an administrator.';
+    } else {
+      icon.textContent = '⏳';
+      title.textContent = 'Application Status: Under Review';
+      body.textContent = "Your staff application is currently being reviewed. You'll be able to sign in to the full dashboard once an administrator approves your account.";
+    }
+  }).catch((err) => {
+    errorBanner.textContent = err.message;
+    errorBanner.classList.add('visible');
+  });
+</script>
+
+</body>
+</html>

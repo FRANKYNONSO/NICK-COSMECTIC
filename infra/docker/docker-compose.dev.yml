@@ -5,10 +5,12 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: nickcosmetics
-      POSTGRES_PASSWORD: nickcosmetics
+      # PATCH22C-DB-PASSWORD: read from infra/docker/.env (git ignores it). Never write the password here.
+      POSTGRES_PASSWORD: "${NICK_DB_PASSWORD:?Missing NICK_DB_PASSWORD. Create infra/docker/.env first.}"
       POSTGRES_DB: nickcosmetics
     ports:
-      - "5432:5432"
+      # PATCH21A-PORT-LOCAL: database port is open on this PC only, not on the network.
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,7 +24,7 @@ services:
     container_name: nickcosmetics-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -43,9 +45,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://nickcosmetics:nickcosmetics@postgres:5432/nickcosmetics
+      DATABASE_URL: "postgresql+asyncpg://nickcosmetics:${NICK_DB_PASSWORD:?Missing NICK_DB_PASSWORD. Create infra/docker/.env first.}@postgres:5432/nickcosmetics"
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET_KEY: dev-only-secret-change-before-any-real-deployment
+      # PATCH20A-JWT-KEY: the signing key is read from apps/api/.env (mounted at /app/.env), not set here.
       JWT_ALGORITHM: HS256
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: "30"

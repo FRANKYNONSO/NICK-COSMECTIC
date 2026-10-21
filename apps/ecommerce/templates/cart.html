@@ -1,0 +1,36 @@
+﻿{% extends "base.html" %}
+{% block title %}{{ site_name }} — Cart{% endblock %}
+{% block content %}
+<h1>Your Cart</h1>
+
+{% if items %}
+<div class="cart-items">
+    {% for item in items %}
+    <div class="cart-item">
+        {% if item.image_url %}
+        <img src="{{ item.image_url }}" alt="{{ item.name }}" width="80">
+        {% endif %}
+        <div>
+            <h3>{{ item.name }}{% if item.size %} ({{ item.size }}){% endif %}</h3>{% if item.price %}<p style="color:#777;font-size:0.9em;margin:0">&#8358;{{ "{:,.0f}".format(item.price) }} each</p>{% endif %}
+            <form method="post" action="/cart/update" class="qty-form">
+                <label for="qty-{{ item.product_id }}">Qty</label>
+                <input type="number" id="qty-{{ item.product_id }}" name="quantity" value="{{ item.quantity }}" min="1">
+                <input type="hidden" name="product_id" value="{{ item.product_id }}">
+                <button type="submit">Update</button>
+            </form>
+            <p>{% if item.price %}₦{{ "{:,.0f}".format(item.price * item.quantity) }}{% endif %}</p>
+        </div>
+        <form method="post" action="/cart/remove">
+            <input type="hidden" name="product_id" value="{{ item.product_id }}">
+            <button type="submit">Remove</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+
+<h2>Subtotal: ₦{{ "{:,.0f}".format(subtotal) }}</h2>
+<a href="/checkout" class="btn-primary">Proceed to Checkout</a>
+{% else %}
+<p>Your cart is empty.</p>
+{% endif %}
+{% endblock %}

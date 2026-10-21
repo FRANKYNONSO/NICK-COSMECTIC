@@ -12,3 +12,28 @@ venv/
 .DS_Store
 dist/
 build/
+# PATCH22A-IGNORE-BACKUPS: patch backup folders can hold old secrets; never commit them.
+_backup_*/
+
+# private / user data
+private_uploads/
+apps/api/static/uploads/
+
+# backups, archives, dumps, logs
+*.bak*
+*.pre_bags
+*.supplier_bak
+*.broken_router_copy.py
+*.zip
+*.log
+_backup_*/
+combined_code*.txt
+combined_frontend.txt
+*schema_dump.txt
+models_list.txt
+api-scan.txt
+units-scan.txt
+desktop_tree.txt
+core_tree.txt
+__pycache__/
+.venv/

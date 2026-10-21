@@ -1,4 +1,4 @@
-﻿"""Thin synchronous HTTP client wrapping the Nick Cosmetics cloud API.
+"""Thin synchronous HTTP client wrapping the Nick Cosmetics cloud API.
 
 Kept deliberately simple for this first (online-mode) version of the
 desktop app -- calls block the calling thread. That's fine for now
@@ -125,6 +125,30 @@ class ApiClient:
         """
         return self.get("/inventory/stock-batches", params={"branch_id": branch_id})
 
+    def receive_stock(
+        self,
+        variant_id: str,
+        branch_id: str,
+        quantity: int,
+        cost_price_naira: float | None = None,
+        expiry_date: str | None = None,
+    ) -> dict:
+        """Records a new incoming stock batch for a variant at a branch.
+
+        Called from ui/receive_stock_dialog.py. cost_price_naira is
+        converted to kobo (integer) for the API, matching how the rest
+        of the platform stores currency amounts.
+        """
+        payload = {
+            "variant_id": variant_id,
+            "branch_id": branch_id,
+            "quantity_received": quantity,
+            "unit_cost_naira": cost_price_naira if cost_price_naira is not None else 0,
+        }
+        if expiry_date:
+            payload["expiry_date"] = expiry_date
+        return self.post("/inventory/stock-batches", json=payload)
+
     # ----------------------------------------------------------- sales
 
     def checkout(
@@ -134,6 +158,7 @@ class ApiClient:
         payment_method: str = "cash",
         discount_naira: float = 0,
         local_ref_id: str | None = None,
+        customer_id: str | None = None,
     ) -> dict:
         """items: [{"variant_id": ..., "quantity": ..., "unit_price_naira": ...}, ...]
 
@@ -152,4 +177,57 @@ class ApiClient:
             "payment_method": payment_method,
             "discount_naira": discount_naira,
         }
+        if customer_id:
+            body["customer_id"] = customer_id
         return self.post("/sales/checkout", json=body)
+
+    def list_sales(self, branch_id: str | None = None) -> list[dict]:
+        """Staff only ever see their own sales -- enforced server-side
+        in the /sales list endpoint regardless of this client's args.
+        """
+        params = {"branch_id": branch_id} if branch_id else None
+        return self.get("/sales", params=params)
+
+    # -------------------------------------------------------- customers
+
+    def search_customers(self, query: str) -> list[dict]:
+        return self.get("/customers/search", params={"q": query})
+
+    def quick_create_customer(self, full_name: str, phone: str | None = None) -> dict:
+        return self.post("/customers/quick", json={"full_name": full_name, "phone": phone})
+
+    def redeem_loyalty_points(self, customer_id: str, points: int) -> dict:
+        return self.post(f"/customers/{customer_id}/loyalty/redeem", json={"points": points})
+
+    # ---------------------------------------------------------- coupons
+
+    def issue_coupon(self, discount_naira: float) -> dict:
+        """Super-admin only, enforced server-side via manage_coupons."""
+        return self.post("/coupons/issue", json={"discount_amount_naira": discount_naira})
+
+    def list_coupons(self) -> list[dict]:
+        """Active coupons only -- what cache_sync.pull_coupons() needs
+        to refresh the offline redemption cache. Any authenticated
+        user can call this (unlike issue_coupon), since any cashier
+        needs to be able to sync a newly-issued coupon down.
+        """
+        return self.get("/coupons")
+
+    def redeem_coupon(self, code: str, sale_id: str, sale_total_naira: float) -> dict:
+        """Reconciles a coupon redeemed locally (see pos_window.py's
+        CouponService.redeem against LocalCouponRepository) up to the
+        cloud, once the sale itself has synced. Called from
+        sync/outbox_sync.py -- never directly from the UI -- with the
+        cloud-assigned sale_id from that sync (not the local one, they
+        differ). Raises ApiError (e.g. 409 if someone else redeemed the
+        same code first) or a connection-level exception on failure;
+        callers decide how to record that against the OutboxSale row.
+        """
+        return self.post(
+            "/coupons/redeem",
+            json={
+                "code": code,
+                "sale_id": sale_id,
+                "sale_total_naira": sale_total_naira,
+            },
+        )

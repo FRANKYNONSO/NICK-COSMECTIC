@@ -1,0 +1,188 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#0b0f17" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<title>Inventory Alerts — Nick Cosmetics Admin</title>
+<link rel="stylesheet" href="css/style.css" />
+<script src="js/theme.js"></script>
+  <script src="js/numeric-input-fix.js"></script>
+</head>
+<body>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="login-brand">
+      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
+      <h1 class="display">Nick Cosmetics</h1>
+    </div>
+    <nav class="nav-gate-pending">
+      <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>
+      <a href="pos.html" data-nav="pos" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></svg></span><span>POS</span></a>
+      <a href="inventory.html" data-nav="inventory" class="nav-item active"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span><span>Inventory</span></a>
+      <a href="sales.html" data-nav="sales" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2.5h12v18l-2.5-1.5L13 20.5l-2.5-1.5L8 20.5 6 19V2.5Z"/><path d="M8.5 7.5h7M8.5 11h7M8.5 14.5h4"/></svg></span><span>Transactions</span></a>
+      <a href="invoice.html" data-nav="invoice" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10l3 4v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7l3-4Z"/><path d="M4 7h16"/><path d="M9 11h6M9 15h6"/></svg></span><span>Invoice</span></a>
+      <a href="warehouse.html" data-nav="warehouse" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="7" width="19" height="13" rx="1.5"/><path d="M7 7V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/><path d="M2.5 12h19"/></svg></span><span>Warehouse</span></a>
+      <a href="reports.html" data-nav="reports" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 12.9a9.2 9.2 0 1 1-9.1-10"/><path d="M21.2 12.9H12V3.7a9.2 9.2 0 0 1 9.2 9.2Z"/></svg></span><span>Reports</span></a>
+      <a href="staff.html" data-nav="staff" class="nav-item" title="Staff, Branches, Roles &amp; Shifts"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16.5 5.5a3.2 3.2 0 0 1 0 6.2M21.5 20a6 6 0 0 0-5-5.9"/></svg></span><span>Team</span></a>
+    </nav>
+    <button type="button" class="theme-toggle" id="theme-toggle-btn">
+      <span id="theme-toggle-text">Dark mode</span>
+      <span class="icon-swap"><svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></svg><svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
+    </button>
+    <div class="sidebar-footer">
+      <div id="current-user-name" style="display:none"></div>
+      <div id="current-user-role" style="display:none"></div>
+      <a href="#" id="logout-link" class="btn-danger-text signout-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg><span>Sign Out</span></a>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="page-head">
+      <div>
+        <h2 class="display">Inventory Alerts</h2>
+        <p>Products at or below their reorder threshold.</p>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span id="branch-badge"></span>
+        <a href="inventory.html" class="btn btn-ghost" style="width:auto;">View all inventory →</a>
+      </div>
+    </div>
+
+    <div class="segmented" id="alert-tabs" style="margin-bottom:20px;">
+      <button type="button" class="segmented-btn active" data-alert-tab="low-stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px;margin-right:5px;"><path d="M10.3 3.86 1.82 18a1.5 1.5 0 0 0 1.3 2.25h17.76a1.5 1.5 0 0 0 1.3-2.25L13.7 3.86a1.5 1.5 0 0 0-2.6 0Z"/><path d="M12 9v4"/><path d="M12 16.5h.01"/></svg>Low Stock<span class="badge-count" id="low-stock-tab-count">0</span></button>
+      <button type="button" class="segmented-btn" data-alert-tab="out-of-stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>Out of Stock<span class="badge-count" id="out-of-stock-tab-count">0</span></button>
+      <button type="button" class="segmented-btn" data-alert-tab="expiry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" style="vertical-align:-2px;margin-right:5px;"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Expiry Alert<span class="badge-count" id="expiry-tab-count">0</span></button>
+    </div>
+
+    <div class="table-card" id="low-stock-section">
+      <h3 style="margin: 0 0 12px; text-align:center;">Low Stock</h3>
+      <table id="low-stock-table">
+        <thead>
+          <tr>
+            <th class="thumb-cell"></th>
+            <th>Product</th>
+            <th>Barcode</th>
+            <th>Size</th>
+            <th>Stock</th>
+            <th>Threshold</th>
+            <th>Category</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="low-stock-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="empty-state" style="display:none;">
+        <div class="display">All stocked up!</div>
+        <p>No products are below their threshold.</p>
+      </div>
+      <div class="empty-state" id="no-branch-state" style="display:none;">
+        <div class="display">Add a branch first</div>
+        <p>Low stock is tracked per branch — create one on the Branches page to see alerts here.</p>
+      </div>
+    </div>
+
+    <div class="table-card" id="out-of-stock-section" style="display:none;">
+      <h3 style="margin: 0 0 12px; text-align:center;">Out of Stock</h3>
+      <table id="out-of-stock-table">
+        <thead>
+          <tr>
+            <th class="thumb-cell"></th>
+            <th>Product</th>
+            <th>Barcode</th>
+            <th>Size</th>
+            <th>Stock</th>
+            <th>Threshold</th>
+            <th>Category</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="out-of-stock-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="out-of-stock-empty-state" style="display:none;">
+        <div class="display">Nothing out of stock!</div>
+        <p>No products have hit zero stock.</p>
+      </div>
+    </div>
+    <div class="table-card" id="expiry-section" style="display:none;">
+      <h3 style="margin: 0 0 12px; text-align:center;">Expiry Alert</h3>
+      <table id="expiry-table">
+        <thead>
+          <tr>
+            <th class="thumb-cell"></th>
+            <th>Product</th>
+            <th>Barcode</th>
+            <th>Size</th>
+            <th>Price</th>
+            <th>Qty on stock</th>
+            <th>Expiry date</th>
+            <th>Supplier</th>
+          </tr>
+        </thead>
+        <tbody id="expiry-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="expiry-empty-state" style="display:none;">
+        <div class="display">Nothing expiring soon</div>
+        <p>No batches are within their expiry window.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Inline restock (variant-category-system-spec.md section 5): same
+     read-only-identity / editable-quantity-cost-price pattern as the
+     Warehouse "Receive stock" form, without leaving this page. -->
+<div class="modal-backdrop" id="restock-modal-backdrop">
+  <div class="modal" style="max-width:480px;">
+    <h3>Restock</h3>
+    <p class="modal-sub" id="restock-readout"></p>
+    <p class="hint" id="restock-warehouse-readout" style="margin:0 0 12px;font-weight:600;"></p>
+    <div id="restock-error" class="error-banner"></div>
+    <form id="restock-form">
+      <div class="field">
+        <label for="restock-branch">Branch</label>
+        <select id="restock-branch" required></select>
+      </div>
+      <div class="field">
+        <label for="restock-quantity">Quantity to pull from warehouse (pieces)</label>
+        <input type="number" id="restock-quantity" min="1" value="1" required />
+      </div>
+      <div class="field">
+        <label for="restock-cost">Cost per unit (â‚¦, optional — updates the product's cost price)</label>
+        <input type="number" id="restock-cost" min="0" step="0.01" />
+      </div>
+      <div class="field">
+        <label for="restock-price">Selling price per unit (â‚¦, optional — updates the product's selling price)</label>
+        <input type="number" id="restock-price" min="0" step="0.01" />
+      </div>
+      <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+        <button type="button" class="btn btn-ghost" id="restock-modal-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="restock-submit" style="flex:1;">Add stock</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Click-to-enlarge photo lightbox for the low-stock / out-of-stock
+     thumbnails, so a thumbnail small enough to fit in a table row can
+     still be viewed full-size to identify the exact product to
+     reorder. -->
+<div class="modal-backdrop" id="image-lightbox-backdrop">
+  <div class="modal" style="max-width:min(90vw,520px); text-align:center; padding:16px;">
+    <img id="image-lightbox-img" src="" alt="" style="max-width:100%; max-height:75vh; border-radius:10px; object-fit:contain;" />
+    <button type="button" class="btn btn-ghost" id="image-lightbox-close" style="margin-top:14px;">Close</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/permissions.js"></script>
+<script src="js/low-stock.js"></script>
+<script src="js/nav-tabs.js"></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-﻿"""Pushes every unsynced sale in the local outbox to the cloud API.
+"""Pushes every unsynced sale in the local outbox to the cloud API.
 
 Called automatically right after a sale (best-effort -- if it's
 offline, the sale just stays queued), and manually via the "Sync Now"
@@ -45,7 +45,7 @@ def push_outbox(api: ApiClient, session: Session) -> tuple[int, int]:
         ]
 
         try:
-            api.checkout(
+            result = api.checkout(
                 branch_id=sale.branch_id,
                 items=api_items,
                 payment_method=sale.payment_method or "cash",
@@ -66,7 +66,33 @@ def push_outbox(api: ApiClient, session: Session) -> tuple[int, int]:
         sale.synced = True
         sale.synced_at = datetime.utcnow()
         sale.sync_error = None
+        sale.cloud_sale_id = result.get("id")
         synced_count += 1
+
+        # Reconcile any coupon redeemed locally for this sale, now that
+        # the sale itself is confirmed on the cloud. A coupon failure
+        # here does NOT touch synced/sync_error above -- the sale
+        # already succeeded -- it's recorded separately (coupon_sync_error)
+        # so it's visible without blocking or re-attempting the sale sync.
+        # sale_total_naira mirrors exactly what pos_window.py used for the
+        # local redeem: subtotal minus the *non-coupon* discount, i.e. what
+        # the coupon's discount was applied against.
+        if sale.coupon_code and not sale.coupon_synced:
+            pre_coupon_discount_kobo = sale.discount_kobo - sale.coupon_discount_kobo
+            sale_total_naira = Money(sale.subtotal_kobo - pre_coupon_discount_kobo).naira
+            try:
+                api.redeem_coupon(
+                    code=sale.coupon_code,
+                    sale_id=sale.cloud_sale_id,
+                    sale_total_naira=sale_total_naira,
+                )
+            except ApiError as exc:
+                sale.coupon_sync_error = exc.detail
+            except Exception as exc:
+                sale.coupon_sync_error = f"Connection error: {exc}"
+            else:
+                sale.coupon_synced = True
+                sale.coupon_sync_error = None
 
     session.commit()
     return synced_count, failed_count

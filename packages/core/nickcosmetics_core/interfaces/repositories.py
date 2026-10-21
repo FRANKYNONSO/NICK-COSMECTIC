@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from nickcosmetics_core.domain.coupons.coupon import Coupon
 from nickcosmetics_core.domain.inventory.stock import StockBatch
 from nickcosmetics_core.domain.sales.sale import Sale
 
@@ -40,3 +41,16 @@ class SaleRepository(ABC):
     @abstractmethod
     def save(self, sale: Sale) -> None:
         """Persist a new or updated sale."""
+
+
+class CouponRepository(ABC):
+    @abstractmethod
+    def get_by_code(self, code: str) -> Coupon | None:
+        """Look up a coupon by its human-entered code (case-insensitive
+        at the call site — callers normalize to uppercase before
+        calling this, matching pos_window.py's `.strip().upper()`).
+        """
+
+    @abstractmethod
+    def save(self, coupon: Coupon) -> None:
+        """Persist a new or updated coupon (issue, or mark redeemed)."""

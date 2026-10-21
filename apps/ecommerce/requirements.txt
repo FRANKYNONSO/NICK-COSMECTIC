@@ -1,0 +1,11 @@
+# Storefront dependencies. PATCH18A-PIN-VERSIONS
+# Exact versions that run today in apps\ecommerce\venv (Python 3.14.6), checked 2026-10-18.
+# To upgrade: change a version here, install it in the venv, then run the shop and the tests.
+fastapi==0.142.2
+starlette==1.7.0
+pydantic==2.13.5
+uvicorn[standard]==0.54.0
+httpx==0.28.1
+jinja2==3.1.6
+itsdangerous==2.2.0        # required by SessionMiddleware (cart session)
+python-multipart==0.0.32   # required by every Form(...) route (cart, checkout)

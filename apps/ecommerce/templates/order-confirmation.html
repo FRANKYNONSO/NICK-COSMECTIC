@@ -1,0 +1,41 @@
+﻿{% extends "base.html" %}
+{% block title %}{{ site_name }} — Order Confirmed{% endblock %}
+{% block content %}
+<div class="confirmation">
+    {% if order %}
+    <div class="confirmation-icon">✓</div>
+    <h1>Thank you for your order!</h1>
+    <p class="confirmation-sub">Your order <strong>#{{ order.id }}</strong> has been placed.</p>
+    {# PATCH12A-CONFIRM-TOTAL #}
+    {% if order.items_naira is defined %}
+    <p class="confirmation-sub">Items: ₦{{ "{:,.0f}".format(order.items_naira) }}</p>
+    <p class="confirmation-sub">Delivery: {% if order.shipping_fee < 0 %}to be confirmed by phone or email{% elif order.shipping_fee == 0 %}Free{% else %}₦{{ "{:,.0f}".format(order.shipping_fee) }}{% endif %}</p>
+    <div class="confirmation-total">Total to pay: {% if order.payable_naira is none %}to be confirmed{% else %}₦{{ "{:,.0f}".format(order.payable_naira) }}{% endif %}</div>
+    {% else %}
+    <div class="confirmation-total">Total: ₦{{ "{:,.0f}".format(order.total_naira) }}</div>
+    {% endif %}
+    {# PATCH12B-PAYMENT-INSTRUCTIONS #}
+    <p class="confirmation-sub"><strong>How to pay</strong></p>
+    {% if payment and payment.bank_enabled %}
+    <p class="confirmation-sub"><strong>1. Bank transfer</strong><br>
+    Bank: {{ payment.bank_name }}<br>
+    Account name: {{ payment.account_name }}<br>
+    Account number: {{ payment.account_number }}<br>
+    Use your order number #{{ order.id }} as the reason for payment.<br>
+    {% if payment.payment_phone %}After you pay, call or message us on {{ payment.payment_phone }} so we can confirm.{% else %}After you pay, contact us so we can confirm your payment.{% endif %}</p>
+    <p class="confirmation-sub"><strong>2. Pay on delivery</strong><br>
+    Pay when your order arrives. We will call you to confirm delivery.</p>
+    {% else %}
+    <p class="confirmation-sub">You can pay on delivery. We will call you to confirm delivery. To arrange another way to pay, please contact us.</p>
+    {% endif %}
+    {% if order.payable_naira is defined and order.payable_naira is none %}
+    <p class="confirmation-sub">We will tell you the final amount before you pay.</p>
+    {% endif %}
+    <p class="confirmation-shipping">{{ order.shipping_message }}</p>
+    {% else %}
+    <h1>Order status unknown</h1>
+    <p class="confirmation-sub">We couldn't find your order details, but if you just checked out, it likely went through.</p>
+    {% endif %}
+    <a href="/shop" class="btn-primary">Continue Shopping</a>
+</div>
+{% endblock %}

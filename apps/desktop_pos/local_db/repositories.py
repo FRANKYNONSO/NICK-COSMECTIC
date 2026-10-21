@@ -12,14 +12,16 @@ framework-agnostic (see docs/architecture Section 1.3).
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from nickcosmetics_core.domain.coupons.coupon import Coupon as DomainCoupon
+from nickcosmetics_core.domain.coupons.coupon import CouponStatus
 from nickcosmetics_core.domain.inventory.stock import StockBatch as DomainStockBatch
 from nickcosmetics_core.domain.money import Money
-from nickcosmetics_core.domain.sales.sale import PaymentMethod
+from nickcosmetics_core.domain.sales.sale import PaymentMethod, PaymentTender
 from nickcosmetics_core.domain.sales.sale import Sale as DomainSale
 from nickcosmetics_core.domain.sales.sale import SaleChannel, SaleItem, SaleStatus
-from nickcosmetics_core.interfaces.repositories import SaleRepository, StockBatchRepository
+from nickcosmetics_core.interfaces.repositories import CouponRepository, SaleRepository, StockBatchRepository
 
-from local_db.models import CachedStockBatch, OutboxSale, OutboxSaleItem
+from local_db.models import CachedCoupon, CachedStockBatch, OutboxPayment, OutboxSale, OutboxSaleItem
 
 
 class LocalStockBatchRepository(StockBatchRepository):
@@ -90,6 +92,14 @@ class LocalSaleRepository(SaleRepository):
                     unit_price=Money(item.unit_price_kobo),
                 )
             )
+
+        payments = self._session.execute(
+            select(OutboxPayment).where(OutboxPayment.outbox_sale_id == row.id)
+        ).scalars().all()
+        sale.payments = [
+            PaymentTender(method=PaymentMethod(p.method), amount=Money(p.amount_kobo))
+            for p in payments
+        ]
         return sale
 
     def save(self, sale: DomainSale) -> None:
@@ -116,3 +126,53 @@ class LocalSaleRepository(SaleRepository):
                     unit_price_kobo=item.unit_price.kobo,
                 )
             )
+
+        for payment in sale.payments:
+            self._session.add(
+                OutboxPayment(
+                    outbox_sale_id=sale.id,
+                    method=payment.method.value,
+                    amount_kobo=payment.amount.kobo,
+                )
+            )
+
+
+class LocalCouponRepository(CouponRepository):
+    """SQLite-backed CouponRepository -- same role for coupons that
+    LocalStockBatchRepository/LocalSaleRepository play for stock/sales:
+    lets the framework-agnostic CouponService (nickcosmetics_core.
+    application.coupon_service) run unmodified against the local
+    offline cache.
+    """
+
+    def __init__(self, session: Session):
+        self._session = session
+
+    def get_by_code(self, code: str) -> DomainCoupon | None:
+        row = self._session.execute(
+            select(CachedCoupon).where(CachedCoupon.code == code)
+        ).scalar_one_or_none()
+        if row is None:
+            return None
+        return DomainCoupon(
+            id=row.id,
+            code=row.code,
+            discount_amount=Money(row.discount_amount_kobo),
+            status=CouponStatus(row.status),
+            expires_at=row.expires_at,
+            issued_by="",  # not tracked locally -- the cache only mirrors what's needed to redeem
+            created_at=row.last_synced_at,
+            redeemed_sale_id=row.redeemed_sale_id,
+            redeemed_at=row.redeemed_at,
+        )
+
+    def save(self, coupon: DomainCoupon) -> None:
+        row = self._session.get(CachedCoupon, coupon.id)
+        if row is None:
+            # Shouldn't normally happen -- coupons are only ever
+            # created server-side and pulled down by cache_sync -- but
+            # guard against it rather than raise AttributeError below.
+            return
+        row.status = coupon.status.value
+        row.redeemed_sale_id = coupon.redeemed_sale_id
+        row.redeemed_at = coupon.redeemed_at
