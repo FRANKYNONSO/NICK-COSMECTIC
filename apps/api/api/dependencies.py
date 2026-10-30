@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from infrastructure.db.models import Customer, User
+from infrastructure.db.models import Branch, Customer, User
 from infrastructure.db.models import Role as RoleModel
 from infrastructure.db.repositories import CustomerRepository, StaffApplicationRepository, UserRepository
 from infrastructure.db.session import AsyncSessionLocal
@@ -54,6 +54,16 @@ async def get_current_user(
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    # Branch suspension: staff of a suspended branch are locked out until
+    # a super admin resumes it. Super admins are never locked out.
+    if user.role != "super_admin" and user.branch_id is not None:
+        branch_row = await session.get(Branch, user.branch_id)
+        if branch_row is not None and branch_row.is_suspended:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Your branch is currently suspended. Please contact the administrator.",
+            )
 
     return user
 

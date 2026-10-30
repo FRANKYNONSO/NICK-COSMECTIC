@@ -13,6 +13,8 @@ class RestockEntrySendOut(BaseModel):
     unit_label_sent: str
     sent_by_name: str | None
     sent_at: datetime
+    request_no: str | None = None
+    received_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -41,6 +43,7 @@ class RestockListRowOut(BaseModel):
     quantity: int
     unit_label: str
     sends: list[RestockEntrySendOut]
+    note: str | None = None
 
 
 class RestockItemAdd(BaseModel):
@@ -52,6 +55,7 @@ class RestockItemAdd(BaseModel):
     branch_id: uuid.UUID
     quantity: int = 1
     unit_label: str = "pieces"
+    note: str | None = Field(default=None, max_length=500)
     # True from the Inventory Catalog's "Add to restock list" button --
     # keeps this entry on the list regardless of stock level. False (the
     # default) is used when the frontend is just persisting a quantity/
@@ -65,6 +69,7 @@ class RestockItemAdd(BaseModel):
 class RestockItemUpdate(BaseModel):
     quantity: int | None = None
     unit_label: str | None = None
+    note: str | None = Field(default=None, max_length=500)
 
 
 class RestockDownloadRequest(BaseModel):

@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/style.css" />
 <script src="js/theme.js"></script>
   <script src="js/numeric-input-fix.js"></script>
+  <script src="ui-dialog.js"></script>
 </head>
 <body>
 
@@ -291,6 +292,10 @@
              header is on "All branches", since starting stock has to
              belong to one specific branch. -->
         <input type="number" id="p-initial-qty" min="0" step="1" value="0" required />
+        <!-- fix45 -->
+        <label for="p-shelf-default" style="margin-top:10px;">Default amount on the shelf for this product</label>
+        <p style="font-size:12px;color:var(--ink-faint);margin:0 0 8px;">Anything above this goes to the warehouse automatically. Leave 24 if unsure.</p>
+        <input type="number" id="p-shelf-default" min="0" step="1" value="24" />
       </div>
 
       <div class="modal-actions">
@@ -337,6 +342,7 @@
       <button type="button" class="btn btn-ghost" id="invoice-prompt-existing-toggle" style="width:100%;">Add to an existing draft invoice</button>
       <button type="button" class="btn btn-primary" id="invoice-prompt-existing-confirm" style="width:100%;display:none;">Add to selected draft</button>
       <button type="button" class="btn btn-ghost" id="invoice-prompt-back" style="width:100%;display:none;">Back</button>
+      <button type="button" class="btn btn-ghost" id="invoice-prompt-save-later" style="width:100%;">Save as draft for later</button>
     </div>
   </div>
 </div>
@@ -352,31 +358,47 @@
      receive it there first. -->
 <div class="modal-backdrop" id="restock-modal-backdrop">
   <div class="modal" style="max-width:420px;">
-    <h3>Restock from warehouse</h3>
+    <h3>Restock</h3>
     <p class="modal-sub" id="restock-modal-product-name"></p>
     <div id="restock-modal-error" class="error-banner"></div>
     <p id="restock-modal-available" style="font-size:13px;color:var(--ink-muted);margin:0 0 12px;"></p>
     <form id="restock-modal-form">
+      <!-- fix48: one simple question, in pieces. The two hidden fields keep the old script working. -->
+      <input type="hidden" id="restock-unit-label" value="piece" />
+      <input type="hidden" id="restock-pieces-per-unit" value="1" />
       <div class="field">
-        <label for="restock-unit-label">Unit (e.g. carton, pack, piece)</label>
-        <input type="text" id="restock-unit-label" value="piece" required />
-      </div>
-      <div class="field">
-        <label for="restock-pieces-per-unit">Pieces per unit</label>
-        <input type="number" id="restock-pieces-per-unit" min="1" step="1" value="1" required />
-      </div>
-      <div class="field">
-        <label for="restock-unit-count">Number of units to pull</label>
+        <label for="restock-unit-count">How many pieces do you want to move to the shelf?</label>
         <input type="number" id="restock-unit-count" min="1" step="1" value="1" required />
       </div>
+      <p style="font-size:12px;color:var(--ink-faint);margin:0 0 8px;">The shelf can go above its default amount when a customer needs more.</p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="restock-modal-cancel">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="restock-modal-submit">Pull to shop floor</button>
+        <button type="submit" class="btn btn-primary" id="restock-modal-submit">Restock</button>
       </div>
     </form>
     <p id="restock-modal-empty" style="display:none;font-size:13px;color:var(--ink-muted);margin-top:8px;">
       Nothing available in this branch's warehouse for this product yet. <a href="warehouse.html">Receive stock into the warehouse</a> first.
     </p>
+  </div>
+</div>
+
+<!-- fix52: Reduce stock window -->
+<div class="modal-backdrop" id="shelf-reduce-backdrop">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="shelf-reduce-title">Reduce stock</h3>
+    <p class="modal-sub" id="shelf-reduce-info"></p>
+    <div id="shelf-reduce-error" class="error-banner"></div>
+    <form id="shelf-reduce-form">
+      <div class="field">
+        <label for="shelf-reduce-pieces">How many pieces do you want to send back to the warehouse?</label>
+        <input type="number" id="shelf-reduce-pieces" min="1" step="1" required />
+      </div>
+      <p style="font-size:12px;color:var(--ink-faint);margin:0 0 8px;">Only the pieces above the shelf default can be sent back. They go back to the warehouse they came from.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="shelf-reduce-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="shelf-reduce-submit">Reduce stock</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -391,14 +413,14 @@
     <p id="shelf-limit-status" style="font-size:13px;color:var(--ink-muted);margin:0 0 12px;"></p>
     <form id="shelf-limit-form">
       <div class="field">
-        <label for="shelf-limit-max">Most pieces on the shelf</label>
+        <label for="shelf-limit-max">Default amount on the shelf (pieces)</label>
         <input type="number" id="shelf-limit-max" min="0" step="1" value="24" required />
       </div>
       <div class="field">
         <label for="shelf-limit-alert">Tell me when the shelf is down to (pieces)</label>
         <input type="number" id="shelf-limit-alert" min="0" step="1" value="5" required />
       </div>
-      <p style="font-size:13px;color:var(--ink-muted);margin:0 0 12px;">Numbers are in pieces. Once you save, receiving goods and pushing from the warehouse will not put more than this on the shelf.</p>
+      <p style="font-size:13px;color:var(--ink-muted);margin:0 0 12px;">Numbers are in pieces. This is the default amount kept on the shelf.<!-- fix50 --> If you set it lower, nothing is moved<!-- fix53 -->. Use Reduce stock to send extra pieces back to the warehouse. If you set it higher, the shelf is filled from the warehouse. Restock can still put more on the shelf when a customer needs it.</p>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="shelf-limit-cancel">Cancel</button>
         <button type="submit" class="btn btn-primary" id="shelf-limit-submit">Save</button>
@@ -416,6 +438,13 @@
       <table>
         <thead><tr><th>Received</th><th>Branch</th><th>Cartons → pcs</th><th>Cost/unit</th><th>Expiry</th><th></th></tr></thead>
         <tbody id="history-tbody"></tbody>
+      </table>
+      <!-- fix52 -->
+      <h4 style="margin:18px 0 4px;">Shelf movements</h4>
+      <p class="modal-sub">Every move between the warehouse and the shelf for this product, most recent first.</p>
+      <table>
+        <thead><tr><th>When</th><th>What happened</th><th>Pieces</th><th>Who</th><th>Note</th></tr></thead>
+        <tbody id="history-shelf-moves-tbody"></tbody>
       </table>
       <!-- PATCH8A-PRODUCT-RETURNS-CREDIT -->
       <h4 style="margin:18px 0 4px;">Returns and credit</h4>

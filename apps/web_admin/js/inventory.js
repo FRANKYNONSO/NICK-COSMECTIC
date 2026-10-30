@@ -206,7 +206,8 @@ async function loadProducts() {
             </div>
             <div class="row-actions-line">
             ${Perms.can('manage_inventory') && branchId ? `<button class="action-link action-link-restock" data-restock="${p.id}" data-restock-name="${escapeHtml(p.name)}">Restock</button>` : ''}
-            ${Perms.can('manage_inventory') && branchId ? `<button class="action-link action-link-history" data-shelf-limit="${p.id}" data-shelf-limit-name="${escapeHtml(p.name)}">Shelf limit</button>` : ''}
+            ${Perms.can('manage_inventory') && branchId ? `<button class="action-link action-link-history" data-shelf-limit="${p.id}" data-shelf-limit-name="${escapeHtml(p.name)}">Shelf default</button>` : ''}
+            ${Perms.can('manage_inventory') && branchId ? `<button class="action-link action-link-history" data-shelf-reduce="${p.id}" data-shelf-reduce-name="${escapeHtml(p.name)}">Reduce stock</button>` : ''}
             ${Perms.can('manage_inventory') ? `<button class="action-link action-link-history" data-history="${p.id}" data-history-name="${escapeHtml(p.name)}">History</button>` : ''}
             ${p.needs_invoice && Perms.can('manage_inventory') ? `<button class="action-link action-link-invoice" data-invoice="${p.id}">Add to invoice</button>` : ''}
             </div>
@@ -220,6 +221,7 @@ async function loadProducts() {
       document.querySelector(`[data-restock="${p.id}"]`)?.addEventListener('click', () => openRestockModal(p.id, p.name));
       document.querySelector(`[data-shelf-limit="${p.id}"]`)?.addEventListener('click', () => openShelfLimitModal(p.id, p.name));
       document.querySelector(`[data-history="${p.id}"]`)?.addEventListener('click', () => openHistoryModal(p.id, p.name));
+      document.querySelector(`[data-shelf-reduce="${p.id}"]`)?.addEventListener('click', () => openShelfReduceModal(p.id, p.name, stockSplit.get(p.id)));
       document.querySelector(`[data-invoice="${p.id}"]`)?.addEventListener('click', () => openInvoicePrompt(p));
     });
     wireRestockCheckboxes();
@@ -1345,6 +1347,28 @@ productForm.addEventListener('submit', async (e) => {
           unit_cost_naira: 0,
           batch_number: 'Starting stock (added with product)',
         });
+        // fix44-new-product-shelf-default: more than 24 in starting stock -> shelf 24, the rest goes to the warehouse
+        // fix45: the shelf limit can be typed in the Add Product form (blank = 24)
+        const shelfFieldRaw = (document.getElementById('p-shelf-default') || { value: '' }).value.trim();
+        const shelfDefaultMax = /^\d+$/.test(shelfFieldRaw) ? Number(shelfFieldRaw) : 24;
+        const shelfDefaultAlert = Math.min(5, shelfDefaultMax);
+        if (initialQty > shelfDefaultMax) {
+          try {
+            const shelfResult = await Api.saveShelfSetting({
+              branch_id: initialBranchId,
+              product_id: savedProduct.id,
+              max_shelf_quantity: shelfDefaultMax,
+              replenish_alert_level: shelfDefaultAlert,
+              move_excess_to_warehouse: true, // fix53: new product only, splits its starting stock
+            });
+            const movedNew = (shelfResult && Number(shelfResult.moved_to_warehouse)) || 0;
+            if (movedNew > 0) {
+              showToast('Product added. Shelf ' + shelfDefaultMax + ', ' + movedNew + ' piece(s) moved to the warehouse.');
+            }
+          } catch (shelfErr) {
+            showToast('Product added, but the shelf limit could not be set: ' + shelfErr.message, true);
+          }
+        }
       }
     }
 
@@ -1456,7 +1480,7 @@ document.getElementById('restock-modal-form').addEventListener('submit', async (
   const availablePieces = Number(form.dataset.availablePieces || 0);
   const requestedPieces = piecesPerUnit * unitCount;
   if (requestedPieces > availablePieces) {
-    errorEl.textContent = `Only ${availablePieces} piece(s) available in the warehouse -- can't pull ${requestedPieces}.`;
+    errorEl.textContent = `Only ${availablePieces} piece(s) available in the warehouse -- can't restock ${requestedPieces}.`;
     errorEl.classList.add('visible');
     return;
   }
@@ -1494,6 +1518,7 @@ async function openHistoryModal(productId, productName) {
   currentHistoryProductId = productId;
   currentHistoryProductName = productName;
   loadProductReturnsAndCredit(productId);
+  loadShelfMovements(productId); // fix52
   const backdrop = document.getElementById('history-modal-backdrop');
   const tbody = document.getElementById('history-tbody');
   document.getElementById('history-modal-title').textContent = `Stock history — ${productName}`;
@@ -1973,6 +1998,13 @@ invoicePromptExistingConfirmBtn.addEventListener('click', async () => {
   }
 });
 
+// fix42: "Save for later" closes the invoice prompt without creating or
+// changing any invoice. The product is already saved and stays flagged
+// "Awaiting invoice" (use "Add to invoice" on its row later).
+document.getElementById('invoice-prompt-save-later').addEventListener('click', () => {
+  showToast('Saved as draft for later. It stays in "Awaiting invoice" - use "Add to invoice" on its row when you are ready.');
+  closeInvoicePrompt();
+});
 // fix39: shared Back button for both sub-flows -- returns to the
 // initial "Create new" / "Add to existing" choice screen.
 invoicePromptBackBtn.addEventListener('click', () => {
@@ -1988,6 +2020,121 @@ invoicePromptBackBtn.addEventListener('click', () => {
   hideInvoicePromptSupplierDropdown();
 });
 
+
+// fix52: Reduce stock window. Sends only the pieces ABOVE the shelf default back to the warehouse.
+let currentShelfReduceProductId = null;
+let currentShelfReduceMax = 0;
+
+function closeShelfReduceModal() {
+  document.getElementById('shelf-reduce-backdrop').classList.remove('visible');
+}
+
+function showShelfReduceError(message) {
+  const errorEl = document.getElementById('shelf-reduce-error');
+  errorEl.textContent = message;
+  errorEl.classList.add('visible');
+}
+
+function openShelfReduceModal(productId, productName, split) {
+  currentShelfReduceProductId = productId;
+  const inputEl = document.getElementById('shelf-reduce-pieces');
+  const submitBtn = document.getElementById('shelf-reduce-submit');
+  const errorEl = document.getElementById('shelf-reduce-error');
+  errorEl.textContent = '';
+  errorEl.classList.remove('visible');
+  const shelf = Number((split && split.shelf_sellable_stock) || 0);
+  const shelfDefault = (split && split.limits_configured && split.max_shelf_quantity != null) ? Number(split.max_shelf_quantity) : 24;
+  const excess = shelf - shelfDefault;
+  currentShelfReduceMax = excess > 0 ? excess : 0;
+  document.getElementById('shelf-reduce-title').textContent = 'Reduce stock: ' + productName;
+  document.getElementById('shelf-reduce-info').textContent = 'On the shelf now: ' + shelf + '. Shelf default: ' + shelfDefault + '.';
+  if (excess > 0) {
+    inputEl.value = excess;
+    inputEl.disabled = false;
+    submitBtn.disabled = false;
+  } else {
+    inputEl.value = '';
+    inputEl.disabled = true;
+    submitBtn.disabled = true;
+    showShelfReduceError('The shelf holds ' + shelf + ' and the default is ' + shelfDefault + ', so there is nothing above the default to send back.');
+  }
+  document.getElementById('shelf-reduce-backdrop').classList.add('visible');
+}
+
+document.getElementById('shelf-reduce-cancel').addEventListener('click', closeShelfReduceModal);
+
+document.getElementById('shelf-reduce-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  document.getElementById('shelf-reduce-error').classList.remove('visible');
+  const raw = document.getElementById('shelf-reduce-pieces').value.trim();
+  if (!/^\d+$/.test(raw) || Number(raw) < 1) {
+    showShelfReduceError('Type a whole number, 1 or more.');
+    return;
+  }
+  const pieces = Number(raw);
+  if (pieces > currentShelfReduceMax) {
+    showShelfReduceError('You can send back at most ' + currentShelfReduceMax + ' piece(s): only the pieces above the shelf default.');
+    return;
+  }
+  const branchId = BranchContext.get() || currentUser?.branch_id;
+  const submitBtn = document.getElementById('shelf-reduce-submit');
+  submitBtn.disabled = true;
+  try {
+    const result = await Api.reduceShelfStock({
+      branch_id: branchId,
+      product_id: currentShelfReduceProductId,
+      pieces: pieces,
+    });
+    closeShelfReduceModal();
+    const movedPieces = (result && Number(result.moved_to_warehouse)) || pieces;
+    showToast(movedPieces + ' piece(s) sent back to the warehouse.');
+    loadProducts();
+  } catch (err) {
+    showShelfReduceError(err.message);
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+// fix52: "Shelf movements" table in the Stock history window (warehouse to shelf, shelf to warehouse, branch sends)
+const SHELF_MOVE_LABELS = {
+  warehouse_to_store: 'Warehouse to shelf',
+  shelf_to_warehouse: 'Shelf to warehouse',
+  warehouse_to_branch: 'Sent to another branch',
+};
+
+async function loadShelfMovements(productId) {
+  const tbody = document.getElementById('history-shelf-moves-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Loading...</td></tr>';
+  const branchId = BranchContext.get() || currentUser?.branch_id;
+  try {
+    const all = await Api.listStockTransfers({ branchId: branchId, productId: productId });
+    if (productId !== currentHistoryProductId) return;
+    const rows = (all || []).filter((t) => SHELF_MOVE_LABELS[t.transfer_type]);
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--ink-faint);">No shelf movements recorded yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((t) => {
+      let what = SHELF_MOVE_LABELS[t.transfer_type];
+      if (t.transfer_type === 'warehouse_to_branch' && branchId && t.from_branch_id !== branchId) {
+        what = 'Received from another branch warehouse';
+      }
+      const when = new Date(t.created_at).toLocaleString('en-NG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Lagos' });
+      return '<tr>'
+        + '<td>' + escapeHtml(when) + '</td>'
+        + '<td>' + escapeHtml(what) + '</td>'
+        + '<td>' + Number(t.quantity_pieces) + '</td>'
+        + '<td>' + (t.created_by_name ? escapeHtml(t.created_by_name) : '&mdash;') + '</td>'
+        + '<td>' + (t.notes ? escapeHtml(t.notes) : '&mdash;') + '</td>'
+        + '</tr>';
+    }).join('');
+  } catch (err) {
+    if (productId !== currentHistoryProductId) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="color:var(--danger);">' + escapeHtml(err.message) + '</td></tr>';
+  }
+}
 
 // PATCH4A-SHELF-LIMIT-WINDOW
 // "Shelf limit" window: one product at one branch. It reads the saved limit
@@ -2015,7 +2162,7 @@ async function openShelfLimitModal(productId, productName) {
   const saveBtn = document.getElementById('shelf-limit-submit');
   errorEl.textContent = '';
   errorEl.classList.remove('visible');
-  document.getElementById('shelf-limit-title').textContent = 'Shelf limit: ' + productName;
+  document.getElementById('shelf-limit-title').textContent = 'Shelf default: ' + productName; // fix49
   document.getElementById('shelf-limit-branch').textContent = 'Branch: ' + (BranchContext.getName() || '');
   maxEl.value = 24;
   alertEl.value = 5;
@@ -2062,14 +2209,18 @@ document.getElementById('shelf-limit-form').addEventListener('submit', async (e)
   const saveBtn = document.getElementById('shelf-limit-submit');
   saveBtn.disabled = true;
   try {
-    await Api.saveShelfSetting({
+    const shelfSaveResult = await Api.saveShelfSetting({
       branch_id: branchId,
       product_id: currentShelfLimitProductId,
       max_shelf_quantity: maxPieces,
       replenish_alert_level: alertPieces,
     });
     closeShelfLimitModal();
-    showToast('Shelf limit saved.');
+    // fix43-shelf-excess
+    const movedPieces = (shelfSaveResult && Number(shelfSaveResult.moved_to_warehouse)) || 0;
+    const filledPieces = (shelfSaveResult && Number(shelfSaveResult.moved_to_shelf)) || 0;
+    showToast(movedPieces > 0 ? 'Shelf limit saved: ' + maxPieces + '. ' + movedPieces + ' piece(s) moved to the warehouse.' : (filledPieces > 0 ? 'Shelf default saved: ' + maxPieces + '. ' + filledPieces + ' piece(s) moved from the warehouse to the shelf.' : 'Shelf default saved: ' + maxPieces + ' pieces. Nothing was moved.')); // fix46
+    loadProducts();
   } catch (err) {
     showShelfLimitError(err.message);
   } finally {
@@ -2085,5 +2236,7 @@ function stockSplitLine(s) {
   const shelf = Number(s.shelf_sellable_stock ?? 0);
   const warehouse = Number(s.warehouse_stock ?? 0);
   const total = Number(s.total_sellable_stock ?? (shelf + warehouse));
-  return `<div class="cell-sub" data-stock-split="1"><span>Shelf ${shelf}</span><span>Warehouse ${warehouse}</span><span>Total ${total}</span></div>`;
+  // fix47: show the saved shelf limit next to the shelf number
+  const limitText = (s.limits_configured && s.max_shelf_quantity != null) ? ' (default ' + Number(s.max_shelf_quantity) + ')' : ''; // fix48
+  return `<div class="cell-sub" data-stock-split="1"><span>Shelf ${shelf}${limitText}</span><span>Warehouse ${warehouse}</span><span>Total ${total}</span></div>`;
 }

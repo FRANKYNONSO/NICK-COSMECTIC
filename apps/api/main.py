@@ -39,6 +39,7 @@ from api.v1.routers import (
     warehouse,
     wishlist,
 )
+from api.v1.routers import bank_lookup
 from tasks.metric_snapshots import run_daily_metric_rollup
 
 app = FastAPI(
@@ -81,6 +82,7 @@ app.include_router(customers.router, prefix="/api/v1")
 app.include_router(customer_auth.router, prefix="/api/v1")
 app.include_router(catalog.router, prefix="/api/v1")
 app.include_router(branches.router, prefix="/api/v1")
+app.include_router(bank_lookup.router, prefix="/api/v1")
 app.include_router(inventory.router, prefix="/api/v1")
 app.include_router(sales.router, prefix="/api/v1")
 app.include_router(coupons.router, prefix="/api/v1")

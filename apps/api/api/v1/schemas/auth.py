@@ -1,11 +1,26 @@
 import uuid
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    # The field keeps the name "email" so every existing client (web admin,
+    # desktop POS, storefront) keeps working. It now accepts an email
+    # address, a phone number or a username.
+    email: str = Field(min_length=1, max_length=254)
     password: str = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def _strip_identifier(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Enter your username, email or phone number")
+        return value
+
+    @property
+    def identifier(self) -> str:
+        return self.email
 
 
 class TokenResponse(BaseModel):

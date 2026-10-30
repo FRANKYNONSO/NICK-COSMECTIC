@@ -120,6 +120,7 @@ def _serialize(inv: PurchaseInvoice) -> PurchaseInvoiceOut:
         description=inv.description,
         image_url=inv.image_url,
         invoice_number=inv.invoice_number,
+        source=inv.source,
         supplier_address=inv.supplier_address,
         supplier_phone=inv.supplier_phone,
         payment_method=inv.payment_method,
@@ -243,12 +244,16 @@ async def total_invested(
     )
     if effective_branch_id is not None:
         landed_cost_stmt = landed_cost_stmt.where(PurchaseInvoice.branch_id == effective_branch_id)
+    else:
+        # XFER5: with no branch picked, a transfer invoice would count the same
+        # goods twice (once on the supplier invoice, once on the transfer).
+        landed_cost_stmt = landed_cost_stmt.where(PurchaseInvoice.source.is_distinct_from("branch_transfer"))
     if date_from is not None:
         landed_cost_stmt = landed_cost_stmt.where(PurchaseInvoice.invoice_date >= date_from)
     landed_cost_kobo = (await session.execute(landed_cost_stmt)).scalar_one()
 
     adjustment_loss_stmt = select(func.coalesce(func.sum(StockAdjustment.value_kobo), 0)).where(
-        StockAdjustment.value_kobo.is_not(None)
+        StockAdjustment.value_kobo.is_not(None), StockAdjustment.status == "completed"
     )
     if effective_branch_id is not None:
         adjustment_loss_stmt = adjustment_loss_stmt.where(StockAdjustment.branch_id == effective_branch_id)
@@ -277,6 +282,8 @@ async def list_purchase_invoices(
     # this product to an existing draft" picker on Add Product ask for
     # only unfinished drafts, instead of every invoice ever filed.
     status: str | None = None,
+    # XFER5: the receive and damage-complaint screens ask for exclude_transfers=true.
+    exclude_transfers: bool = False,
     session: AsyncSession = Depends(get_db_session),
     # View-only permission -- a cashier with view_purchase_invoices
     # (granted by default) can see invoice history/details for their
@@ -305,6 +312,8 @@ async def list_purchase_invoices(
         conditions.append(PurchaseInvoice.supplier_id == supplier_id)
     if status:
         conditions.append(PurchaseInvoice.status == status)
+    if exclude_transfers:
+        conditions.append(PurchaseInvoice.source.is_distinct_from("branch_transfer"))
     result = await session.execute(
         select(PurchaseInvoice)
         .options(
@@ -513,6 +522,11 @@ async def update_purchase_invoice(
     if inv is None:
         raise HTTPException(fastapi_status.HTTP_404_NOT_FOUND, detail="Invoice not found")
 
+    if inv.source == "branch_transfer":
+        raise HTTPException(
+            fastapi_status.HTTP_400_BAD_REQUEST,
+            detail="This invoice was made by a branch transfer. It is read-only and cannot be edited.",
+        )
     updates = body.model_dump(exclude_unset=True, exclude={"add_items", "update_items", "remove_item_ids"})
     money_fields = {
         "amount_naira": "amount_kobo",

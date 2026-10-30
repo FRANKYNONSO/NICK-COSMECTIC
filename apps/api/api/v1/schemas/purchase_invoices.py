@@ -149,6 +149,8 @@ class PurchaseInvoiceOut(BaseModel):
     # Deprecated -- only populated on invoices filed before the field
     # was removed from the form.
     invoice_number: str | None = None
+    # XFER5: 'branch_transfer' for the invoice a branch transfer makes; empty otherwise.
+    source: str | None = None
     supplier_address: str | None = None
     supplier_phone: str | None = None
     payment_method: str | None = None

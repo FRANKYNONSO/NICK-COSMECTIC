@@ -1,7 +1,7 @@
-﻿import uuid
+import uuid
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class StockBatchCreate(BaseModel):
@@ -34,7 +34,20 @@ class StockBatchOut(BaseModel):
 
 
 class StockAdjustmentCreate(BaseModel):
-    stock_batch_id: uuid.UUID
+    # Either name a specific batch (stock_batch_id), or leave it out and
+    # send product_id (+ branch_id for a super admin, who has no pinned
+    # branch): the server then takes a LOSS out of the soonest-expiring
+    # batches first (FEFO), spilling into the next batch if one isn't
+    # enough, so the user never has to pick a batch by hand.
+    stock_batch_id: uuid.UUID | None = None
+    product_id: uuid.UUID | None = None
+    branch_id: uuid.UUID | None = None
+    # Where the loss comes out of: "shelf" (StockBatch rows only),
+    # "warehouse" (this branch's warehouse_stock only), or "any" -- the
+    # product's TOTAL stock: shelf first (soonest expiry first), then
+    # whatever is left over from the warehouse. "warehouse" and "any" are
+    # recorded against the product (product_id), not a named shelf batch.
+    location: str = Field(default="shelf", pattern="^(shelf|warehouse|any)$")
     quantity_delta: int  # negative for a loss (expired/damaged/missing/defective/supplier_return/theft/other), positive for recount-up
     reason: str = Field(
         pattern="^(damaged|expired|theft|recount|other|missing|defective|supplier_return)$"
@@ -62,6 +75,12 @@ class StockAdjustmentCreate(BaseModel):
     # every reason) -- "all three require image or video evidence
     # upload".
     image_url: str | None = None
+
+    @model_validator(mode="after")
+    def _batch_or_product(self):
+        if self.stock_batch_id is None and self.product_id is None:
+            raise ValueError("Send either stock_batch_id or product_id.")
+        return self
 
 
 class StockAdjustmentOut(BaseModel):
@@ -94,6 +113,11 @@ class StockAdjustmentOut(BaseModel):
     adjusted_by: uuid.UUID | None
     adjusted_by_name: str | None = None
     created_at: datetime
+    # Set when several rows from one loss submission are shown as one.
+    loss_group_id: uuid.UUID | None = None
+    parts: int = 1
+    shelf_quantity: int | None = None
+    warehouse_quantity: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -140,6 +164,14 @@ class LossHistoryRow(BaseModel):
     recorded_by: uuid.UUID | None = None
     recorded_by_name: str | None = None
     created_at: datetime
+    loss_group_id: uuid.UUID | None = None
+    parts: int = 1
+    # fix02: the uploaded proof (photo or video) and the approval details
+    evidence_url: str | None = None
+    status: str | None = None
+    reviewed_by: uuid.UUID | None = None
+    reviewed_by_name: str | None = None
+    reviewed_at: datetime | None = None
 
 
 class ProductReturnCreditRow(BaseModel):

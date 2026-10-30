@@ -834,6 +834,7 @@ td strong {
    money already taken. js/sales.js should render these with these
    classes instead of full buttons. */
 .action-link-view { color: var(--accent); }
+.action-link-print { color: var(--ink-muted); }
 .action-link-refund { color: var(--danger); }
 .action-link-payment { color: var(--success); }
 .action-link-change { color: var(--warning); }

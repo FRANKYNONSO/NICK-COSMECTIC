@@ -53,6 +53,9 @@ def _utcnow() -> datetime:
 
 # ---------------------------------------------------------------- USERS/AUTH
 
+from sqlalchemy import Boolean as _BranchBool
+
+
 class Branch(Base):
     __tablename__ = "branches"
 
@@ -85,6 +88,10 @@ class Branch(Base):
     shift_expected_close_hour: Mapped[int | None] = mapped_column(Integer, nullable=True)
     shift_expected_close_minute: Mapped[int | None] = mapped_column(Integer, nullable=True)
     shift_grace_minutes: Mapped[int] = mapped_column(Integer, default=10)
+    # Support line printed on this branch receipts; is_suspended blocks branch activity.
+    support_line: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_suspended: Mapped[bool] = mapped_column(_BranchBool, nullable=False, default=False, server_default="false")
+    suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class User(Base):
@@ -102,6 +109,7 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String, nullable=False)
     email: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
+    username: Mapped[str | None] = mapped_column(String, nullable=True)
     password_hash: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(
         String,
@@ -652,7 +660,7 @@ class StockAdjustment(Base):
             name="ck_adjustment_theft_caused_by",
         ),
         CheckConstraint(
-            "status IN ('completed','pending_confirmation')",
+            "status IN ('completed','pending_confirmation','pending_review','rejected')",
             name="ck_adjustment_status",
         ),
     )
@@ -685,6 +693,10 @@ class StockAdjustment(Base):
         ForeignKey("intake_receipts.id"), nullable=True
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # One loss recorded in a single submission can come out of several
+    # batches (shelf + warehouse). Every row from that submission shares
+    # this id so it is shown and reviewed as ONE loss.
+    loss_group_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True, index=True)
     # Update Request item 11: accountability fields for the two
     # "unretrievable" reasons that most need someone to be answerable
     # for what happened. Both nullable and only ever populated for
@@ -843,7 +855,7 @@ class StockTransfer(Base):
     __tablename__ = "stock_transfers"
     __table_args__ = (
         CheckConstraint(
-            "transfer_type IN ('branch_to_branch','store_to_warehouse','warehouse_to_store','warehouse_to_branch','receipt_to_warehouse','receipt_to_shelf')",
+            "transfer_type IN ('branch_to_branch','store_to_warehouse','warehouse_to_store','warehouse_to_branch','receipt_to_warehouse','receipt_to_shelf','shelf_to_warehouse')",
             name="ck_stock_transfer_type",
         ),
         CheckConstraint(
@@ -901,6 +913,17 @@ class StockTransfer(Base):
     # settlement.
     total_cost_kobo: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     payment_method: Mapped[str | None] = mapped_column(String, nullable=True)
+    # XFER1-TRANSFER-AS-SALE: price per piece the receiving branch pays,
+    # how it was chosen ('selling' / 'wholesale' / 'custom'), and the Sale
+    # row (channel 'transfer') that records it. total_cost_kobo above stays
+    # the sending branch's own cost.
+    unit_price_kobo: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    price_basis: Mapped[str | None] = mapped_column(String, nullable=True)
+    sale_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("sales.id"), nullable=True)
+    # XFER5: the invoice made for the receiving branch.
+    invoice_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("purchase_invoices.id"), nullable=True
+    )
     # Only set for transfer_type='store_to_warehouse' -- the specific
     # purchase invoice line this push is documenting delivery against.
     # A push is only ever allowed for an item that's actually on an
@@ -932,6 +955,66 @@ class StockTransfer(Base):
     # entered through a receipt is traceable back to it.
     goods_receipt_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("goods_receipts.id"), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class TransferReturn(Base):
+    # RET1: one row per request to send transferred goods back to the branch
+    # that sent them. It is NOT a new sale and NOT a new invoice. The money
+    # and stock only change when the sending branch approves the refund.
+    # started_by_side: 'sender' = the branch that sent the goods asked for
+    # them back; 'receiver' = the branch that received them started the return.
+    __tablename__ = "transfer_returns"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('requested','accepted','declined','cancelled','completed')",
+            name="ck_transfer_return_status",
+        ),
+        CheckConstraint(
+            "started_by_side IN ('sender','receiver')",
+            name="ck_transfer_return_side",
+        ),
+        CheckConstraint(
+            "payment_method IN ('cash','transfer') OR payment_method IS NULL",
+            name="ck_transfer_return_payment_method",
+        ),
+        CheckConstraint("quantity_pieces > 0", name="ck_transfer_return_quantity"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    transfer_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("stock_transfers.id"), nullable=False, index=True
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("products.id"), nullable=False)
+    # from_branch_id = the original sender (gets the pieces back, pays the money back).
+    # to_branch_id = the original receiver (gives the pieces back).
+    from_branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
+    to_branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
+    started_by_side: Mapped[str] = mapped_column(String, nullable=False)
+    quantity_pieces: Mapped[int] = mapped_column(Integer, nullable=False)
+    # The price first paid, copied from the transfer. amount = pieces x price.
+    unit_price_kobo: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    amount_kobo: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="requested")
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Empty until the refund is approved: 'cash' or 'transfer'.
+    payment_method: Mapped[str | None] = mapped_column(String, nullable=True)
+    # RET4: optional account of the branch that gives the pieces back (it gets
+    # the money). Typed by that branch; shown to the sending branch.
+    refund_bank_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    refund_account_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    refund_account_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    requested_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    responded_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approved_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Filled at the approve click: what left the giving branch and where it landed.
+    taken_shelf_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    taken_warehouse_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    landed_shelf_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    landed_warehouse_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
@@ -1090,7 +1173,7 @@ class ShiftComplianceEvent(Base):
 class Sale(Base):
     __tablename__ = "sales"
     __table_args__ = (
-        CheckConstraint("channel IN ('pos','website','mobile')", name="ck_sale_channel"),
+        CheckConstraint("channel IN ('pos','website','mobile','transfer')", name="ck_sale_channel"),
         CheckConstraint(
             "status IN ('completed','refunded','partially_refunded','cancelled','booking')",
             name="ck_sale_status",
@@ -1652,6 +1735,10 @@ class PurchaseInvoice(Base):
     # field -- remove it"). No longer settable via the create/edit form;
     # the column stays so old records don't lose data.
     invoice_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    # XFER5: empty for every normal supplier invoice; 'branch_transfer' for the
+    # invoice a branch transfer makes for the receiving branch. Those invoices
+    # are paperwork only: never received, pushed or edited.
+    source: Mapped[str | None] = mapped_column(String, nullable=True)
     supplier_address: Mapped[str | None] = mapped_column(String, nullable=True)
     supplier_phone: Mapped[str | None] = mapped_column(String, nullable=True)
     # Spec section 16: trimmed down from a broad payment-method list to
@@ -1916,6 +2003,8 @@ class RestockListEntry(Base):
     # is null (see the check constraint above).
     custom_name: Mapped[str | None] = mapped_column(String, nullable=True)
     custom_image_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Per-item note typed on the Restock List; printed under the item on the PDF.
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     added_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
@@ -1952,9 +2041,35 @@ class RestockListEntrySend(Base):
     unit_label_sent: Mapped[str] = mapped_column(String, nullable=False)
     sent_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    # Which saved Restock Request this send belongs to, and when the goods
+    # arrived (null = still on order).
+    request_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("restock_requests.id"), nullable=True)
+    request_no: Mapped[str | None] = mapped_column(String, nullable=True)
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     entry: Mapped["RestockListEntry"] = relationship(back_populates="sends")
     sent_by_user: Mapped["User | None"] = relationship()
+
+
+from sqlalchemy import LargeBinary as _LargeBinary  # noqa: E402
+
+
+class RestockRequest(Base):
+    """One downloaded Restock Request PDF, saved under its running number
+    (RS-2026-001, RS-2026-002, ...)."""
+
+    __tablename__ = "restock_requests"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    request_no: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    branch_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("branches.id"), nullable=False)
+    supplier_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    # The exact PDF that was downloaded, and its items (name, quantity, unit,
+    # note) as JSON, so the request can be found and downloaded again later.
+    pdf_data: Mapped[bytes | None] = mapped_column(_LargeBinary, nullable=True, deferred=True)
+    items_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 # ------------------------------------------------------- STOREFRONT ORDERS

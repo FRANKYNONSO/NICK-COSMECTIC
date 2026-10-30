@@ -1654,7 +1654,12 @@ function addOwedChangeRow() {
   // afterward, in case it needs a manual tweak.
   function recalcCashLaterAmount() {
     const given = Number(cashGivenInput.value || 0);
-    const remaining = Math.max(owedChangeTrackedDue - given, 0);
+    let others = 0;
+    owedChangeRowsContainer.querySelectorAll('.owed-change-row').forEach((r) => {
+      if (r === row) return;
+      others += Number(r.querySelector('.owed-row-amount').value || 0);
+    });
+    const remaining = Math.max(Math.round((owedChangeTrackedDue - given - others) * 100) / 100, 0);
     amountInput.value = String(remaining);
     updateOwedChangeRemainingLine();
   }
@@ -1672,7 +1677,10 @@ function addOwedChangeRow() {
     updateOwedChangeAddRowVisibility();
   });
   cashGivenInput.addEventListener('input', recalcCashLaterAmount);
-  amountInput.addEventListener('input', updateOwedChangeRemainingLine);
+  amountInput.addEventListener('input', () => {
+    recalcOtherCashLaterRows(row);
+    updateOwedChangeRemainingLine();
+  });
   airtimePhone.addEventListener('input', () => {
     const digits = airtimePhone.value.replace(/\D/g, '');
     const detected = NIGERIAN_NETWORK_PREFIXES[digits.slice(0, 4)];
@@ -1681,6 +1689,7 @@ function addOwedChangeRow() {
   removeBtn.addEventListener('click', () => {
     row.remove();
     updateOwedChangeRowRemoveButtons();
+    recalcOtherCashLaterRows(null);
     updateOwedChangeRemainingLine();
     updateOwedChangeAddRowVisibility();
   });
@@ -1727,6 +1736,22 @@ function sumOwedChangeRows() {
     }
   });
   return sum;
+}
+// Keeps a "cash - collect later" row in step with the other rows:
+// its amount = change due - other rows - its own already-given-now.
+function recalcOtherCashLaterRows(exceptRow) {
+  const rows = owedChangeRowsContainer.querySelectorAll('.owed-change-row');
+  rows.forEach((target) => {
+    if (target === exceptRow) return;
+    if (target.querySelector('.owed-row-method').value !== 'cash-later') return;
+    let others = 0;
+    rows.forEach((r) => {
+      if (r === target) return;
+      others += Number(r.querySelector('.owed-row-amount').value || 0);
+    });
+    const given = Number(target.querySelector('.owed-row-cash-given').value || 0);
+    target.querySelector('.owed-row-amount').value = String(Math.max(Math.round((owedChangeTrackedDue - given - others) * 100) / 100, 0));
+  });
 }
 function updateOwedChangeRemainingLine() {
   const sum = sumOwedChangeRows();

@@ -46,6 +46,23 @@ const UNIT_LABELS = [
   { v: 'half_carton', label: 'Half carton' },
 ];
 
+function openSends(r) {
+  return (r.sends || []).filter((s) => !s.received_at);
+}
+
+function onOrderHtml(r) {
+  const open = openSends(r);
+  if (!open.length) return '';
+  return open.map((s) => {
+    const unit = (UNIT_LABELS.find((u) => u.v === s.unit_label_sent) || {}).label || s.unit_label_sent;
+    const qty = (s.unit_label_sent === 'half_dozen' || s.unit_label_sent === 'half_carton') ? unit : `${s.quantity_sent} ${unit}`;
+    const when = s.sent_at ? new Date(s.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '';
+    const who = s.supplier_name && s.supplier_name !== 'No supplier named' ? ' - ' + s.supplier_name : '';
+    const text = `${qty} on order${s.request_no ? ' - ' + s.request_no : ''}${who}${when ? ' - ' + when : ''}`;
+    return `<div class="sent-tag">${crEsc(text)}</div>`;
+  }).join('');
+}
+
 function reasonTag(reason) {
   if (reason === 'out_of_stock') return '<span class="stock-pill out">Out of stock</span>';
   if (reason === 'low_stock') return '<span class="stock-pill low">Low stock</span>';
@@ -101,6 +118,7 @@ async function loadRestockList() {
     rows = [];
   }
   renderRows();
+  loadHistory();
 }
 
 function renderRows() {
@@ -135,6 +153,8 @@ function renderRows() {
       <td>
         <div style="font-weight:600;">${escapeHtml(r.product_name)}</div>
         <div class="restock-reason-tag">${escapeHtml(r.category_name || '')}</div>
+        ${onOrderHtml(r)}
+        ${canManage ? `<input type="text" class="restock-note-input" data-row-key="${key}" value="${crEsc(r.note || '')}" placeholder="Note for the supplier (optional)" maxlength="500" style="margin-top:6px; width:100%; max-width:320px; font-size:12.5px;" />` : (r.note ? `<div class="restock-reason-tag">${escapeHtml(r.note)}</div>` : '')}
       </td>
       <td>${reasonTag(r.reason)}${customerBadgeHtml(r)}</td>
       <td>
@@ -172,6 +192,29 @@ async function persistQuantityUnit(key, quantity, unitLabel) {
   }
 }
 
+async function persistNote(key, note) {
+  const row = rows.find((r) => rowKey(r) === key);
+  if (!row) return;
+  const branchId = BranchContext.get();
+  const wasUnsaved = !row.entry_id;
+  const keepImage = row.image_url;
+  try {
+    let result;
+    if (row.entry_id) {
+      result = await Api.restockList.updateItem(row.entry_id, { note });
+    } else {
+      result = await Api.restockList.addItem({ productId: row.product_id, branchId, quantity: row.quantity || 1, unitLabel: row.unit_label || 'pieces', isManual: row.reason === 'manual', note });
+    }
+    Object.assign(row, result);
+    if (!row.image_url) row.image_url = keepImage;
+    // A brand-new entry changes this row's key, so redraw it; otherwise
+    // leave the page alone so typing in the next box is not interrupted.
+    if (wasUnsaved) renderRows();
+  } catch (err) {
+    showToast(err.message || 'Could not save that note.', true);
+  }
+}
+
 async function persistThenSelect(key, wantSelected) {
   const row = rows.find((r) => rowKey(r) === key);
   if (!row) return;
@@ -195,6 +238,9 @@ function wireRowEvents() {
       persistQuantityUnit(key, Number(el.value) || 1, unitSelect ? unitSelect.value : (row ? row.unit_label : 'pieces'));
     });
   });
+  document.querySelectorAll('.restock-note-input').forEach((el) => {
+    el.addEventListener('change', () => persistNote(el.dataset.rowKey, el.value));
+  });
   document.querySelectorAll('.restock-unit-select').forEach((el) => {
     el.addEventListener('change', () => {
       const key = el.dataset.rowKey;
@@ -214,7 +260,7 @@ function wireRowEvents() {
         renderRows();
         return;
       }
-      if (!confirm(removeConfirmText(entryId))) return;
+      if (!await uiConfirm(removeConfirmText(entryId))) return;
       try {
         await Api.restockList.removeItem(entryId);
         rows = rows.filter((r) => r.entry_id !== entryId);
@@ -263,15 +309,20 @@ document.getElementById('restock-review-btn').addEventListener('click', () => {
 
   const rowsSel = checkedKeys.map((key) => rows.find((r) => rowKey(r) === key)).filter(Boolean);
   document.getElementById('restock-confirm-sub').textContent = supplierName
-    ? `Sending to ${supplierName} — these items will leave the list once downloaded.`
-    : 'No supplier specified — these items will still leave the list once downloaded.';
+    ? `Sending to ${supplierName} — these items stay on the list until they are restocked or arrive.`
+    : 'No supplier specified — these items stay on the list until they are restocked or arrive.';
   document.getElementById('restock-confirm-rows').innerHTML = rowsSel.map((r) => {
     const unitLabel = (UNIT_LABELS.find((u) => u.v === r.unit_label) || {}).label || r.unit_label;
     const qtyText = (r.unit_label === 'half_dozen' || r.unit_label === 'half_carton') ? unitLabel : `${r.quantity} × ${unitLabel}`;
     return `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border);">
-      <span>${escapeHtml(r.product_name)}</span><strong>${escapeHtml(qtyText)}</strong>
+      <span>${escapeHtml(r.product_name)}${r.note ? `<span class="restock-reason-tag" style="display:block;">${escapeHtml(r.note)}</span>` : ''}</span><strong>${escapeHtml(qtyText)}</strong>
     </div>`;
   }).join('');
+  const alreadyOrdered = rowsSel.filter((r) => openSends(r).length);
+  if (alreadyOrdered.length) {
+    document.getElementById('restock-confirm-sub').textContent =
+      `Careful: ${alreadyOrdered.length} of these item${alreadyOrdered.length === 1 ? ' is' : 's are'} already on order (${alreadyOrdered.map((r) => r.product_name).join(', ')}). If you are ordering it again from a different supplier on purpose, just go ahead.`;
+  }
   window._restockPending = { entryIds: rowsSel.map((r) => r.entry_id), supplierName };
   document.getElementById('restock-confirm-backdrop').classList.add('visible');
 });
@@ -285,7 +336,7 @@ document.getElementById('restock-confirm-go').addEventListener('click', async ()
   if (!pending) return;
   try {
     await Api.restockList.download(pending.entryIds, pending.supplierName || null);
-    showToast('Downloaded — those items have been removed from the list.');
+    showToast('Downloaded and saved. The items are now marked as on order.');
     document.getElementById('restock-confirm-backdrop').classList.remove('visible');
     document.getElementById('restock-supplier-name').value = '';
     selectedEntryIds.clear();
@@ -329,6 +380,15 @@ document.getElementById('custom-item-add-btn').addEventListener('click', async (
   btn.disabled = true;
   btn.textContent = 'Adding…';
   try {
+    // Reject a name that is already on the restock list, whatever the
+    // payment method. Names are compared ignoring case and extra spaces.
+    const normName = (s) => String(s == null ? '' : s).trim().replace(/\s+/g, ' ').toLowerCase();
+    const existingRows = await Api.restockList.list(branchId);
+    const clash = existingRows.find((r) => normName(r.product_name) === normName(name));
+    if (clash) {
+      showToast('"' + clash.product_name + '" is already on the restock list. Edit its quantity there instead of adding it again.', true);
+      return;
+    }
     let imageUrl = null;
     if (photoInput.files && photoInput.files[0]) {
       const uploadResult = await Api.restockList.uploadImage(photoInput.files[0]);
@@ -376,6 +436,71 @@ document.addEventListener('click', (e) => {
 document.getElementById('image-lightbox-close').addEventListener('click', () => {
   document.getElementById('image-lightbox-backdrop').classList.remove('visible');
 });
+
+var historyData = [];
+var historyTimer = null;
+
+async function loadHistory() {
+  const card = document.getElementById('restock-history');
+  if (!card) return;
+  const branchId = BranchContext.get();
+  if (!branchId) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  try {
+    const q = document.getElementById('restock-history-search').value.trim();
+    historyData = await Api.restockList.listRequests(branchId, q);
+  } catch (err) {
+    historyData = [];
+  }
+  renderHistory();
+}
+
+function renderHistory() {
+  const tbody = document.getElementById('restock-history-tbody');
+  const empty = document.getElementById('restock-history-empty');
+  if (!historyData.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = historyData.map((h) => {
+    const date = h.created_at ? new Date(h.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+    const items = (h.items || []).map((i) => `${i.name} (${i.qty} ${i.unit})`).join(', ');
+    const button = h.has_pdf
+      ? `<button type="button" class="btn btn-ghost btn-sm restock-history-dl" data-request-id="${crEsc(h.id)}" data-request-no="${crEsc(h.request_no)}" style="width:auto;">Download PDF</button>`
+      : '<span class="restock-reason-tag">PDF not saved</span>';
+    const deleteButton = canManage
+      ? ` <button type="button" class="btn btn-ghost btn-sm restock-history-del" data-request-id="${crEsc(h.id)}" data-request-no="${crEsc(h.request_no)}" style="width:auto;">Delete</button>`
+      : '';
+    return `<tr><td style="font-weight:600; white-space:nowrap;">${crEsc(h.request_no)}</td><td>${crEsc(h.supplier_name || '-')}</td><td style="white-space:nowrap;">${crEsc(date)}</td><td class="restock-reason-tag" style="max-width:420px;">${crEsc(items)}</td><td style="white-space:nowrap;">${button}${deleteButton}</td></tr>`;
+  }).join('');
+  tbody.querySelectorAll('.restock-history-del').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      if (!await uiConfirm(`Delete ${btn.dataset.requestNo}? Its saved PDF is removed and its items stop showing as on order under this number.`)) return;
+      try {
+        await Api.restockList.deleteRequest(btn.dataset.requestId);
+        showToast(`${btn.dataset.requestNo} deleted.`);
+        await loadRestockList();
+      } catch (err) {
+        showToast(err.message || 'Could not delete that request.', true);
+      }
+    });
+  });
+  tbody.querySelectorAll('.restock-history-dl').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await Api.restockList.downloadRequest(btn.dataset.requestId, btn.dataset.requestNo);
+      } catch (err) {
+        showToast(err.message || 'Could not download that request.', true);
+      }
+    });
+  });
+}
+
+var historySearchBox = document.getElementById('restock-history-search');
+if (historySearchBox) {
+  historySearchBox.addEventListener('input', () => {
+    clearTimeout(historyTimer);
+    historyTimer = setTimeout(loadHistory, 300);
+  });
+}
 
 BranchContext.renderBadge('branch-badge');
 window.addEventListener('branch-context-changed', loadRestockList);
@@ -455,12 +580,12 @@ var CustomerOrder = (function () {
     '</div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">' +
     '<select id="co-method" style="display:none;width:210px;"><option value="">How was the deposit paid?</option><option value="cash">Cash</option><option value="transfer">Transfer</option><option value="card">Card</option><option value="online">Online</option></select>' +
-    '<div style="display:flex;flex-direction:column;gap:3px;"><label for="co-total-pieces" style="font-size:12px;font-weight:600;">Total pieces in this order</label>' +
-    '<input type="number" id="co-total-pieces" placeholder="Total pieces in this order" min="1" step="1" style="width:220px;" /></div>' +
+    '<div style="display:flex;flex-direction:column;gap:3px;"><label for="co-total-pieces" style="font-size:12px;font-weight:600;">Total pieces in this order (optional)</label>' +
+    '<input type="number" id="co-total-pieces" placeholder="Optional - leave empty if unknown" min="1" step="1" style="width:220px;" /></div>' +
     '<div style="display:flex;flex-direction:column;gap:3px;"><label for="co-need-pieces" style="font-size:12px;font-weight:600;">Customer needs (pieces)</label>' +
     '<input type="number" id="co-need-pieces" placeholder="Customer needs (pieces)" min="1" step="1" style="width:220px;" /></div>' +
     '</div>' +
-    '<div class="restock-reason-tag" style="margin-top:6px;">"Customer needs" starts equal to the total. Lower it if the customer wants fewer pieces.</div>' +
+    '<div class="restock-reason-tag" style="margin-top:6px;">Total pieces is optional. Type how many pieces the customer needs (if you know the total, it fills this in for you).</div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">' +
     '<input type="text" id="co-address" placeholder="Address or other way to reach the customer" maxlength="500" style="flex:1;min-width:240px;" />' +
     '<input type="text" id="co-notes" placeholder="Notes (colour, size, how they want it...)" maxlength="2000" style="flex:1;min-width:240px;" />' +
@@ -488,7 +613,7 @@ var CustomerOrder = (function () {
     if (unit === 'pieces') {
       totalEl.value = qty > 0 ? String(qty) : '';
       totalEl.readOnly = true;
-      totalEl.placeholder = 'Total pieces in this order';
+      totalEl.placeholder = 'Optional';
       return;
     }
     totalEl.readOnly = false;
@@ -498,7 +623,7 @@ var CustomerOrder = (function () {
       totalEl.value = qty > 0 ? String(qty * 12) : '';
     } else {
       totalEl.value = '';
-      totalEl.placeholder = 'Type the total pieces';
+      totalEl.placeholder = 'Optional - leave empty if unknown';
     }
   }
   totalEl.addEventListener('input', function () { totalEl.dataset.edited = totalEl.value ? '1' : ''; });
@@ -553,9 +678,9 @@ var CustomerOrder = (function () {
       const totalPieces = Number(val('co-total-pieces')) || 0;
       const needPieces = Number(val('co-need-pieces')) || 0;
       if ((totalPieces && !Number.isInteger(totalPieces)) || (needPieces && !Number.isInteger(needPieces))) { showToast('Pieces must be whole numbers.', true); return false; }
-      if (!(totalPieces > 0)) { showToast('Type the total pieces in this order.', true); return false; }
+      // Total pieces is optional: the carton size is often unknown. Only 'Customer needs' is required.
       if (!(needPieces > 0)) { showToast('Type how many pieces the customer needs.', true); return false; }
-      if (needPieces > totalPieces) { showToast('The customer cannot need more pieces than the whole order.', true); return false; }
+      if (totalPieces > 0 && needPieces > totalPieces) { showToast('The customer cannot need more pieces than the whole order.', true); return false; }
       return {
         customer_name: name,
         customer_phone: phone,
@@ -563,6 +688,7 @@ var CustomerOrder = (function () {
         notes: val('co-notes') || null,
         deposit_naira: deposit,
         deposit_method: deposit > 0 ? method : null,
+        // Total unknown: send null; the API treats the total as optional.
         order_pieces: totalPieces > 0 ? totalPieces : null,
         customer_pieces: needPieces > 0 ? needPieces : null
       };

@@ -72,7 +72,7 @@ async function loadRoles() {
         <td>${r.user_count} account${r.user_count === 1 ? '' : 's'}</td>
         <td style="text-align:right;">
           <button type="button" class="btn-ghost btn-sm" data-edit="${r.name}">Edit</button>
-          ${!r.is_system ? `<button type="button" class="btn-ghost btn-sm" data-delete="${r.name}" ${r.user_count ? 'disabled title="Reassign accounts off this role first"' : ''}>Delete</button>` : ''}
+          ${r.name !== 'super_admin' ? `<button type="button" class="btn-ghost btn-sm" data-delete="${r.name}" ${r.user_count ? 'disabled title="Reassign accounts off this role first"' : ''}>Delete</button>` : ''}
         </td>
       </tr>`).join('');
 
@@ -103,6 +103,7 @@ function openRoleModal(name) {
   document.getElementById('role-modal-error').classList.remove('visible');
   const role = name ? rolesCache.find((r) => r.name === name) : null;
   editingRoleName = name || null;
+  roleIdTouched = false;
 
   document.getElementById('role-modal-title').textContent = role ? `Edit ${role.display_name}` : 'New role';
   document.getElementById('role-modal-hint').textContent = role
@@ -120,6 +121,18 @@ function openRoleModal(name) {
 }
 
 document.getElementById('new-role-btn').addEventListener('click', () => openRoleModal(null));
+// Role ID auto-fills from the display name (still editable) until the admin types their own.
+function slugifyRoleId(text) {
+  let s = String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (s && !/^[a-z]/.test(s)) s = 'role_' + s;
+  return s;
+}
+let roleIdTouched = false;
+document.getElementById('role-name').addEventListener('input', () => { roleIdTouched = true; });
+document.getElementById('role-display-name').addEventListener('input', (e) => {
+  if (editingRoleName || roleIdTouched) return;
+  document.getElementById('role-name').value = slugifyRoleId(e.target.value);
+});
 document.getElementById('role-modal-cancel').addEventListener('click', () => roleBackdrop.classList.remove('visible'));
 
 document.getElementById('role-modal-save').addEventListener('click', async () => {
@@ -141,7 +154,7 @@ document.getElementById('role-modal-save').addEventListener('click', async () =>
       await Api.updateRole(editingRoleName, { display_name: displayName, permissions });
       showToast('Role updated.');
     } else {
-      const name = document.getElementById('role-name').value.trim();
+      const name = document.getElementById('role-name').value.trim() || slugifyRoleId(displayName);
       if (!/^[a-z][a-z0-9_]*$/.test(name)) {
         errorEl.textContent = 'Role ID must be lowercase letters, numbers, and underscores, starting with a letter.';
         errorEl.classList.add('visible');

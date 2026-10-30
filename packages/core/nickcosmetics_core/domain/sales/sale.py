@@ -11,6 +11,7 @@ class SaleChannel(str, Enum):
     POS = "pos"
     WEBSITE = "website"
     MOBILE = "mobile"
+    TRANSFER = "transfer"  # XFER1: branch-to-branch transfer recorded as a sale
 
 
 class SaleStatus(str, Enum):

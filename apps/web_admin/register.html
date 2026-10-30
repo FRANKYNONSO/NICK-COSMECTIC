@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/style.css" />
 <script src="js/theme.js"></script>
   <script src="js/numeric-input-fix.js"></script>
+  <script src="ui-dialog.js"></script>
 </head>
 <body>
 
@@ -198,6 +199,15 @@
       branchSelect.innerHTML = options.branches
         .map((b) => `<option value="${b.id}">${b.name}${b.address ? ` — ${b.address}` : ''}</option>`).join('')
         || '<option value="">No branches available</option>';
+      // PATCH26A-INVITE-PARAMS
+      // Signup link from the admin: ?branch=<id>&role=<name> preselects the
+      // dropdowns. Only values that really exist in the lists are applied, and
+      // the reviewer still chooses the final role/branch when accepting.
+      const invite = new URLSearchParams(window.location.search);
+      const inviteBranch = invite.get('branch');
+      const inviteRole = invite.get('role');
+      if (inviteBranch && [...branchSelect.options].some((o) => o.value === inviteBranch)) branchSelect.value = inviteBranch;
+      if (inviteRole && [...roleSelect.options].some((o) => o.value === inviteRole)) roleSelect.value = inviteRole;
     } catch (err) {
       roleSelect.innerHTML = '<option value="">Could not load roles</option>';
       branchSelect.innerHTML = '<option value="">Could not load branches</option>';

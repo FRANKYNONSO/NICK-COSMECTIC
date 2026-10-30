@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import os
@@ -14,7 +15,7 @@ from api.v1.schemas.auth import (
     TokenResponse,
     UserOut,
 )
-from infrastructure.db.models import User
+from infrastructure.db.models import StaffApplication, User
 from infrastructure.db.repositories import UserRepository
 from infrastructure.email import send_email
 from infrastructure.security.jwt import (
@@ -39,9 +40,9 @@ _RESET_TOKEN_MINUTES = 30
 _NO_SELF_RESET_ROLES = ("storefront_service",)
 
 # PATCH19E-LOGIN-LIMIT
-# After _LOGIN_MAX_FAILS wrong passwords for one email, that email is locked
-# for _LOGIN_LOCK_SECONDS. The counts live in memory only (one process, and a
-# restart clears them). The shop's machine account is never locked.
+# After _LOGIN_MAX_FAILS wrong passwords for one login name, that login is
+# locked for _LOGIN_LOCK_SECONDS. The counts live in memory only (one process,
+# and a restart clears them). The shop's machine account is never locked.
 _NO_LOGIN_LIMIT_ROLES = ("storefront_service",)
 _LOGIN_MAX_FAILS = 5
 _LOGIN_WINDOW_SECONDS = 15 * 60
@@ -55,8 +56,27 @@ def _login_now() -> float:
     return time.time()
 
 
-def _login_key(email) -> str:
-    return (email or "").strip().lower()
+def _phone_digits(value: str) -> str:
+    return "".join(ch for ch in value if ch.isdigit())
+
+
+def _looks_like_phone(value: str) -> bool:
+    """True for things like 08031234567, +2348031234567, 0803 123 4567."""
+    stripped = value.strip()
+    if stripped.startswith("+"):
+        stripped = stripped[1:]
+    for ch in (" ", "-", "(", ")", "."):
+        stripped = stripped.replace(ch, "")
+    return stripped.isdigit() and len(stripped) >= 10
+
+
+def _login_key(identifier) -> str:
+    """Key for the lockout counters. Phone numbers are reduced to their last
+    10 digits so 0803..., +234803... and 234803... share one counter."""
+    text = (identifier or "").strip().lower()
+    if "@" not in text and _looks_like_phone(text):
+        return "phone:" + _phone_digits(text)[-10:]
+    return text
 
 
 def _login_is_locked(key: str) -> bool:
@@ -86,20 +106,76 @@ def _login_clear(key: str) -> None:
     _LOGIN_LOCKED_UNTIL.pop(key, None)
 
 
+async def _one_or_none(session: AsyncSession, stmt):
+    """Run a query and return the single matching user. If zero or more than
+    one row matches, return None (an ambiguous login never picks a user)."""
+    result = await session.execute(stmt.limit(2))
+    rows = result.scalars().all()
+    return rows[0] if len(rows) == 1 else None
+
+
+async def _find_user_by_identifier(session: AsyncSession, identifier: str):
+    """Find a user by email, username or phone number."""
+    ident = (identifier or "").strip()
+    if not ident:
+        return None
+
+    # 1) Email
+    if "@" in ident:
+        return await _one_or_none(
+            session, select(User).where(func.lower(User.email) == ident.lower())
+        )
+
+    # 2) Username (only once the users table has a username column)
+    if hasattr(User, "username"):
+        user = await _one_or_none(
+            session, select(User).where(func.lower(User.username) == ident.lower())
+        )
+        if user is not None:
+            return user
+
+    # 3) Phone number, matched on the last 10 digits so every common format
+    #    (0803..., +234803..., 234803..., with spaces or dashes) finds the
+    #    same account.
+    if _looks_like_phone(ident):
+        last10 = _phone_digits(ident)[-10:]
+
+        user_digits = func.regexp_replace(User.phone, "[^0-9]", "", "g")
+        user = await _one_or_none(
+            session,
+            select(User).where(User.phone.is_not(None), func.right(user_digits, 10) == last10),
+        )
+        if user is not None:
+            return user
+
+        # Fallback: the phone typed on the staff application form.
+        app_digits = func.regexp_replace(StaffApplication.phone_number, "[^0-9]", "", "g")
+        return await _one_or_none(
+            session,
+            select(User)
+            .join(StaffApplication, StaffApplication.user_id == User.id)
+            .where(
+                StaffApplication.phone_number.is_not(None),
+                func.right(app_digits, 10) == last10,
+            ),
+        )
+
+    return None
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, session: AsyncSession = Depends(get_db_session)) -> TokenResponse:
-    repo = UserRepository(session)
-    user = await repo.get_by_email(body.email)
+    user = await _find_user_by_identifier(session, body.identifier)
 
     # Deliberately identical error for "no such user" and "wrong
-    # password" — distinguishing them lets an attacker enumerate valid
-    # email addresses.
+    # password" -- distinguishing them lets an attacker find out which
+    # emails, usernames or phone numbers have accounts.
     invalid_credentials = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid login or password"
     )
 
     exempt = user is not None and user.role in _NO_LOGIN_LIMIT_ROLES
-    limit_key = _login_key(body.email)
+    limit_key = _login_key(body.identifier)
     if not exempt and _login_is_locked(limit_key):
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=_LOGIN_LOCK_TEXT

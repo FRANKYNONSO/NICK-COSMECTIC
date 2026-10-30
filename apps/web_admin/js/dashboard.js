@@ -274,7 +274,7 @@ async function loadKpis() {
     try {
       const lossesAllTime = await Api.lossesSummary(branchId, currentFinancialPeriodStartDate);
       lossNaira = lossesAllTime.total_value_naira || 0;
-      netRevenueNaira = allTime.grand_total_naira - lossNaira;
+      // (the server total is already net of approved losses)
     } catch (err) {
       // leave netRevenueNaira as gross revenue
     }
@@ -282,7 +282,7 @@ async function loadKpis() {
     const revenueSub = document.getElementById('kpi-total-revenue-sub');
     if (revenueSub) {
       revenueSub.textContent = lossNaira > 0
-        ? `${formatNaira(allTime.grand_total_naira)} in sales, net of ${formatNaira(lossNaira)} in recorded losses`
+        ? `${formatNaira(allTime.grand_total_naira + lossNaira)} in sales, net of ${formatNaira(lossNaira)} in recorded losses`
         : '';
     }
 

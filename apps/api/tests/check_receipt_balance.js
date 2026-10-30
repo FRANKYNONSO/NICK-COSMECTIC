@@ -47,7 +47,7 @@ function baseSale(over) {
   }, over || {});
 }
 function render(sale) {
-  const c = { innerHTML: '' };
+  const c = { innerHTML: '', dataset: {} };
   Receipt.render(c, sale, {});
   return c.innerHTML;
 }
@@ -69,13 +69,13 @@ check('1d old Change pending line is gone', h.indexOf('Change pending') < 0, 'st
 // 2. settled by bank transfer
 h = render(baseSale({ paid_naira: 250, pending_changes: [
   { id: '1', status: 'settled', settlement_method: 'transfer', reference_code: 'CHG-449561', amount_naira: 50 }] }));
-check('2a settled line', h.indexOf('Balance of ' + NAIRA + '50 paid by bank transfer.') >= 0, 'not found');
+check('2a settled transfer says approved', h.indexOf('Bank transfer - approved</span><span>' + NAIRA + '50<') >= 0, 'not found');
 check('2b no owe line when settled', h.indexOf('Balance we owe you') < 0, 'still there');
 
 // 3. waiting for approval
 h = render(baseSale({ paid_naira: 250, pending_changes: [
   { id: '1', status: 'pending', settlement_method: 'transfer', reference_code: 'CHG-449561', amount_naira: 50 }] }));
-check('3 awaiting approval wording', h.indexOf('Balance we owe you (bank transfer, awaiting approval)') >= 0, 'not found');
+check('3 awaiting approval wording', h.indexOf('Bank transfer - being processed, awaiting approval') >= 0, 'not found');
 
 // 4. completed, paid more, no pending record: old Change due stays
 h = render(baseSale({ paid_naira: 250 }));
@@ -90,6 +90,46 @@ check('5b booking has no owe line', h.indexOf('Balance we owe you') < 0, 'found'
 // 6. exact payment
 h = render(baseSale({ paid_naira: 200 }));
 check('6 exact payment shows neither line', h.indexOf('Change due') < 0 && h.indexOf('Balance we owe you') < 0, 'found');
+
+// 7. airtime waiting for approval
+h = render(baseSale({ paid_naira: 300, pending_changes: [
+  { id: '1', status: 'pending', settlement_method: 'airtime', reference_code: 'CHG-AAA111', amount_naira: 100 }] }));
+check('7a airtime waiting', h.indexOf('Airtime - being processed, awaiting approval</span><span>' + NAIRA + '100<') >= 0, 'not found');
+check('7b waiting row keeps come-back line', h.indexOf('Ref CHG-AAA111 - show this code when you come back.') >= 0, 'not found');
+
+// 8. airtime approved
+h = render(baseSale({ paid_naira: 300, pending_changes: [
+  { id: '1', status: 'settled', settlement_method: 'airtime', reference_code: 'CHG-AAA111', amount_naira: 100 }] }));
+check('8a airtime approved', h.indexOf('Airtime - approved</span><span>' + NAIRA + '100<') >= 0, 'not found');
+check('8b approved row keeps ref, no come-back line', h.indexOf('Ref CHG-AAA111') >= 0 && h.indexOf('show this code when you come back') < 0, 'wrong');
+check('8c no owe line when approved', h.indexOf('Balance we owe you') < 0, 'found');
+
+// 9. transfer approved
+h = render(baseSale({ paid_naira: 300, pending_changes: [
+  { id: '1', status: 'settled', settlement_method: 'transfer', reference_code: 'CHG-BBB222', amount_naira: 100 }] }));
+check('9 transfer approved', h.indexOf('Bank transfer - approved</span><span>' + NAIRA + '100<') >= 0, 'not found');
+
+// 10. cash collected
+h = render(baseSale({ paid_naira: 400, pending_changes: [
+  { id: '1', status: 'settled', settlement_method: 'cash', reference_code: 'CHG-CCC333', amount_naira: 200 }] }));
+check('10a cash collected', h.indexOf('Balance - collected, completed</span><span>' + NAIRA + '200<') >= 0, 'not found');
+check('10b no owe line after collect', h.indexOf('Balance we owe you') < 0, 'found');
+
+// 11. discount code used
+h = render(baseSale({ paid_naira: 400, pending_changes: [
+  { id: '1', status: 'settled', settlement_method: 'coupon', reference_code: 'CHG-DDD444', amount_naira: 200 }] }));
+check('11 coupon used', h.indexOf('Balance - turned into a discount code, used, completed</span><span>' + NAIRA + '200<') >= 0, 'not found');
+
+// 12. mixed receipt: airtime approved, transfer waiting, cash waiting
+h = render(baseSale({ paid_naira: 600, pending_changes: [
+  { id: '1', status: 'settled', settlement_method: 'airtime', reference_code: 'CHG-AAA111', amount_naira: 100 },
+  { id: '2', status: 'pending', settlement_method: 'transfer', reference_code: 'CHG-BBB222', amount_naira: 100 },
+  { id: '3', status: 'outstanding', settlement_method: null, reference_code: 'CHG-CCC333', amount_naira: 200 }] }));
+check('12a mixed airtime approved', h.indexOf('Airtime - approved') >= 0, 'not found');
+check('12b mixed transfer waiting', h.indexOf('Bank transfer - being processed, awaiting approval') >= 0, 'not found');
+check('12c mixed cash waiting', h.indexOf('Balance we owe you</span><span>' + NAIRA + '200<') >= 0, 'not found');
+check('12d owe line appears once', h.split('Balance we owe you').length - 1 === 1, 'wrong count');
+check('12e old wording gone', h.indexOf('Balance we owe you (') < 0, 'found');
 
 console.log('RESULT: ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail ? 1 : 0);

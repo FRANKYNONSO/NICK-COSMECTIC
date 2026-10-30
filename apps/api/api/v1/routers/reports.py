@@ -105,10 +105,11 @@ async def sales_summary(
     # since that item was actually sold and its lower price is already
     # what's sitting in Sale.total_kobo above; subtracting its
     # discount again here would double-count the same shortfall.
-    loss_period_col = func.date_trunc(group_by, StockAdjustment.created_at)
+    loss_when = func.coalesce(StockAdjustment.reviewed_at, StockAdjustment.created_at)
+    loss_period_col = func.date_trunc(group_by, loss_when)
     loss_stmt = (
         select(loss_period_col.label("period"), func.sum(StockAdjustment.value_kobo).label("value_kobo"))
-        .where(StockAdjustment.value_kobo.is_not(None))
+        .where(StockAdjustment.value_kobo.is_not(None), StockAdjustment.status == "completed")
         .group_by(loss_period_col)
     )
     if current_user.role != "super_admin":
@@ -116,10 +117,10 @@ async def sales_summary(
     elif branch_id:
         loss_stmt = loss_stmt.where(StockAdjustment.branch_id == branch_id)
     if date_from:
-        loss_stmt = loss_stmt.where(StockAdjustment.created_at >= datetime.combine(date_from, datetime.min.time()))
+        loss_stmt = loss_stmt.where(loss_when >= datetime.combine(date_from, datetime.min.time()))
     if date_to:
         loss_stmt = loss_stmt.where(
-            StockAdjustment.created_at < datetime.combine(date_to + timedelta(days=1), datetime.min.time())
+            loss_when < datetime.combine(date_to + timedelta(days=1), datetime.min.time())
         )
     loss_result = await session.execute(loss_stmt)
     loss_by_period = {row.period.date(): int(row.value_kobo or 0) for row in loss_result.all()}
@@ -130,7 +131,7 @@ async def sales_summary(
             sales_count=row.sales_count,
             subtotal_naira=Money(int(row.subtotal_kobo or 0)).naira,
             discount_naira=Money(int(row.discount_kobo or 0)).naira,
-            total_naira=Money(max(0, int(row.total_kobo or 0) - loss_by_period.get(row.period.date(), 0))).naira,
+            total_naira=Money(int(row.total_kobo or 0) - loss_by_period.get(row.period.date(), 0)).naira,
         )
         for row in rows
     ]
@@ -532,6 +533,9 @@ async def _live_today_value(session: AsyncSession, metric_type: str, branch_id: 
         ).where(PurchaseInvoice.invoice_date == today)
         if branch_id:
             stmt = stmt.where(PurchaseInvoice.branch_id == branch_id)
+        else:
+            # XFER5: all branches together must not count transfer invoices twice.
+            stmt = stmt.where(PurchaseInvoice.source.is_distinct_from("branch_transfer"))
         kobo = int((await session.execute(stmt)).scalar_one() or 0)
         return Money(kobo).naira
     if metric_type == "sales":
@@ -544,8 +548,9 @@ async def _live_today_value(session: AsyncSession, metric_type: str, branch_id: 
     # losses
     stmt = select(func.coalesce(func.sum(StockAdjustment.value_kobo), 0)).where(
         StockAdjustment.value_kobo.is_not(None),
-        StockAdjustment.created_at >= start,
-        StockAdjustment.created_at < end,
+        StockAdjustment.status == "completed",
+        func.coalesce(StockAdjustment.reviewed_at, StockAdjustment.created_at) >= start,
+        func.coalesce(StockAdjustment.reviewed_at, StockAdjustment.created_at) < end,
     )
     if branch_id:
         stmt = stmt.where(StockAdjustment.branch_id == branch_id)

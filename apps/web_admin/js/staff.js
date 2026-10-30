@@ -1092,3 +1092,51 @@ setInterval(() => {
 }, 20000);
 
 loadResetHistory();
+
+// PATCH26A-SIGNUP-LINK
+// ------------------------------------------- Signup link + printable form
+// "Copy signup link" copies register.html with the branch (and role) already
+// chosen, ready to send to a new hire. The page is public, but every
+// application still waits in "Under review" until an admin accepts it, and the
+// role/branch in the link are only a starting point for whoever reviews it.
+(function addOnboardingButtons() {
+  const newBtn = document.getElementById('new-staff-btn');
+  if (!newBtn) return;
+  newBtn.insertAdjacentHTML(
+    'afterend',
+    '<button type="button" class="btn btn-ghost" id="copy-signup-link-btn" style="margin-left:8px;">Copy signup link</button>' +
+    '<button type="button" class="btn btn-ghost" id="download-staff-form-btn" style="margin-left:8px;">Download form (PDF)</button>'
+  );
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  function buildSignupLink() {
+    const url = new URL('register.html', window.location.href);
+    const branchId = String((isBranchManager ? currentUser.branch_id : BranchContext.get()) || '');
+    if (UUID_RE.test(branchId)) url.searchParams.set('branch', branchId);
+    url.searchParams.set('role', 'staff');
+    return url.toString();
+  }
+
+  document.getElementById('copy-signup-link-btn').addEventListener('click', async () => {
+    const link = buildSignupLink();
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast('Signup link copied. Every application still needs your approval.');
+    } catch (err) {
+      window.prompt('Copy this signup link:', link);
+    }
+  });
+
+  document.getElementById('download-staff-form-btn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      await Api.downloadStaffFormPdf();
+    } catch (err) {
+      showToast(err.message, true);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();

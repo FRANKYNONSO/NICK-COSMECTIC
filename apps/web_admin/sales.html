@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -11,6 +11,31 @@
 <link rel="stylesheet" href="css/style.css" />
 <script src="js/theme.js"></script>
   <script src="js/numeric-input-fix.js"></script>
+  <script src="ui-dialog.js"></script>
+  <style>
+    /* Receipt / refund modal: wide enough to show every column of the
+       refund item table (Item, Sold qty, Refund qty, Restock?, Spoiled?). */
+    #receipt-modal-backdrop .modal.receipt-modal {
+      width: min(960px, 96vw);
+      max-width: 960px;
+    }
+    #refund-panel .refund-table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #refund-panel table {
+      width: 100%;
+      min-width: 520px;
+    }
+    #refund-panel th,
+    #refund-panel td {
+      white-space: nowrap;
+    }
+    #refund-panel td:first-child {
+      white-space: normal;
+      min-width: 140px;
+    }
+  </style>
 </head>
 <body>
 
@@ -376,12 +401,12 @@
           </div>
           <div id="settle-change-transfer-fields" style="display:none;">
             <div class="field">
-              <label for="settle-change-bank-name">Bank name</label>
-              <select id="settle-change-bank-name"></select>
-            </div>
-            <div class="field">
               <label for="settle-change-account-number">Account number</label>
               <input type="text" id="settle-change-account-number" inputmode="numeric" maxlength="10" />
+            </div>
+            <div class="field">
+              <label for="settle-change-bank-name">Bank name</label>
+              <select id="settle-change-bank-name"></select>
             </div>
             <div class="field">
               <label for="settle-change-account-name">Account name</label>
@@ -548,6 +573,7 @@
               <th>Recorded by</th>
               <th>Date</th>
               <th>Notes</th>
+              <th>Details</th>
             </tr>
           </thead>
           <tbody id="losses-tbody"></tbody>
@@ -612,7 +638,7 @@
      js/losses.js). Same submission (POST /inventory/stock-adjustments)
      and same accountability/evidence fields as the batch-first version
      on Inventory > Restock history -- this one just starts by asking
-     which product and which batch instead of assuming you already
+     which product instead of assuming you already
      know. -->
 <div class="modal-backdrop" id="direct-loss-modal-backdrop">
   <div class="modal" style="max-width:440px;">
@@ -625,14 +651,18 @@
         <div class="item-autocomplete-dropdown" id="direct-loss-product-suggestions" style="display:none;"></div>
         <p class="hint" id="direct-loss-product-info" style="margin-top:6px;"></p>
       </div>
-      <div class="field" id="direct-loss-batch-field" style="display:none;">
-        <label for="direct-loss-batch">Batch *</label>
-        <select id="direct-loss-batch" required></select>
-        <p class="hint" id="direct-loss-batch-hint"></p>
+      <div class="field" id="direct-loss-location-field" style="display:none;">
+        <label for="direct-loss-location">Lost from *</label>
+        <select id="direct-loss-location"></select>
+        <p class="hint" id="direct-loss-location-hint"></p>
       </div>
       <div class="field">
         <label for="direct-loss-quantity">Quantity lost *</label>
-        <input type="number" id="direct-loss-quantity" min="1" step="1" required />
+        <div style="display:flex;gap:8px;">
+          <input type="number" id="direct-loss-quantity" min="1" step="1" required style="flex:1;" />
+          <button type="button" class="btn btn-ghost" id="direct-loss-use-all" style="display:none;white-space:nowrap;">Use all</button>
+        </div>
+        <p class="hint" id="direct-loss-quantity-hint"></p>
       </div>
       <div class="field">
         <label for="direct-loss-reason">Reason *</label>
@@ -762,12 +792,12 @@
         </div>
         <div id="booking-cancel-refund-bank-fields" style="display:none;">
           <div class="field" style="margin-bottom:14px;">
-            <label for="booking-cancel-refund-bank-name">Bank name</label>
-            <select id="booking-cancel-refund-bank-name"></select>
-          </div>
-          <div class="field" style="margin-bottom:14px;">
             <label for="booking-cancel-refund-account-number">Account number</label>
             <input type="text" id="booking-cancel-refund-account-number" inputmode="numeric" maxlength="10" />
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label for="booking-cancel-refund-bank-name">Bank name</label>
+            <select id="booking-cancel-refund-bank-name"></select>
           </div>
           <div class="field" style="margin-bottom:14px;">
             <label for="booking-cancel-refund-account-name">Account name</label>
@@ -822,12 +852,12 @@
       </div>
       <div id="change-item-refund-bank-fields" style="display:none;">
         <div class="field">
-          <label for="change-item-refund-bank-name">Bank name</label>
-          <select id="change-item-refund-bank-name"></select>
-        </div>
-        <div class="field">
           <label for="change-item-refund-account-number">Account number</label>
           <input type="text" id="change-item-refund-account-number" inputmode="numeric" maxlength="10" />
+        </div>
+        <div class="field">
+          <label for="change-item-refund-bank-name">Bank name</label>
+          <select id="change-item-refund-bank-name"></select>
         </div>
         <div class="field">
           <label for="change-item-refund-account-name">Account name</label>
@@ -893,10 +923,12 @@
     <div class="table-card" id="refund-panel" style="display:none;margin-bottom:16px;padding:16px;">
       <div id="refund-error" class="error-banner"></div>
       <div class="hint" id="refund-original-sale-info" style="margin-bottom:10px;"></div>
-      <table>
-        <thead><tr><th>Item</th><th>Sold qty</th><th>Refund qty</th><th>Restock?</th><th>Spoiled?</th></tr></thead>
-        <tbody id="refund-tbody"></tbody>
-      </table>
+      <div class="refund-table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Sold qty</th><th>Refund qty</th><th>Restock?</th><th>Spoiled?</th></tr></thead>
+          <tbody id="refund-tbody"></tbody>
+        </table>
+      </div>
       <div class="field" style="margin-top:12px;">
         <label for="refund-photo">Photo of returned/damaged item <span style="color:var(--danger);">*required</span></label>
         <input type="file" id="refund-photo" accept="image/*" required />
@@ -928,12 +960,12 @@
       </div>
       <div id="refund-bank-fields" style="display:none;">
         <div class="field">
-          <label for="refund-bank-name">Bank name</label>
-          <select id="refund-bank-name"></select>
-        </div>
-        <div class="field">
           <label for="refund-account-number">Account number</label>
           <input type="text" id="refund-account-number" inputmode="numeric" maxlength="10" />
+        </div>
+        <div class="field">
+          <label for="refund-bank-name">Bank name</label>
+          <select id="refund-bank-name"></select>
         </div>
         <div class="field">
           <label for="refund-account-name">Account name</label>
@@ -978,12 +1010,12 @@
           </div>
           <div id="refund-settlement-bank-fields" style="display:none;">
             <div class="field">
-              <label for="refund-settlement-bank-name">Bank name</label>
-              <select id="refund-settlement-bank-name"></select>
-            </div>
-            <div class="field">
               <label for="refund-settlement-account-number">Account number</label>
               <input type="text" id="refund-settlement-account-number" inputmode="numeric" maxlength="10" />
+            </div>
+            <div class="field">
+              <label for="refund-settlement-bank-name">Bank name</label>
+              <select id="refund-settlement-bank-name"></select>
             </div>
             <div class="field">
               <label for="refund-settlement-account-name">Account name</label>

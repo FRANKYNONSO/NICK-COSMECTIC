@@ -827,14 +827,16 @@ async def create_customer_request(
             order_pieces = body.quantity
         elif body.unit_label == "dozens":
             order_pieces = body.quantity * 12
-    # PATCH2C-CUSTOMER-NEEDS: the total is required and "customer needs" always has a value
-    if order_pieces is None:
+    # PATCH3-TOTAL-OPTIONAL: the total pieces is optional (the carton size is
+    # often unknown). Only "customer needs" must be known; when the total is
+    # missing it stays empty and the arrival step asks how many pieces came.
+    customer_pieces = body.customer_pieces if body.customer_pieces is not None else order_pieces
+    if customer_pieces is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Enter the total pieces in this order.",
+            detail="Enter how many pieces the customer needs.",
         )
-    customer_pieces = body.customer_pieces if body.customer_pieces is not None else order_pieces
-    if customer_pieces > order_pieces:
+    if order_pieces is not None and customer_pieces > order_pieces:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="The customer cannot need more pieces than the whole order.",

@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -376,6 +376,135 @@ async def list_applications(
 ) -> list[StaffApplication]:
     repo = StaffApplicationRepository(session)
     return await repo.list_all(status=status_filter)
+
+
+# PATCH26A-STAFF-FORM-PDF
+# Blank, printable version of the staff application form (register.html), so an
+# admin can hand it to a candidate to fill in by hand. There is deliberately NO
+# password line: the person chooses one when they submit the online form.
+_FORM_SECTIONS = [
+    ("Role and branch", [
+        ("Role applying for", None),
+        ("Branch applying to", None),
+    ]),
+    ("Account", [
+        ("Email", None),
+        ("Preferred name / username", None),
+    ]),
+    ("Basic information", [
+        ("First name", None),
+        ("Middle name (optional)", None),
+        ("Surname", None),
+        ("Date of birth (DD/MM/YYYY)", None),
+        ("Gender", "[   ] Male          [   ] Female"),
+        ("Phone number", None),
+        ("Current residential address", None),
+    ]),
+    ("Origin", [
+        ("State of origin", None),
+        ("LGA of origin", None),
+        ("Hometown", None),
+        ("Home address of origin", None),
+    ]),
+    ("Emergency contact", [
+        ("Contact name", None),
+        ("Contact phone", None),
+        ("Relationship to contact", None),
+    ]),
+    ("Identification", [
+        ("ID type", "[  ] National ID    [  ] Passport    [  ] Driver's License"),
+        ("ID number", None),
+        ("Attached", "[  ] Passport photo      [  ] Copy of ID"),
+    ]),
+]
+
+
+def _build_blank_staff_form_pdf() -> bytes:
+    from fpdf import FPDF  # fpdf2 -- already listed in requirements.txt
+
+    pdf = FPDF(format="A4", unit="mm")
+    pdf.set_margins(15, 15, 15)
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    right_edge = pdf.w - pdf.r_margin
+
+    def heading(title: str, rows_needed: int) -> None:
+        if pdf.will_page_break(rows_needed * 9 + 12):
+            pdf.add_page()
+        pdf.set_fill_color(230, 230, 230)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(0, 7, title, fill=True, new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1.5)
+
+    def line_row(label: str) -> None:
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(62, 8, label)
+        y = pdf.get_y() + 6.5
+        pdf.line(pdf.get_x(), y, right_edge, y)
+        pdf.ln(9)
+
+    def choice_row(label: str, choices: str) -> None:
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(62, 8, label)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.cell(0, 8, choices, new_x="LMARGIN", new_y="NEXT")
+        pdf.ln(1)
+
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 9, "Nick Cosmetics", new_x="LMARGIN", new_y="NEXT")
+    pdf.set_font("Helvetica", "", 12)
+    pdf.cell(0, 7, "Staff application form", new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(1)
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.multi_cell(
+        0, 4.5,
+        "Print clearly in block letters. Do not write a password on this form - "
+        "you will choose one yourself when you create your online account.",
+        new_x="LMARGIN", new_y="NEXT",
+    )
+    pdf.ln(3)
+
+    for title, rows in _FORM_SECTIONS:
+        heading(title, len(rows))
+        for label, choices in rows:
+            if choices:
+                choice_row(label, choices)
+            else:
+                line_row(label)
+        pdf.ln(2)
+
+    heading("Declaration", 2)
+    pdf.set_font("Helvetica", "", 9)
+    pdf.multi_cell(
+        0, 4.5,
+        "I confirm that the information above is true and that I may be asked to show the "
+        "original identification document.",
+        new_x="LMARGIN", new_y="NEXT",
+    )
+    pdf.ln(2)
+    line_row("Applicant signature")
+    line_row("Date")
+    pdf.ln(3)
+
+    heading("For office use only", 4)
+    line_row("Verified by")
+    line_row("Date verified")
+    choice_row("Decision", "[  ] Approve      [  ] Decline")
+    line_row("Notes")
+
+    return bytes(pdf.output())
+
+
+@router.get("/form.pdf")
+async def download_blank_staff_form(
+    _: User = Depends(require_role(*_REVIEW_ROLES)),
+) -> Response:
+    """Blank printable staff application form. Contains no personal data."""
+    return Response(
+        content=_build_blank_staff_form_pdf(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="nick-cosmetics-staff-form.pdf"'},
+    )
 
 
 @router.get("/{application_id}", response_model=StaffApplicationOut)

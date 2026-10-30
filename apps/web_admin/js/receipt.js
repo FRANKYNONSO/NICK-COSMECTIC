@@ -108,12 +108,34 @@ const Receipt = (() => {
             : '';
           const label = actionLabels[r.action] || 'Refund';
           const statusSuffix = r.status === 'pending' ? ' (pending — within 24 hours)' : '';
+          // Itemized lines for THIS refund: which product(s), how many,
+          // and what happened to the stock. Accepts either r.items or
+          // r.lines from the API, and falls back to the sale's own item
+          // list (by sale_item_id) when a line has no product name.
+          const refundLines = r.items || r.lines || [];
+          const saleItems = sale.items || [];
+          const refundItemsHtml = refundLines.map((it) => {
+            const original = saleItems.find((si) => String(si.id) === String(it.sale_item_id || it.id)) || {};
+            const name = it.product_name || original.product_name || 'Item';
+            const unitPrice = it.unit_price_naira != null ? it.unit_price_naira : original.unit_price_naira;
+            const lineTotal = it.line_total_naira != null
+              ? it.line_total_naira
+              : (unitPrice != null ? unitPrice * it.quantity : null);
+            const stockNote = it.spoiled
+              ? 'spoiled, written off'
+              : ((it.restocked != null ? it.restocked : it.restock) ? 'restocked' : 'not restocked');
+            return `<div class="receipt-payment-history-staff" style="display:flex;justify-content:space-between;gap:8px;">
+              <span>${it.quantity} × ${escapeHtml(name)} · ${stockNote}</span>
+              ${lineTotal != null ? `<span>-${formatNaira(lineTotal)}</span>` : ''}
+            </div>`;
+          }).join('');
           return `<div class="receipt-payment-history-entry">
             <div class="receipt-payment-history-row">
               <span>${when}</span>
               <span>${escapeHtml(label)}${statusSuffix}</span>
               <span>-${formatNaira(r.amount_naira)}</span>
             </div>
+            ${refundItemsHtml ? `<div class="receipt-refund-items" style="margin:4px 0;">${refundItemsHtml}</div>` : ''}
             ${r.reason ? `<div class="receipt-payment-history-staff">Reason: ${escapeHtml(r.reason)}</div>` : ''}
           </div>`;
         }).join('')}
@@ -179,16 +201,29 @@ const Receipt = (() => {
           : `Change pending — ${formatNaira(pendingChange.amount_naira)} not yet given${pendingChange.settlement_method ? ` (${changeMethodLabels[pendingChange.settlement_method] || pendingChange.settlement_method}${pendingChange.status === 'pending' ? ', awaiting approval' : ''})` : ''}${pendingChange.reference_code ? ` — ref ${escapeHtml(pendingChange.reference_code)}` : ''}.`}
       </div>`).join('');
 
-    // PATCH3B2-RECEIPT-BALANCE-WE-OWE
-    const changeMethodWords = { cash: 'cash', transfer: 'bank transfer', airtime: 'airtime' };
+    // PATCH3B3-RECEIPT-CHANGE-WORDS (replaces PATCH3B2; words follow the live status)
     const changeStatusHtml = pendingChanges.map((pc) => {
-      const how = pc.settlement_method ? (changeMethodWords[pc.settlement_method] || pc.settlement_method) : '';
-      if (pc.status === 'settled') {
-        return `<div class="receipt-balance-note">Balance of ${formatNaira(pc.amount_naira)} paid${how ? ' by ' + how : ''}.</div>`;
+      const amount = formatNaira(pc.amount_naira);
+      const method = pc.settlement_method;
+      const isOpen = pc.status !== 'settled';
+      let words;
+      if (method === 'airtime' || method === 'transfer') {
+        const name = method === 'airtime' ? 'Airtime' : 'Bank transfer';
+        if (pc.status === 'pending') words = name + ' - being processed, awaiting approval';
+        else if (pc.status === 'settled') words = name + ' - approved';
+        else words = 'Balance we owe you';
+      } else if (pc.status === 'settled') {
+        if (method === 'cash') words = 'Balance - collected, completed';
+        else if (method === 'coupon') words = 'Balance - turned into a discount code, used, completed';
+        else words = 'Balance - completed';
+      } else {
+        words = 'Balance we owe you';
       }
-      const waiting = (pc.settlement_method && pc.status === 'pending') ? ` (${how}, awaiting approval)` : '';
-      return `<div class="receipt-totals-row" style="font-weight:600;"><span>Balance we owe you${waiting}</span><span>${formatNaira(pc.amount_naira)}</span></div>`
-        + (pc.reference_code ? `<div class="receipt-balance-note">Ref ${escapeHtml(pc.reference_code)} - show this code when you come back.</div>` : '');
+      const ref = pc.reference_code ? escapeHtml(pc.reference_code) : '';
+      const refLine = ref
+        ? '<div class="receipt-balance-note">Ref ' + ref + (isOpen ? ' - show this code when you come back.' : '') + '</div>'
+        : '';
+      return '<div class="receipt-totals-row"' + (isOpen ? ' style="font-weight:600;"' : '') + '><span>' + words + '</span><span>' + amount + '</span></div>' + refLine;
     }).join('');
 
     const totalsHtml = `
@@ -215,11 +250,14 @@ const Receipt = (() => {
     container.innerHTML = `
       <div class="receipt-logo">${logoBlock}</div>
       <div class="receipt-ticket-meta">
+        <div style="font-weight:700;font-size:1.15em;">${escapeHtml(store.name || 'Nick Cosmetics')}</div>
+        ${branchHtml(sale.branch_id)}
         <div>Ticket ${escapeHtml(shortId)}</div>
         <div>${created.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })}, ${created.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' })}</div>
         <div>Served by: ${escapeHtml((sale.cashier_name || 'Unknown').toUpperCase())}</div>
         ${sale.customer_name ? `<div>Customer: ${escapeHtml(sale.customer_name)}${sale.customer_phone ? ` (${escapeHtml(sale.customer_phone)})` : ''}</div>` : ''}
       </div>
+      ${sale.channel === 'transfer' ? `<div class="receipt-ticket-meta" style="margin-top:6px;"><div style="font-weight:700;">BRANCH TRANSFER</div>${sale.notes ? `<div>${escapeHtml(sale.notes)}</div>` : ''}</div>` : ''}
       <div class="receipt-items">${itemsHtml}</div>
       <div class="receipt-totals">${totalsHtml}</div>
       ${websiteUrl ? `
@@ -230,8 +268,7 @@ const Receipt = (() => {
           </div>
         </div>` : ''}
       <div class="receipt-store-footer">
-        <div>${escapeHtml(store.name || 'Nick Cosmetics')}</div>
-        <div class="receipt-thank-you">Thank you for shopping with us — please come again!</div>
+        ${branchSupportHtml(sale.branch_id)}<div class="receipt-thank-you">Thank you for shopping with us. We look forward to serving you again.</div><div class="receipt-returns-note" style="font-size:0.85em;opacity:0.8;margin-top:4px;">Please keep this receipt for returns or exchanges.</div>
       </div>
       <div class="receipt-powered-by">Powered by Nick Cosmetics</div>`;
 
@@ -249,6 +286,154 @@ const Receipt = (() => {
         }
       }
     }
+  }
+
+  // PATCH-RECEIPT-BRANCH: branch name and address on every receipt type.
+  let branchCache = null;
+  let branchLoading = null;
+  function loadBranchCache() {
+    if (branchCache) return Promise.resolve(branchCache);
+    if (branchLoading) return branchLoading;
+    if (typeof Api === "undefined" || typeof Auth === "undefined" || !Auth.getToken()) return Promise.resolve(null);
+    branchLoading = Api.listBranches().then((rows) => {
+      const map = {};
+      (rows || []).forEach((b) => { map[b.id] = b; });
+      branchCache = map;
+      return map;
+    }).catch(() => null).finally(() => { branchLoading = null; });
+    return branchLoading;
+  }
+  function branchHtml(branchId, fallbackName) {
+    let name = fallbackName || "";
+    let address = "";
+    let support = "";
+    const b = (branchCache && branchId) ? branchCache[branchId] : null;
+    if (b) {
+      name = b.name || name;
+      address = b.address || "";
+      support = b.support_line || "";
+    } else if (!name && branchId && typeof BranchContext !== "undefined" && BranchContext.get() === branchId) {
+      name = BranchContext.getName();
+    }
+    if (!name && !address && !support) return "";
+    return (name ? `<div style="font-weight:600;">Branch: ${escapeHtml(name)}</div>` : "") + (address ? `<div>${escapeHtml(address)}</div>` : "");
+  }
+  function branchSupportHtml(branchId) {
+    const b = (branchCache && branchId) ? branchCache[branchId] : null;
+    const s = b ? (b.support_line || "") : "";
+    return s ? `<div>Support line: ${escapeHtml(s)}</div>` : "";
+  }
+  function withBranch(fn) {
+    return function (container, ...args) {
+      fn(container, ...args);
+      if (branchCache || !container) return;
+      const tok = String(Date.now()) + "-" + Math.random();
+      container.dataset.rcptTok = tok;
+      loadBranchCache().then((map) => {
+        if (map && container.dataset.rcptTok === tok) fn(container, ...args);
+      });
+    };
+  }
+  try { loadBranchCache(); } catch (err) { /* non-fatal */ }
+
+  function renderMovement(container, mv, store = {}) {
+    // fix55: stock movement receipt, same look as the sale receipt
+    if (!container || !mv) return;
+    const created = new Date(mv.created_at);
+    const logoBlock = store.logoUrl
+      ? `<img src="${escapeHtml(store.logoUrl)}" alt="${escapeHtml(store.name || 'Store logo')}" class="receipt-logo-img" />`
+      : `<div class="receipt-logo-placeholder">\uD83D\uDCF7 Your logo</div>`;
+    const qty = Number(mv.quantity_pieces || 0);
+    const dateText = created.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })
+      + ', ' + created.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
+    container.innerHTML = `
+      <div class="receipt-logo">${logoBlock}</div>
+      <div class="receipt-ticket-meta">
+        <div style="font-weight:700;font-size:1.15em;">${escapeHtml(store.name || 'Nick Cosmetics')}</div>
+        ${branchHtml(mv.branch_id)}
+        <div style="font-weight:700;">STOCK MOVEMENT RECEIPT</div>
+        <div>Ref ${escapeHtml(mv.receipt_no)}</div>
+        <div>${escapeHtml(dateText)}</div>
+        <div>Done by: ${escapeHtml(String(mv.created_by_name || 'Unknown').toUpperCase())}</div>
+      </div>
+      <div class="receipt-items">
+        <div class="receipt-line-item">
+          <div class="receipt-line-item-row">
+            <span class="receipt-line-qty">${qty}</span>
+            <span class="receipt-line-name">${escapeHtml(mv.product_name || 'Unknown item')}</span>
+            <span class="receipt-line-amount"></span>
+          </div>
+          <div class="receipt-line-unit">${escapeHtml(mv.route_text || '')}</div>
+        </div>
+      </div>
+      <div class="receipt-totals">
+        <div class="receipt-totals-row receipt-grand-total"><span>Quantity moved</span><span>${qty} pcs</span></div>
+        <div class="receipt-totals-row"><span>Type</span><span>${escapeHtml(mv.type_label || '')}</span></div>
+        ${mv.notes ? `<div class="receipt-totals-row"><span>Note</span><span></span></div><div class="receipt-line-unit" style="white-space:normal;">${escapeHtml(mv.notes)}</div>` : ''}
+        <div class="receipt-balance-note">Signature: ____________________</div>
+      </div>
+      <div class="receipt-store-footer">
+        ${branchSupportHtml(mv.branch_id)}<div class="receipt-thank-you">Stock movement record. Keep for stock control.</div>
+      </div>
+      <div class="receipt-powered-by">Powered by Nick Cosmetics</div>`;
+  }
+
+  function renderReturn(container, rt, store = {}) {
+    // RET6: branch return receipt, same look as the stock movement receipt
+    if (!container || !rt) return;
+    const created = new Date(rt.created_at);
+    const logoBlock = store.logoUrl
+      ? `<img src="${escapeHtml(store.logoUrl)}" alt="${escapeHtml(store.name || 'Store logo')}" class="receipt-logo-img" />`
+      : `<div class="receipt-logo-placeholder">\uD83D\uDCF7 Your logo</div>`;
+    const qty = Number(rt.quantity_pieces || 0);
+    const dateText = created.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })
+      + ', ' + created.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
+    const heading = {
+      requested: 'BRANCH RETURN REQUEST',
+      accepted: 'BRANCH RETURN REQUEST',
+      completed: 'BRANCH RETURN RECEIPT',
+      declined: 'BRANCH RETURN - DECLINED',
+      cancelled: 'BRANCH RETURN - CANCELLED',
+    }[rt.status] || 'BRANCH RETURN';
+    const isCompleted = rt.status === 'completed';
+    const paidBy = rt.payment_method === 'cash' ? 'Cash' : (rt.payment_method ? 'Bank transfer' : '-');
+    const acct = [rt.refund_bank_name, rt.refund_account_number, rt.refund_account_name]
+      .filter(Boolean).map((x) => escapeHtml(String(x))).join(', ');
+    const paidToRow = rt.payment_method === 'transfer'
+      ? `<div class="receipt-totals-row"><span>Paid to</span><span>${acct || 'No account details were given.'}</span></div>`
+      : '';
+    container.innerHTML = `
+      <div class="receipt-logo">${logoBlock}</div>
+      <div class="receipt-ticket-meta">
+        <div style="font-weight:700;font-size:1.15em;">${escapeHtml(store.name || 'Nick Cosmetics')}</div>
+        ${branchHtml(rt.branch_id)}
+        <div style="font-weight:700;">${heading}</div>
+        <div>Ref ${escapeHtml(rt.ref_no || '')}</div>
+        <div>${escapeHtml(dateText)}</div>
+        <div>Done by: ${escapeHtml(String(rt.done_by || 'Unknown').toUpperCase())}</div>
+      </div>
+      <div class="receipt-items">
+        <div class="receipt-line-item">
+          <div class="receipt-line-item-row">
+            <span class="receipt-line-qty">${qty}</span>
+            <span class="receipt-line-name">${escapeHtml(rt.product_name || 'Unknown item')}</span>
+            <span class="receipt-line-amount"></span>
+          </div>
+        </div>
+      </div>
+      <div class="receipt-totals">
+        <div class="receipt-totals-row"><span>Route</span><span>${escapeHtml(rt.route_text || '')}</span></div>
+        <div class="receipt-totals-row"><span>Price per piece</span><span>${formatNaira(rt.unit_price_naira)}</span></div>
+        <div class="receipt-totals-row receipt-grand-total"><span>${isCompleted ? 'Money paid back' : 'Money to pay back'}</span><span>${formatNaira(rt.amount_naira)}</span></div>
+        <div class="receipt-totals-row"><span>Status</span><span>${escapeHtml(rt.status_text || '')}</span></div>
+        <div class="receipt-totals-row"><span>Paid by</span><span>${paidBy}</span></div>
+        ${paidToRow}
+        <div class="receipt-balance-note">Signature: ____________________</div>
+      </div>
+      <div class="receipt-store-footer">
+        ${branchSupportHtml(rt.branch_id)}<div class="receipt-thank-you">Branch return record. No new sale and no new invoice.</div>
+      </div>
+      <div class="receipt-powered-by">Powered by Nick Cosmetics</div>`;
   }
 
   function print() {
@@ -309,7 +494,9 @@ const Receipt = (() => {
     container.innerHTML = `
       <div class="receipt-logo">${logoBlock}</div>
       <div class="receipt-ticket-meta">
+        <div style="font-weight:700;font-size:1.15em;">${escapeHtml(store.name || 'Nick Cosmetics')}</div>
         <div style="font-weight:700;">${heading}</div>
+        ${branchHtml(c.branch_id, c.branch_name)}
         <div>Ticket ${escapeHtml(shortId)}</div>
         <div>${opened.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })}, ${opened.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' })}</div>
         <div>Customer: ${escapeHtml(c.customer_full_name)} (${escapeHtml(c.customer_phone)})</div>
@@ -323,8 +510,7 @@ const Receipt = (() => {
         ${paymentHistoryHtml}
       </div>
       <div class="receipt-store-footer">
-        <div>${escapeHtml(store.name || 'Nick Cosmetics')}</div>
-        <div class="receipt-thank-you">Thank you for shopping with us — please come again!</div>
+        ${branchSupportHtml(c.branch_id)}<div class="receipt-thank-you">Thank you for shopping with us. We look forward to serving you again.</div>
       </div>
       <div class="receipt-powered-by">Powered by Nick Cosmetics</div>`;
   }
@@ -360,7 +546,9 @@ const Receipt = (() => {
     container.innerHTML = `
       <div class="receipt-logo">${logoBlock}</div>
       <div class="receipt-ticket-meta">
+        <div style="font-weight:700;font-size:1.15em;">${escapeHtml(store.name || 'Nick Cosmetics')}</div>
         <div style="font-weight:700;">OPEN CREDIT RECEIPT</div>
+        ${branchHtml(first.branch_id, first.branch_name)}
         <div>Ticket ${escapeHtml(shortId)}</div>
         <div>${opened.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })}, ${opened.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' })}</div>
         <div>Customer: ${escapeHtml(first.customer_full_name)} (${escapeHtml(first.customer_phone)})</div>
@@ -373,8 +561,7 @@ const Receipt = (() => {
         <div class="receipt-totals-row" style="font-weight:600;"><span>Balance</span><span>${formatNaira(balance)}</span></div>
       </div>
       <div class="receipt-store-footer">
-        <div>${escapeHtml(store.name || 'Nick Cosmetics')}</div>
-        <div class="receipt-thank-you">Thank you for shopping with us — please come again!</div>
+        ${branchSupportHtml(first.branch_id)}<div class="receipt-thank-you">Thank you for shopping with us. We look forward to serving you again.</div>
       </div>
       <div class="receipt-powered-by">Powered by Nick Cosmetics</div>`;
   }
@@ -427,7 +614,9 @@ const Receipt = (() => {
     container.innerHTML = `
       <div class="receipt-logo">${logoBlock}</div>
       <div class="receipt-ticket-meta">
+        <div style="font-weight:700;font-size:1.15em;">${escapeHtml(store.name || 'Nick Cosmetics')}</div>
         <div style="font-weight:700;">REFUND RECEIPT</div>
+        ${branchHtml(refund.branch_id, refund.branch_name)}
         <div>Refund ticket ${escapeHtml(shortRefundId)}</div>
         <div>Original sale ${escapeHtml(shortSaleId)}, sold ${originalSaleAt.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })} by ${escapeHtml((refund.original_cashier_name || 'unknown').toUpperCase())}</div>
         <div>${processedAt.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })}, ${processedAt.toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' })}</div>
@@ -447,13 +636,12 @@ const Receipt = (() => {
       </div>
       ${refund.image_url ? `<div class="receipt-payment-history"><div class="receipt-payment-history-title">Photo of returned item</div><img src="${escapeHtml(refund.image_url)}" alt="Returned item" style="max-width:100%;border-radius:8px;margin-top:6px;" /></div>` : ''}
       <div class="receipt-store-footer">
-        <div>${escapeHtml(store.name || 'Nick Cosmetics')}</div>
-        <div class="receipt-thank-you">Thank you for shopping with us — please come again!</div>
+        ${branchSupportHtml(refund.branch_id)}<div class="receipt-thank-you">Thank you for shopping with us. We look forward to serving you again.</div>
       </div>
       <div class="receipt-powered-by">Powered by Nick Cosmetics</div>`;
   }
 
-  return { render, renderCredit, renderCreditBatch, renderRefund, print, formatNaira, escapeHtml };
+  return { renderMovement: withBranch(renderMovement), renderReturn: withBranch(renderReturn), render: withBranch(render), renderCredit: withBranch(renderCredit), renderCreditBatch: withBranch(renderCreditBatch), renderRefund: withBranch(renderRefund), print, formatNaira, escapeHtml };
 })();
 
 // ------------------------------------------------------------ Store branding

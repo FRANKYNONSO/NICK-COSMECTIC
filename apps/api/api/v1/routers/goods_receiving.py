@@ -63,6 +63,7 @@ class ShelfSettingIn(BaseModel):
     product_id: uuid.UUID
     max_shelf_quantity: int = Field(ge=0, le=1000000)
     replenish_alert_level: int = Field(ge=0, le=1000000)
+    move_excess_to_warehouse: bool = False  # fix53: only Add Product sets this, to split a new product's starting stock
 
 
 class PostOptions(BaseModel):
@@ -160,6 +161,40 @@ async def _lock_warehouse_row(session, branch_id, product_id):
         .execution_options(populate_existing=True)
     )
     return result.scalar_one()
+
+
+# fix51: "Reduce stock" input and the shared shelf-take helper
+class ShelfReduceIn(BaseModel):
+    branch_id: uuid.UUID
+    product_id: uuid.UUID
+    pieces: int = Field(ge=1)
+
+
+async def _take_from_shelf_newest_first(session, branch_id, product_id, wanted):
+    """fix51: take up to `wanted` pieces off the shelf, newest batches first (the
+    same order the shelf-default lowering uses). The caller must already hold the
+    warehouse row lock. Returns the number of pieces actually taken."""
+    batch_rows = (
+        await session.execute(
+            select(StockBatch)
+            .where(
+                StockBatch.branch_id == branch_id,
+                StockBatch.product_id == product_id,
+                StockBatch.quantity_remaining > 0,
+            )
+            .order_by(StockBatch.received_at.desc(), StockBatch.id.desc())
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalars().all()
+    left = wanted
+    for batch in batch_rows:
+        if left <= 0:
+            break
+        take = min(batch.quantity_remaining, left)
+        batch.quantity_remaining -= take
+        left -= take
+    return wanted - left
 
 
 async def _stock_figures(session, branch_id, product_ids):
@@ -389,9 +424,116 @@ async def set_shelf_setting(
         existing.max_shelf_quantity = body.max_shelf_quantity
         existing.replenish_alert_level = body.replenish_alert_level
         existing.updated_by = current_user.id
+    # fix43-shelf-excess: if the shelf holds more than the new limit, move the excess to the warehouse.
+    moved_to_warehouse = 0
+    shelf_before = await _shelf_physical(session, body.branch_id, body.product_id)
+    # fix53: saving a shelf default never moves stock off the shelf. Only a brand-new product (Add Product sends the flag) splits its starting stock. Reduce stock is the deliberate way to send extras back.
+    if body.move_excess_to_warehouse and old is None and shelf_before > body.max_shelf_quantity:
+        wh_row = await _lock_warehouse_row(session, body.branch_id, body.product_id)
+        shelf_before = await _shelf_physical(session, body.branch_id, body.product_id)
+        excess = shelf_before - body.max_shelf_quantity
+        if excess > 0:
+            batch_rows = (
+                await session.execute(
+                    select(StockBatch)
+                    .where(
+                        StockBatch.branch_id == body.branch_id,
+                        StockBatch.product_id == body.product_id,
+                        StockBatch.quantity_remaining > 0,
+                    )
+                    .order_by(StockBatch.received_at.desc(), StockBatch.id.desc())
+                    .with_for_update()
+                    .execution_options(populate_existing=True)
+                )
+            ).scalars().all()
+            left = excess
+            for batch in batch_rows:
+                if left <= 0:
+                    break
+                take = min(batch.quantity_remaining, left)
+                batch.quantity_remaining -= take
+                left -= take
+            moved_to_warehouse = excess - left
+            wh_row.quantity_pieces += moved_to_warehouse
+            # fix51: every shelf-to-warehouse move gets its own StockTransfer row
+            if moved_to_warehouse > 0:
+                lower_note = (
+                    "Shelf default lowered to %d: extra pieces moved back to the warehouse"
+                    if old is not None
+                    else "Shelf default set to %d: extra pieces moved to the warehouse"
+                ) % body.max_shelf_quantity
+                session.add(
+                    StockTransfer(
+                        product_id=body.product_id,
+                        from_branch_id=body.branch_id,
+                        to_branch_id=body.branch_id,
+                        transfer_type="shelf_to_warehouse",
+                        unit_label="pieces",
+                        unit_count=moved_to_warehouse,
+                        pieces_per_unit=1,
+                        quantity_pieces=moved_to_warehouse,
+                        notes=lower_note,
+                        created_by=current_user.id,
+                    )
+                )
+            log_audit_event(
+                session,
+                user_id=current_user.id,
+                action="shelf_limit_excess_to_warehouse",
+                entity_type="product",
+                entity_id=body.product_id,
+                metadata={
+                    "branch_id": str(body.branch_id),
+                    "limit": body.max_shelf_quantity,
+                    "shelf_before": shelf_before,
+                    "moved_to_warehouse": moved_to_warehouse,
+                },
+            )
+    # fix46: raising a saved limit fills the shelf from the warehouse, up to the new limit
+    moved_to_shelf = 0
+    if old is not None and body.max_shelf_quantity > old["max"]:
+        wh_fill = await _lock_warehouse_row(session, body.branch_id, body.product_id)
+        shelf_now = await _shelf_physical(session, body.branch_id, body.product_id)
+        room = body.max_shelf_quantity - shelf_now
+        pull = min(room, int(wh_fill.quantity_pieces or 0))
+        if pull > 0:
+            from api.v1.routers.warehouse import _create_store_batch
+            wh_fill.quantity_pieces -= pull
+            await _create_store_batch(session, body.branch_id, product, pull, "limit-raise")
+            session.add(
+                StockTransfer(
+                    product_id=body.product_id,
+                    from_branch_id=body.branch_id,
+                    to_branch_id=body.branch_id,
+                    transfer_type="warehouse_to_store",
+                    unit_label="pieces",
+                    unit_count=pull,
+                    pieces_per_unit=1,
+                    quantity_pieces=pull,
+                    notes="Shelf limit raised: shelf filled from the warehouse",
+                    created_by=current_user.id,
+                )
+            )
+            log_audit_event(
+                session,
+                user_id=current_user.id,
+                action="shelf_limit_raise_filled_shelf",
+                entity_type="product",
+                entity_id=body.product_id,
+                metadata={
+                    "branch_id": str(body.branch_id),
+                    "old_limit": old["max"],
+                    "new_limit": body.max_shelf_quantity,
+                    "shelf_before": shelf_now,
+                    "moved_to_shelf": pull,
+                },
+            )
+            moved_to_shelf = pull
     await session.flush()
     figures = await _stock_figures(session, body.branch_id, [body.product_id])
     summary = _summary(body.product_id, figures[body.product_id], product.name, product.sku)
+    summary["moved_to_warehouse"] = moved_to_warehouse
+    summary["moved_to_shelf"] = moved_to_shelf
     log_audit_event(
         session,
         user_id=current_user.id,
@@ -404,6 +546,72 @@ async def set_shelf_setting(
             "new": {"max": body.max_shelf_quantity, "alert": body.replenish_alert_level},
         },
     )
+    await session.commit()
+    return summary
+
+# fix51: Reduce stock. Sends only the pieces ABOVE the shelf default back to the warehouse.
+@router.post("/shelf-reduce")
+async def reduce_shelf_stock(
+    body: ShelfReduceIn,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("manage_inventory")),
+):
+    _check_branch_access(current_user, body.branch_id)
+    await _require_branch(session, body.branch_id)
+    product = await session.get(Product, body.product_id)
+    if product is None or product.is_deleted:
+        raise _bad("Product not found", status.HTTP_404_NOT_FOUND)
+    setting = await _get_setting(session, body.branch_id, body.product_id)
+    default_qty = setting.max_shelf_quantity if setting is not None else DEFAULT_MAX_SHELF
+    # same locking order as the rest of this file: warehouse row first, then the shelf batches
+    wh_row = await _lock_warehouse_row(session, body.branch_id, body.product_id)
+    shelf_before = await _shelf_physical(session, body.branch_id, body.product_id)
+    excess = shelf_before - default_qty
+    if excess <= 0:
+        raise _bad(
+            "The shelf holds " + str(shelf_before) + " and the default is " + str(default_qty)
+            + ", so there is nothing above the default to send back."
+        )
+    if body.pieces > excess:
+        raise _bad(
+            "You can send back at most " + str(excess) + " piece(s): the shelf holds "
+            + str(shelf_before) + " and the default is " + str(default_qty) + "."
+        )
+    moved = await _take_from_shelf_newest_first(session, body.branch_id, body.product_id, body.pieces)
+    if moved <= 0:
+        raise _bad("Nothing could be taken from the shelf.")
+    wh_row.quantity_pieces += moved
+    session.add(
+        StockTransfer(
+            product_id=body.product_id,
+            from_branch_id=body.branch_id,
+            to_branch_id=body.branch_id,
+            transfer_type="shelf_to_warehouse",
+            unit_label="pieces",
+            unit_count=moved,
+            pieces_per_unit=1,
+            quantity_pieces=moved,
+            notes="Reduce stock: pieces above the shelf default of " + str(default_qty) + " sent back to the warehouse",
+            created_by=current_user.id,
+        )
+    )
+    log_audit_event(
+        session,
+        user_id=current_user.id,
+        action="shelf_reduce_to_warehouse",
+        entity_type="product",
+        entity_id=body.product_id,
+        metadata={
+            "branch_id": str(body.branch_id),
+            "default": default_qty,
+            "shelf_before": shelf_before,
+            "moved_to_warehouse": moved,
+        },
+    )
+    await session.flush()
+    figures = await _stock_figures(session, body.branch_id, [body.product_id])
+    summary = _summary(body.product_id, figures[body.product_id], product.name, product.sku)
+    summary["moved_to_warehouse"] = moved
     await session.commit()
     return summary
 
@@ -488,6 +696,8 @@ async def _apply_input(session, receipt, body, current_user, is_new):
         invoice = await session.get(PurchaseInvoice, body.invoice_id)
         if invoice is None:
             raise _bad("Invoice not found", 404)
+        if invoice.source == "branch_transfer":
+            raise _bad("This invoice was made by a branch transfer. The goods are already in stock, so it cannot be received.")
         if invoice.branch_id is not None and invoice.branch_id != body.branch_id:
             raise _bad("That invoice was filed for a different branch.")
     now = datetime.now(timezone.utc)
@@ -674,6 +884,10 @@ async def _post_receipt(session, receipt, current_user, opts):
             li = await session.get(PurchaseInvoiceLineItem, line.invoice_line_item_id)
             if li is None:
                 problems.append(f"{label}: invoice line not found.")
+                continue
+            line_invoice = await session.get(PurchaseInvoice, li.invoice_id)
+            if line_invoice is not None and line_invoice.source == "branch_transfer":
+                problems.append(f"{label}: that invoice line belongs to a branch transfer invoice and cannot be received.")
                 continue
             if receipt.invoice_id and li.invoice_id != receipt.invoice_id:
                 problems.append(f"{label}: that invoice line belongs to a different invoice.")
@@ -920,6 +1134,8 @@ async def outstanding_for_invoice(
     invoice = await session.get(PurchaseInvoice, invoice_id)
     if invoice is None:
         raise _bad("Invoice not found", 404)
+    if invoice.source == "branch_transfer":
+        raise _bad("This invoice was made by a branch transfer. The goods are already in stock, so it cannot be received.")
     if invoice.branch_id is not None:
         _check_branch_access(current_user, invoice.branch_id)
     items = (
@@ -1155,6 +1371,8 @@ async def link_invoice(
     invoice = await session.get(PurchaseInvoice, body.invoice_id)
     if invoice is None:
         raise _bad("Invoice not found", 404)
+    if invoice.source == "branch_transfer":
+        raise _bad("This invoice was made by a branch transfer. The goods are already in stock, so it cannot be received.")
     if invoice.branch_id is not None and invoice.branch_id != receipt.branch_id:
         raise _bad("That invoice was filed for a different branch.")
     receipt.invoice_id = invoice.id

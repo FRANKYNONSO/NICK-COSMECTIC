@@ -252,8 +252,171 @@ document.getElementById('tr-product').addEventListener('change', () => {
 // product selection changes, so the cashier knows the ceiling before
 // even trying to submit (the server still enforces the real cap at
 // confirm time -- this is a helpful preview, not the source of truth).
+// XFER1-TRANSFER-AS-SALE -- price per piece on a branch-to-branch transfer.
+// The box starts at the item's selling price (or its wholesale price once the
+// quantity reaches the wholesale quantity). The manager can type any other
+// price; after typing, the box is left alone until the product changes.
+let trPriceInfo = null;
+let trPriceTouched = false;
+let trPriceTimer = null;
+
+function trQuantityPieces() {
+  const unitLabel = document.getElementById('tr-unit').value;
+  const unitCount = Number(document.getElementById('tr-count').value || 0);
+  const perUnit = unitLabel === 'piece' ? 1 : Number(document.getElementById('tr-per-unit').value || 1);
+  return unitCount * perUnit;
+}
+
+async function refreshTransferPrice() {
+  const priceInput = document.getElementById('tr-unit-price');
+  const hint = document.getElementById('tr-price-hint');
+  if (!priceInput || !hint) return;
+  const productId = document.getElementById('tr-product').value;
+  const qty = trQuantityPieces();
+  if (!productId || !(qty > 0)) {
+    trPriceInfo = null;
+    hint.textContent = '';
+    return;
+  }
+  try {
+    const info = await Api.previewTransferPrice({ productId, quantityPieces: qty, fromBranchId: currentBranchId });
+    if (document.getElementById('tr-product').value !== productId) return; // product changed meanwhile
+    trPriceInfo = info;
+    if (!trPriceTouched) priceInput.value = info.default_unit_price_naira;
+    const isWholesale = info.default_price_basis === 'wholesale';
+    let text = `Default: ${formatNaira(info.default_unit_price_naira)} per piece (${isWholesale ? `wholesale price, from ${info.wholesale_min_quantity} pieces` : 'selling price'}).`;
+    if (!isWholesale && info.wholesale_price_naira != null && info.wholesale_min_quantity != null) {
+      text += ` Wholesale price ${formatNaira(info.wholesale_price_naira)} applies from ${info.wholesale_min_quantity} pieces.`;
+    }
+    hint.textContent = text;
+  } catch (err) {
+    hint.textContent = '';
+  }
+}
+
+function transferUnitPriceNaira(payload) {
+  if (payload && payload.unit_price_naira != null) return payload.unit_price_naira;
+  return trPriceInfo ? trPriceInfo.default_unit_price_naira : 0;
+}
+
+function transferTotalNaira(unitPriceNaira, quantityPieces) {
+  return Math.round(Number(unitPriceNaira || 0) * 100) * Number(quantityPieces || 0) / 100;
+}
+
+function transferPriceTag(unitPriceNaira) {
+  if (!trPriceInfo) return 'custom price';
+  const same = Math.round(Number(unitPriceNaira) * 100) === Math.round(Number(trPriceInfo.default_unit_price_naira) * 100);
+  if (!same) return 'custom price';
+  return trPriceInfo.default_price_basis === 'wholesale' ? 'wholesale price' : 'selling price';
+}
+
+// After a confirmed transfer: show the sale's receipt in the same window.
+async function showTransferReceipt(result) {
+  try {
+    if (!result || !result.sale_id || typeof Receipt === 'undefined') return false;
+    const sale = await Api.getSale(result.sale_id);
+    const sheet = document.getElementById('transfer-confirm-sheet');
+    const brand = (typeof StoreBranding !== 'undefined' && StoreBranding.current) ? StoreBranding.current() : {};
+    Receipt.render(sheet, sale, brand);
+    document.getElementById('transfer-confirm-title').textContent = 'Transfer recorded';
+    document.getElementById('transfer-confirm-submit').style.display = 'none';
+    document.getElementById('transfer-confirm-back').textContent = 'Close';
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+(function wireTransferPrice() {
+  const priceInput = document.getElementById('tr-unit-price');
+  if (!priceInput) return;
+  priceInput.addEventListener('input', () => { trPriceTouched = true; });
+  const schedule = () => {
+    clearTimeout(trPriceTimer);
+    trPriceTimer = setTimeout(() => refreshTransferPrice(), 250);
+  };
+  ['tr-count', 'tr-per-unit'].forEach((id) => document.getElementById(id)?.addEventListener('input', schedule));
+  document.getElementById('tr-unit')?.addEventListener('change', schedule);
+  const variantSelect = document.getElementById('tr-variant');
+  if (variantSelect) {
+    new MutationObserver(() => { trPriceTouched = false; refreshTransferPrice(); })
+      .observe(variantSelect, { childList: true });
+  }
+})();
+
 let transferAvailablePieces = null;
-async function refreshTransferAvailability() {
+// XFER2-SHELF-OR-WAREHOUSE -- shelf/warehouse figures, the split and where it lands.
+function transferSplitRows(p, toBranchId) {
+  const part = (shelf, wh) => [shelf > 0 ? `Shelf ${shelf}` : '', wh > 0 ? `Warehouse ${wh}` : ''].filter(Boolean).join(' + ') || 'nothing';
+  const row = (label, value) => `<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+  return row('Taken from', part(p.from_shelf, p.from_warehouse))
+    + row('Arrives at ' + branchName(toBranchId), part(p.to_shelf, p.to_warehouse));
+}
+
+let trAvailabilityToken = 0;
+async function refreshTransferAvailability(auto = true) {
+  const hint = document.getElementById('tr-availability-hint');
+  const splitHint = document.getElementById('tr-split-hint');
+  const productId = document.getElementById('tr-variant').value;
+  const toBranchId = document.getElementById('tr-to').value;
+  if (!currentBranchId || !productId || !toBranchId) {
+    hint.textContent = '';
+    if (splitHint) splitHint.textContent = '';
+    transferAvailablePieces = null;
+    return;
+  }
+  const token = ++trAvailabilityToken;
+  try {
+    // XFER3-AUTO-SOURCE: shelf when it covers the quantity, else the warehouse,
+    // else both. Only re-selected when the quantity/product/branch changed, so a
+    // manual pick of "Take from" is left alone until then.
+    const askSplit = () => Api.previewTransferSplit({
+      productId,
+      fromBranchId: currentBranchId,
+      toBranchId,
+      quantityPieces: Math.max(trQuantityPieces(), 1),
+      takeFrom: document.getElementById('tr-source').value,
+    });
+    let p = await askSplit();
+    if (token !== trAvailabilityToken) return;
+    if (auto && trQuantityPieces() > 0) {
+      const qty = trQuantityPieces();
+      const wanted = qty <= p.shelf_available ? 'shelf' : (qty <= p.warehouse_available ? 'warehouse' : 'both');
+      const sourceSelect = document.getElementById('tr-source');
+      if (sourceSelect.value !== wanted) {
+        sourceSelect.value = wanted;
+        p = await askSplit();
+        if (token !== trAvailabilityToken) return;
+      }
+    }
+    transferAvailablePieces = p.total_available;
+    hint.textContent = `Shelf ${p.shelf_available} | Warehouse ${p.warehouse_available} | Total ${p.total_available} piece(s) at this branch.`;
+    if (splitHint) {
+      splitHint.textContent = p.ok
+        ? p.text
+        : '';
+    }
+  } catch (err) {
+    if (token !== trAvailabilityToken) return;
+    hint.textContent = '';
+    if (splitHint) splitHint.textContent = '';
+    transferAvailablePieces = null;
+  }
+}
+
+(function wireTransferSplit() {
+  let timer = null;
+  const schedule = (auto) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => refreshTransferAvailability(auto), 250);
+  };
+  ['tr-count', 'tr-per-unit'].forEach((id) => document.getElementById(id)?.addEventListener('input', () => schedule(true)));
+  ['tr-unit', 'tr-to'].forEach((id) => document.getElementById(id)?.addEventListener('change', () => schedule(true)));
+  document.getElementById('tr-source')?.addEventListener('change', () => schedule(false));
+})();
+
+// Older shelf-only version, no longer used (kept only so nothing else breaks).
+async function refreshTransferAvailabilityOld() {
   const hint = document.getElementById('tr-availability-hint');
   const productId = document.getElementById('tr-variant').value;
   if (!currentBranchId || !productId) {
@@ -316,6 +479,14 @@ document.getElementById('transfer-form').addEventListener('submit', async (e) =>
     return;
   }
 
+  const priceRaw = document.getElementById('tr-unit-price').value;
+  const priceValue = priceRaw === '' ? null : Number(priceRaw);
+  if (priceValue !== null && (!Number.isFinite(priceValue) || priceValue < 0)) {
+    errorEl.textContent = 'Enter a valid price per piece.';
+    errorEl.classList.add('visible');
+    return;
+  }
+
   const payload = {
     product_id: productId,
     from_branch_id: currentBranchId,
@@ -324,6 +495,8 @@ document.getElementById('transfer-form').addEventListener('submit', async (e) =>
     unit_count: unitCount,
     pieces_per_unit: piecesPerUnit,
     payment_method: paymentMethod,
+    unit_price_naira: priceValue,
+    take_from: document.getElementById('tr-source').value,
     notes: document.getElementById('tr-notes').value || null,
   };
 
@@ -342,7 +515,10 @@ async function openTransferConfirmModal(payload, productId, toBranchId, quantity
   const errorEl = document.getElementById('transfer-confirm-error');
   errorEl.classList.remove('visible');
   pendingTransferPayload = payload;
-  sheet.innerHTML = 'Working out the cost…';
+  document.getElementById('transfer-confirm-title').textContent = 'Confirm transfer';
+  document.getElementById('transfer-confirm-submit').style.display = '';
+  document.getElementById('transfer-confirm-back').textContent = 'Back';
+  sheet.innerHTML = 'Preparing the summary…';
   backdrop.classList.add('visible');
 
   let product = {};
@@ -352,14 +528,17 @@ async function openTransferConfirmModal(payload, productId, toBranchId, quantity
     // Non-fatal -- the summary below just shows "Product" as a fallback.
   }
   try {
-    const preview = await Api.previewTransferCost({
-      productId, fromBranchId: currentBranchId, quantityPieces,
+    const preview = await Api.previewTransferSplit({
+      productId, fromBranchId: currentBranchId, toBranchId, quantityPieces, takeFrom: payload.take_from,
     });
+    if (!preview.ok) throw new Error(preview.message);
     sheet.innerHTML = `
       <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Item</span><strong>${escapeHtml(product.name || 'Product')}</strong></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Quantity</span><strong>${payload.unit_count} ${escapeHtml(payload.unit_label)}(s) = ${quantityPieces} pcs</strong></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>From → To</span><strong>${escapeHtml(branchName(currentBranchId))} → ${escapeHtml(branchName(toBranchId))}</strong></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Cost (supplier price)</span><strong>${formatNaira(preview.total_cost_naira)}</strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Price per piece</span><strong>${formatNaira(transferUnitPriceNaira(payload))} <span style="font-weight:400;opacity:0.7;">(${transferPriceTag(transferUnitPriceNaira(payload))})</span></strong></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Total to pay</span><strong>${formatNaira(transferTotalNaira(transferUnitPriceNaira(payload), quantityPieces))}</strong></div>
+      ${transferSplitRows(preview, toBranchId)}
       <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>Settlement</span><strong>${payload.payment_method === 'cash' ? 'Cash' : 'Bank transfer'}</strong></div>
       <div style="display:flex;justify-content:space-between;"><span>Processed by</span><strong>${escapeHtml(currentUser?.full_name || 'You')}</strong></div>
     `;
@@ -379,12 +558,15 @@ document.getElementById('transfer-confirm-submit')?.addEventListener('click', as
   btn.disabled = true;
   try {
     const result = await Api.createStockTransfer(pendingTransferPayload);
-    document.getElementById('transfer-confirm-backdrop').classList.remove('visible');
-    showToast(`Transferred ${result.quantity_pieces} piece(s) — ${formatNaira(result.total_cost_naira || 0)}.`);
+    const receiptShown = await showTransferReceipt(result);
+    if (!receiptShown) document.getElementById('transfer-confirm-backdrop').classList.remove('visible');
+    showToast(`Transferred ${result.quantity_pieces} piece(s) — ${formatNaira(result.total_price_naira || 0)}.`);
     document.getElementById('tr-count').value = 1;
     document.getElementById('tr-per-unit').value = 1;
     document.getElementById('tr-payment-method').value = '';
     document.getElementById('tr-notes').value = '';
+    trPriceTouched = false;
+    refreshTransferPrice();
     refreshTransferAvailability();
     loadTransfers();
   } catch (err) {
@@ -412,20 +594,51 @@ function pluralizeUnit(label, count) {
 // show their cartons/dozens/pieces breakdown; everything else keeps the
 // original "2 cartons (48 pcs)" wording.
 function whTransferQtyText(t) {
+  if (t.transfer_type === 'warehouse_to_store' || t.transfer_type === 'shelf_to_warehouse') return `${t.quantity_pieces} pcs`; // fix54
   if (t.unit_label === 'mixed') return whPushBreakdown(t);
   return `${t.unit_count} ${escapeHtml(pluralizeUnit(t.unit_label, t.unit_count))} (${t.quantity_pieces} pcs)`;
 }
+
+function whBasisLabel(b) {
+  return b === 'wholesale' ? 'Wholesale' : (b === 'custom' ? 'Custom' : 'Selling');
+}
+
+async function viewTransferReceipt(saleId) {
+  const errorEl = document.getElementById('transfer-confirm-error');
+  errorEl.classList.remove('visible');
+  try {
+    const sale = await Api.getSale(saleId);
+    const sheet = document.getElementById('transfer-confirm-sheet');
+    const brand = (typeof StoreBranding !== 'undefined' && StoreBranding.current) ? StoreBranding.current() : {};
+    Receipt.render(sheet, sale, brand);
+    document.getElementById('transfer-confirm-title').textContent = 'Transfer receipt';
+    document.getElementById('transfer-confirm-submit').style.display = 'none';
+    document.getElementById('transfer-confirm-back').textContent = 'Close';
+    document.getElementById('transfer-confirm-backdrop').classList.add('visible');
+  } catch (err) {
+    showToast(err.message || 'Could not open the receipt.', true);
+  }
+}
+
+document.getElementById('transfers-tbody')?.addEventListener('click', (ev) => {
+  const link = ev.target.closest('.js-view-transfer-receipt');
+  if (!link) return;
+  ev.preventDefault();
+  viewTransferReceipt(link.dataset.saleId);
+});
 
 async function loadTransfers() {
   const tbody = document.getElementById('transfers-tbody');
   const emptyState = document.getElementById('transfers-empty');
   if (!currentBranchId) return;
-  tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Loading…</td></tr>';
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="9">Loading…</td></tr>';
   try {
     // Branch-to-branch history only shows the plain shop-to-shop moves
     // -- the three warehouse-specific move types get their own
     // "Warehouse activity history" table (loadWarehouseHistory).
     const transfers = await Api.listStockTransfers({ branchId: currentBranchId, transferType: 'branch_to_branch' });
+    trTransfersCache = transfers;
+    loadTransferReturns();
     if (!transfers.length) {
       tbody.innerHTML = '';
       emptyState.style.display = 'block';
@@ -437,14 +650,423 @@ async function loadTransfers() {
         <td>${new Date(t.created_at).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })}</td>
         <td>${escapeHtml(branchName(t.from_branch_id))} → ${escapeHtml(branchName(t.to_branch_id))}</td>
         <td>${t.unit_count} ${escapeHtml(pluralizeUnit(t.unit_label, t.unit_count))} (${t.quantity_pieces} pcs)</td>
+        <td>${t.unit_price_naira != null ? `${formatNaira(t.unit_price_naira)}<div style="font-size:11px;color:var(--ink-faint)">${escapeHtml(whBasisLabel(t.price_basis))}</div>` : '<span style="color:var(--ink-faint)">&mdash;</span>'}</td>
+        <td>${t.total_price_naira != null ? formatNaira(t.total_price_naira) : '<span style="color:var(--ink-faint)">&mdash;</span>'}</td>
         <td>${t.created_by_name ? escapeHtml(t.created_by_name) : '<span style="color:var(--ink-faint)">—</span>'}</td>
         <td>${t.notes ? escapeHtml(t.notes) : '<span style="color:var(--ink-faint)">—</span>'}</td>
+        <td>${t.sale_id ? `<a href="#" class="js-view-transfer-receipt" data-sale-id="${escapeHtml(String(t.sale_id))}" style="color:#5b8def;">View receipt</a>` : '<span style="color:var(--ink-faint)">&mdash;</span>'}</td>
+        <td>${trReturnCell(t)}</td>
       </tr>`).join('');
   } catch (err) {
     tbody.innerHTML = '';
     showToast(err.message, true);
   }
 }
+
+// ======================================================================= RET3
+// Branch transfer returns: screens. The server checks every rule again; this
+// code only decides which buttons to show. A super admin passes every branch
+// check on the server, so the side is worked out here from the branch picked
+// on the Dashboard (currentBranchId).
+let trTransfersCache = [];
+let trReturnsCache = [];
+let trModalState = null;
+
+function trSideFor(row) {
+  if (!currentBranchId) return null;
+  if (currentBranchId === row.from_branch_id) return 'sender';
+  if (currentBranchId === row.to_branch_id) return 'receiver';
+  return null;
+}
+
+function trDate(value) {
+  return new Date(value).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
+}
+
+function trLine(label, valueHtml) {
+  return '<div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:6px;"><span>' + label + '</span><strong style="text-align:right;">' + valueHtml + '</strong></div>';
+}
+
+// Cell 9 of the history table.
+function trReturnCell(t) {
+  const dash = '<span style="color:var(--ink-faint)">&mdash;</span>';
+  if (!t.sale_id || !t.invoice_id) return dash;
+  const total = Number(t.quantity_pieces || 0);
+  const done = Number(t.returned_pieces || 0);
+  const open = Number(t.open_return_pieces || 0);
+  let html = '<div style="font-size:12px;color:var(--ink-faint);">Returned ' + done + ' of ' + total + ' pcs</div>';
+  if (open > 0) {
+    html += '<div style="font-size:12px;color:var(--ink-faint);">' + open + ' pcs in open requests</div>';
+  }
+  const side = trSideFor(t);
+  if (side === 'receiver' && Perms.can('manage_inventory') && done + open < total) {
+    const label = 'Return items';
+    html += '<button type="button" class="btn btn-ghost btn-sm js-tr-return" style="margin-top:4px;" data-transfer-id="' + escapeHtml(String(t.id)) + '">' + label + '</button>';
+  }
+  return html;
+}
+
+document.getElementById('transfers-tbody')?.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.js-tr-return');
+  if (!btn) return;
+  ev.preventDefault();
+  trOpenRequestModal(btn.dataset.transferId);
+});
+
+// ---- the one window
+function trCloseModal() {
+  document.getElementById('tr-return-backdrop').classList.remove('visible');
+  trModalState = null;
+}
+
+function trShowError(message) {
+  const el = document.getElementById('tr-return-error');
+  el.textContent = message;
+  el.classList.add('visible');
+}
+
+function trOpenModal(title, bodyHtml, submitLabel) {
+  document.getElementById('tr-return-title').textContent = title;
+  document.getElementById('tr-return-error').classList.remove('visible');
+  document.getElementById('tr-return-body').innerHTML = bodyHtml;
+  const submit = document.getElementById('tr-return-submit');
+  submit.disabled = false;
+  if (submitLabel) {
+    submit.textContent = submitLabel;
+    submit.style.display = '';
+  } else {
+    submit.style.display = 'none';
+  }
+  document.getElementById('tr-return-backdrop').classList.add('visible');
+}
+
+document.getElementById('tr-return-close')?.addEventListener('click', trCloseModal);
+
+// ---- Request back / Return items
+function trRefreshMoney() {
+  const st = trModalState;
+  const el = document.getElementById('tr-ret-money');
+  if (!st || st.mode !== 'request' || !el) return;
+  const pieces = Number(document.getElementById('tr-ret-pieces').value);
+  const valid = Number.isInteger(pieces) && pieces >= 1 ? pieces : 0;
+  const money = Math.round(st.unit * valid * 100) / 100;
+  el.textContent = 'Price per piece: ' + formatNaira(st.unit) + ' (the price first paid). Money back: ' + formatNaira(money) + '. No new invoice and no new sale will be made.';
+}
+
+function trOpenRequestModal(transferId) {
+  const t = trTransfersCache.find((x) => String(x.id) === String(transferId));
+  if (!t) { showToast('Transfer not found. Reload the page.', true); return; }
+  const side = trSideFor(t);
+  if (!side) { showToast('Pick the sending or the receiving branch on the Dashboard first.', true); return; }
+  if (side !== 'receiver') { showToast('Only the branch that received the goods can return them.', true); return; }
+  const left = Number(t.quantity_pieces || 0) - Number(t.returned_pieces || 0) - Number(t.open_return_pieces || 0);
+  if (left <= 0) { showToast('Nothing is left to return on this transfer.', true); return; }
+  const unit = Number(t.unit_price_naira || 0);
+  trModalState = { mode: 'request', transfer: t, side: side, left: left, unit: unit };
+  const title = 'Return items to sender';
+  const body = ''
+    + trLine('Item', escapeHtml(t.product_name || 'Product'))
+    + trLine('Route sent', escapeHtml(branchName(t.from_branch_id)) + ' \u2192 ' + escapeHtml(branchName(t.to_branch_id)))
+    + '<div class="field" style="margin-top:12px;"><label for="tr-ret-pieces">Pieces (up to ' + left + ')</label>'
+    + '<input type="number" id="tr-ret-pieces" min="1" max="' + left + '" step="1" value="1" /></div>'
+    + '<div class="field" style="margin-top:10px;"><label for="tr-ret-note">Note (optional)</label>'
+    + '<input type="text" id="tr-ret-note" /></div>'
+    + '<div style="margin-top:14px;font-weight:600;">Account to receive the money (optional)</div>'
+    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-bank">Bank name</label>'
+    + '<input type="text" id="tr-ret-bank" maxlength="120" /></div>'
+    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-acct-no">Account number</label>'
+    + '<input type="text" id="tr-ret-acct-no" maxlength="40" /></div>'
+    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-acct-name">Account name</label>'
+    + '<input type="text" id="tr-ret-acct-name" maxlength="120" /></div>'
+    + '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-faint);">The sending branch will see these when it pays the refund.</div>'
+    + '<div id="tr-ret-money" style="margin-top:12px;font-size:13px;color:var(--ink-faint);"></div>';
+  trOpenModal(title, body, 'Send request');
+  document.getElementById('tr-ret-pieces').addEventListener('input', trRefreshMoney);
+  trRefreshMoney();
+}
+
+// ---- RET6: account details of the returning branch
+function trHasAccount(r) {
+  return !!(r.refund_bank_name || r.refund_account_number || r.refund_account_name);
+}
+
+function trAccountLines(r) {
+  const dash = '<span style="color:var(--ink-faint)">&mdash;</span>';
+  return trLine('Bank name', r.refund_bank_name ? escapeHtml(r.refund_bank_name) : dash)
+    + trLine('Account number', r.refund_account_number ? escapeHtml(r.refund_account_number) : dash)
+    + trLine('Account name', r.refund_account_name ? escapeHtml(r.refund_account_name) : dash);
+}
+
+function trPayToHtml(r) {
+  const none = '<div style="color:var(--ink-faint);font-size:13px;">No account details were given.</div>';
+  return '<div style="margin:0 0 12px;"><div style="font-weight:600;margin-bottom:6px;">Pay to</div>'
+    + (trHasAccount(r) ? trAccountLines(r) : none) + '</div>';
+}
+
+function trRefreshPayWarn(r) {
+  const el = document.getElementById('tr-pay-warn');
+  if (!el) return;
+  const picked = document.querySelector('input[name="tr-pay"]:checked');
+  if (picked && picked.value === 'transfer' && !trHasAccount(r)) {
+    el.textContent = 'No account details were given. Ask ' + branchName(r.to_branch_id) + ' for them before you pay by bank transfer.';
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ---- Approve refund
+function trOpenApproveModal(returnId) {
+  const r = trReturnsCache.find((x) => String(x.id) === String(returnId));
+  if (!r) { showToast('Return request not found. Reload the page.', true); return; }
+  trModalState = { mode: 'approve', ret: r };
+  const money = formatNaira(r.amount_naira);
+  const pcsWord = Number(r.quantity_pieces) === 1 ? 'piece' : 'pieces';
+  const body = ''
+    + '<p style="margin:0 0 12px;">You are paying back <strong>' + money + '</strong> to <strong>' + escapeHtml(branchName(r.to_branch_id)) + '</strong> for <strong>' + r.quantity_pieces + ' ' + pcsWord + '</strong> of <strong>' + escapeHtml(r.product_name || 'this item') + '</strong>.</p>'
+    + trPayToHtml(r)
+    + '<div class="field"><label>Paid by</label>'
+    + '<label style="display:flex;gap:8px;align-items:center;font-weight:400;"><input type="radio" name="tr-pay" value="cash" /> Cash</label>'
+    + '<label style="display:flex;gap:8px;align-items:center;font-weight:400;"><input type="radio" name="tr-pay" value="transfer" /> Bank transfer</label></div>'
+    + '<div id="tr-pay-warn" style="display:none;margin-top:10px;font-size:12.5px;color:var(--danger);"></div>'
+    + '<div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:var(--warning-tint);color:var(--warning);font-size:12.5px;">'
+    + 'When you click Approve refund: the pieces come back to your branch. Your sale goes down by ' + money + '. Their invoice and their Total Invested go down by ' + money + '. This cannot be undone.</div>';
+  trOpenModal('Approve refund', body, 'Approve refund');
+  document.querySelectorAll('input[name="tr-pay"]').forEach((el) => el.addEventListener('change', () => trRefreshPayWarn(r)));
+}
+
+// ---- View (completed return)
+function trOpenViewModal(returnId) {
+  const r = trReturnsCache.find((x) => String(x.id) === String(returnId));
+  if (!r) { showToast('Return request not found. Reload the page.', true); return; }
+  trModalState = { mode: 'view', ret: r };
+  const dash = '<span style="color:var(--ink-faint)">&mdash;</span>';
+  const body = ''
+    + trLine('Item', escapeHtml(r.product_name || 'Product'))
+    + trLine('Route', escapeHtml(branchName(r.to_branch_id)) + ' \u2192 ' + escapeHtml(branchName(r.from_branch_id)))
+    + trLine('Pieces back', String(r.quantity_pieces))
+    + trLine('Price per piece', formatNaira(r.unit_price_naira))
+    + trLine('Money paid back', formatNaira(r.amount_naira))
+    + trLine('Paid by', r.payment_method === 'cash' ? 'Cash' : (r.payment_method ? 'Bank transfer' : dash))
+    + trLine('Asked by', escapeHtml(r.requested_by_name || 'Unknown') + ', ' + trDate(r.requested_at))
+    + trLine('On shelf / in warehouse', Number(r.landed_shelf_pieces || 0) + ' / ' + Number(r.landed_warehouse_pieces || 0) + ' pcs')
+    + trLine('Note', r.note ? escapeHtml(r.note) : dash);
+  trOpenModal('Return details', body, null);
+}
+
+// ---- the one Submit button
+document.getElementById('tr-return-submit')?.addEventListener('click', async () => {
+  const st = trModalState;
+  if (!st) return;
+  const btn = document.getElementById('tr-return-submit');
+  document.getElementById('tr-return-error').classList.remove('visible');
+  if (st.mode === 'request') {
+    const pieces = Number(document.getElementById('tr-ret-pieces').value);
+    if (!Number.isInteger(pieces) || pieces < 1 || pieces > st.left) {
+      trShowError('Pieces must be a whole number from 1 to ' + st.left + '.');
+      return;
+    }
+    const note = document.getElementById('tr-ret-note').value.trim();
+    btn.disabled = true;
+    try {
+      const bankName = document.getElementById('tr-ret-bank').value.trim();
+      const acctNo = document.getElementById('tr-ret-acct-no').value.trim();
+      const acctName = document.getElementById('tr-ret-acct-name').value.trim();
+      await Api.createTransferReturn({
+        transfer_id: st.transfer.id,
+        quantity_pieces: pieces,
+        note: note || null,
+        side: st.side,
+        bank_name: bankName || null,
+        account_number: acctNo || null,
+        account_name: acctName || null,
+      });
+      trCloseModal();
+      showToast(st.side === 'sender' ? 'Request sent.' : 'Return sent. The sending branch must now approve the refund.');
+      loadTransfers();
+    } catch (err) {
+      trShowError(err.message || 'Could not send the request.');
+    } finally {
+      btn.disabled = false;
+    }
+    return;
+  }
+  if (st.mode === 'approve') {
+    const picked = document.querySelector('input[name="tr-pay"]:checked');
+    if (!picked) { trShowError('Choose Cash or Bank transfer.'); return; }
+    btn.disabled = true;
+    try {
+      await Api.approveTransferReturn(st.ret.id, picked.value);
+      const paid = formatNaira(st.ret.amount_naira);
+      trCloseModal();
+      showToast('Refund approved. ' + paid + ' paid back.');
+      loadTransfers();
+      if (typeof loadWarehouseStock === 'function') loadWarehouseStock();
+      if (typeof refreshTransferAvailability === 'function') refreshTransferAvailability();
+    } catch (err) {
+      trShowError(err.message || 'Could not approve the refund.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+});
+
+// ---- Return requests card
+function trStatusCell(r) {
+  let cls = 'inactive';
+  let text = String(r.status);
+  if (r.status === 'requested') {
+    cls = 'under_review';
+    text = 'Waiting for ' + branchName(r.to_branch_id);
+  } else if (r.status === 'accepted') {
+    if (r.started_by_side === 'receiver') {
+      cls = 'under_review';
+      text = 'Waiting for ' + branchName(r.from_branch_id);
+    } else {
+      cls = 'accepted';
+      text = 'Accepted, waiting for refund';
+    }
+  } else if (r.status === 'completed') {
+    cls = 'active';
+    text = 'Completed';
+  } else if (r.status === 'declined') {
+    cls = 'rejected';
+    text = 'Declined';
+  } else if (r.status === 'cancelled') {
+    cls = 'inactive';
+    text = 'Cancelled';
+  }
+  return '<span class="status-pill ' + cls + '">' + escapeHtml(text) + '</span>';
+}
+
+function trActionsCell(r) {
+  const side = trSideFor(r);
+  const btns = [];
+  const mk = (act, label, primary) => '<button type="button" class="btn ' + (primary ? 'btn-primary' : 'btn-ghost') + ' btn-sm" data-tr-act="' + act + '" data-id="' + escapeHtml(String(r.id)) + '">' + label + '</button>';
+  if (r.status === 'completed') {
+    btns.push(mk('view', 'View', false));
+  } else if (side && r.status === 'requested' && r.started_by_side === 'sender') {
+    if (side === 'receiver') { btns.push(mk('accept', 'Accept', true)); btns.push(mk('decline', 'Decline', false)); }
+    else { btns.push(mk('cancel', 'Cancel', false)); }
+  } else if (side && r.status === 'accepted' && r.started_by_side === 'sender') {
+    if (side === 'sender') { btns.push(mk('approve', 'Approve refund', true)); btns.push(mk('cancel', 'Cancel', false)); }
+  } else if (side && r.status === 'accepted' && r.started_by_side === 'receiver') {
+    if (side === 'sender') { btns.push(mk('approve', 'Approve refund', true)); btns.push(mk('decline', 'Decline', false)); }
+    else { btns.push(mk('cancel', 'Cancel', false)); }
+  }
+  btns.push(mk('receipt', 'Receipt', false));
+  return '<div class="row-actions" style="justify-content:flex-start;">' + btns.join('') + '</div>';
+}
+
+// ---- RET6: return receipt
+function trStatusText(r) {
+  if (r.status === 'requested') return 'Waiting for ' + branchName(r.to_branch_id);
+  if (r.status === 'accepted') {
+    return r.started_by_side === 'receiver' ? 'Waiting for ' + branchName(r.from_branch_id) : 'Accepted, waiting for refund';
+  }
+  if (r.status === 'completed') return 'Completed';
+  if (r.status === 'declined') return 'Declined';
+  if (r.status === 'cancelled') return 'Cancelled';
+  return String(r.status);
+}
+
+async function trOpenReceipt(returnId) {
+  const r = trReturnsCache.find((x) => String(x.id) === String(returnId));
+  if (!r) { showToast('Return request not found. Reload the page.', true); return; }
+  const sheet = document.getElementById('move-receipt-sheet');
+  const backdrop = document.getElementById('move-receipt-backdrop');
+  if (!sheet || !backdrop || typeof Receipt === 'undefined' || !Receipt.renderReturn || typeof StoreBranding === 'undefined') {
+    showToast('Receipt preview is not available. Press Ctrl+Shift+R and try again.', true);
+    return;
+  }
+  let doneBy = r.requested_by_name || 'Unknown';
+  try {
+    const steps = await Api.getTransferReturnHistory(r.id);
+    if (steps && steps.length && steps[steps.length - 1].user_name) doneBy = steps[steps.length - 1].user_name;
+  } catch (err) {
+    showToast(err.message || 'Could not read the steps of this return.', true);
+    return;
+  }
+  const rt = {
+    branch_id: r.from_branch_id,
+    ref_no: 'RET-' + String(r.id).replace(/-/g, '').slice(0, 8).toUpperCase(),
+    created_at: r.approved_at || r.responded_at || r.requested_at,
+    done_by: doneBy,
+    status: r.status,
+    status_text: trStatusText(r),
+    product_name: r.product_name || 'Unknown item',
+    quantity_pieces: r.quantity_pieces,
+    route_text: branchName(r.to_branch_id) + ' \u2192 ' + branchName(r.from_branch_id),
+    unit_price_naira: r.unit_price_naira,
+    amount_naira: r.amount_naira,
+    payment_method: r.payment_method,
+    refund_bank_name: r.refund_bank_name,
+    refund_account_number: r.refund_account_number,
+    refund_account_name: r.refund_account_name,
+  };
+  Receipt.renderReturn(sheet, rt, StoreBranding.current());
+  backdrop.classList.add('visible');
+  StoreBranding.refresh().then((fresh) => {
+    if (backdrop.classList.contains('visible')) Receipt.renderReturn(sheet, rt, fresh);
+  });
+}
+
+async function loadTransferReturns() {
+  const tbody = document.getElementById('tr-returns-tbody');
+  const emptyState = document.getElementById('tr-returns-empty');
+  if (!tbody || !currentBranchId) return;
+  if (!Perms.can('manage_inventory')) return;
+  try {
+    const rows = await Api.listTransferReturns({ branchId: currentBranchId });
+    trReturnsCache = rows;
+    if (!rows.length) {
+      tbody.innerHTML = '';
+      emptyState.style.display = 'block';
+      return;
+    }
+    emptyState.style.display = 'none';
+    tbody.innerHTML = rows.map((r) => `
+      <tr>
+        <td>${trDate(r.requested_at)}</td>
+        <td>${escapeHtml(r.product_name || 'Product')}</td>
+        <td>${escapeHtml(branchName(r.to_branch_id))} \u2192 ${escapeHtml(branchName(r.from_branch_id))}</td>
+        <td>${r.quantity_pieces} pcs</td>
+        <td>${formatNaira(r.amount_naira)}</td>
+        <td>${trStatusCell(r)}</td>
+        <td>${trActionsCell(r)}</td>
+      </tr>`).join('');
+  } catch (err) {
+    tbody.innerHTML = '';
+    showToast(err.message, true);
+  }
+}
+
+document.getElementById('tr-returns-tbody')?.addEventListener('click', async (ev) => {
+  const btn = ev.target.closest('button[data-tr-act]');
+  if (!btn) return;
+  const act = btn.dataset.trAct;
+  const id = btn.dataset.id;
+  if (act === 'approve') { trOpenApproveModal(id); return; }
+  if (act === 'view') { trOpenViewModal(id); return; }
+  if (act === 'receipt') { trOpenReceipt(id); return; }
+  btn.disabled = true;
+  try {
+    if (act === 'accept') {
+      await Api.acceptTransferReturn(id);
+      showToast('Accepted. The sending branch can now approve the refund.');
+    } else if (act === 'decline') {
+      await Api.declineTransferReturn(id);
+      showToast('Declined.');
+    } else if (act === 'cancel') {
+      await Api.cancelTransferReturn(id);
+      showToast('Cancelled.');
+    }
+    loadTransfers();
+  } catch (err) {
+    showToast(err.message || 'That did not work.', true);
+    btn.disabled = false;
+  }
+});
 
 // ------------------------------------------------------- Warehouse ledger
 // Backstock sitting in this branch's own warehouse -- separate from
@@ -495,16 +1117,20 @@ async function loadWarehouseStock() {
 async function openPushHistoryModal(productId, productName, onHandPieces) {
   const backdrop = document.getElementById('push-history-backdrop');
   const tbody = document.getElementById('push-history-tbody');
-  document.getElementById('push-history-title').textContent = `Push history — ${productName}`;
+  document.getElementById('push-history-title').textContent = `Stock movements — ${productName}`;
   document.getElementById('push-history-on-hand').textContent = `${onHandPieces} piece(s)`;
   document.getElementById('push-history-total-pushed').textContent = '—';
   document.getElementById('push-history-total-cartons').textContent = '—';
   tbody.innerHTML = '<tr class="loading-row"><td colspan="4">Loading…</td></tr>';
   backdrop.classList.add('visible');
   try {
-    const pushes = await Api.listStockTransfers({
-      branchId: currentBranchId, productId, transferType: 'store_to_warehouse',
-    });
+    // fix54: every warehouse/shelf movement for this product, newest first
+    const allMoves = (await Promise.all(
+      ['store_to_warehouse', 'warehouse_to_store', 'shelf_to_warehouse', 'warehouse_to_branch']
+        .map((mt) => Api.listStockTransfers({ branchId: currentBranchId, productId, transferType: mt }))
+    )).flat().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    allMoves.forEach((m) => whMoveCache.set(m.id, m));
+    const pushes = allMoves.filter((m) => m.transfer_type === 'store_to_warehouse');
     const totalPushedPieces = pushes.reduce((sum, p) => sum + (p.quantity_pieces || 0), 0);
     const totalCartons = pushes.reduce((sum, p) => (
       sum + (p.unit_label === 'carton' ? (p.unit_count || 0) : (p.unit_label === 'mixed' ? (p.cartons_count || 0) : 0))
@@ -514,16 +1140,18 @@ async function openPushHistoryModal(productId, productName, onHandPieces) {
       pushes.some(whPushUsedOtherUnits) && totalCartons > 0
         ? `${totalCartons} (some pushes used other units)`
         : `${totalCartons}`;
-    if (!pushes.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--ink-faint);">No pushes recorded yet.</td></tr>';
+    if (!allMoves.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--ink-faint);">No stock movements recorded yet.</td></tr>';
       return;
     }
-    tbody.innerHTML = pushes.map((p) => `
+    tbody.innerHTML = allMoves.map((p) => `
       <tr>
         <td>${new Date(p.created_at).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })}</td>
-        <td>${whPushBreakdown(p)}</td>
+        <td>${escapeHtml(WAREHOUSE_MOVE_LABELS[p.transfer_type] || p.transfer_type)}</td>
+        <td>${p.transfer_type === 'store_to_warehouse' ? whPushBreakdown(p) : whTransferQtyText(p)}</td>
         <td>${escapeHtml(p.notes || '—')}</td>
         <td>${escapeHtml(p.created_by_name || 'Unknown')}</td>
+        <td><button type="button" class="btn btn-ghost wh-receipt-btn" data-receipt-id="${p.id}">View</button></td>
       </tr>`).join('');
   } catch (err) {
     tbody.innerHTML = '';
@@ -534,10 +1162,69 @@ document.getElementById('push-history-close')?.addEventListener('click', () => {
   document.getElementById('push-history-backdrop').classList.remove('visible');
 });
 
+// fix54: movement receipts (80mm slip, printed from a hidden frame)
+const whMoveCache = new Map();
+
+function whMoveReceiptNo(m) {
+  return 'MV-' + String(m.id).replace(/-/g, '').slice(0, 8).toUpperCase();
+}
+
+function whMoveRouteText(m) {
+  if (m.transfer_type === 'warehouse_to_branch') {
+    return branchName(m.from_branch_id) + ' warehouse to ' + branchName(m.to_branch_id) + ' shop';
+  }
+  if (m.transfer_type === 'store_to_warehouse' || m.transfer_type === 'shelf_to_warehouse') return 'Shelf to warehouse';
+  return 'Warehouse to shelf';
+}
+
+// fix55: movement receipt opens in the same preview window style as sale receipts
+function whOpenMoveReceipt(m) {
+  const sheet = document.getElementById('move-receipt-sheet');
+  const backdrop = document.getElementById('move-receipt-backdrop');
+  if (!sheet || !backdrop || typeof Receipt === 'undefined' || !Receipt.renderMovement || typeof StoreBranding === 'undefined') {
+    showToast('Receipt preview is not available. Press Ctrl+F5 and try again.', true);
+    return;
+  }
+  const mv = {
+    id: m.id,
+    receipt_no: whMoveReceiptNo(m),
+    created_at: m.created_at,
+    product_name: m.product_name || 'Unknown item',
+    quantity_pieces: m.quantity_pieces,
+    type_label: WAREHOUSE_MOVE_LABELS[m.transfer_type] || m.transfer_type,
+    route_text: whMoveRouteText(m),
+    created_by_name: m.created_by_name || 'Unknown',
+    notes: m.notes || '',
+    branch_id: m.from_branch_id,
+  };
+  Receipt.renderMovement(sheet, mv, StoreBranding.current());
+  backdrop.classList.add('visible');
+  StoreBranding.refresh().then((fresh) => {
+    if (backdrop.classList.contains('visible')) Receipt.renderMovement(sheet, mv, fresh);
+  });
+}
+
+document.getElementById('move-receipt-close')?.addEventListener('click', () => {
+  document.getElementById('move-receipt-backdrop').classList.remove('visible');
+});
+document.getElementById('move-receipt-print')?.addEventListener('click', () => Receipt.print());
+document.getElementById('move-receipt-backdrop')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('move-receipt-backdrop')) e.target.classList.remove('visible');
+});
+
+document.addEventListener('click', (ev) => {
+  const btn = ev.target && ev.target.closest ? ev.target.closest('.wh-receipt-btn') : null;
+  if (!btn) return;
+  const move = whMoveCache.get(btn.dataset.receiptId);
+  if (move) whOpenMoveReceipt(move);
+  else showToast('Receipt data not found. Reload the page and try again.', true);
+});
+
 const WAREHOUSE_MOVE_LABELS = {
   store_to_warehouse: 'Pushed to warehouse',
   warehouse_to_store: 'Pulled to store',
   warehouse_to_branch: 'Sent to another branch',
+  shelf_to_warehouse: 'Sent back from shelf to warehouse', // fix52
 };
 
 async function loadWarehouseHistory() {
@@ -545,14 +1232,15 @@ async function loadWarehouseHistory() {
   const emptyState = document.getElementById('wh-history-empty');
   if (!currentBranchId) return;
   const filterType = document.getElementById('wh-history-filter').value || undefined;
-  tbody.innerHTML = '<tr class="loading-row"><td colspan="6">Loading…</td></tr>';
+  tbody.innerHTML = '<tr class="loading-row"><td colspan="8">Loading…</td></tr>';
   try {
     const all = await Promise.all(
-      ['store_to_warehouse', 'warehouse_to_store', 'warehouse_to_branch']
+      ['store_to_warehouse', 'warehouse_to_store', 'warehouse_to_branch', 'shelf_to_warehouse']
         .filter((t) => !filterType || t === filterType)
         .map((t) => Api.listStockTransfers({ branchId: currentBranchId, transferType: t }))
     );
     const transfers = all.flat().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    transfers.forEach((t) => whMoveCache.set(t.id, t)); // fix54
     if (!transfers.length) {
       tbody.innerHTML = '';
       emptyState.style.display = 'block';
@@ -562,17 +1250,19 @@ async function loadWarehouseHistory() {
     tbody.innerHTML = transfers.map((t) => {
       const route = t.transfer_type === 'warehouse_to_branch'
         ? `${escapeHtml(branchName(t.from_branch_id))}'s warehouse → ${escapeHtml(branchName(t.to_branch_id))}'s shop`
-        : t.transfer_type === 'store_to_warehouse'
+        : (t.transfer_type === 'store_to_warehouse' || t.transfer_type === 'shelf_to_warehouse')
           ? `${escapeHtml(branchName(t.from_branch_id))}'s shop → its own warehouse`
           : `${escapeHtml(branchName(t.from_branch_id))}'s warehouse → its own shop`;
       return `
         <tr>
           <td>${new Date(t.created_at).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })}</td>
+          <td>${escapeHtml(t.product_name || 'Unknown item')}</td>
           <td>${escapeHtml(WAREHOUSE_MOVE_LABELS[t.transfer_type] || t.transfer_type)}</td>
           <td>${route}</td>
           <td>${whTransferQtyText(t)}</td>
           <td>${t.created_by_name ? escapeHtml(t.created_by_name) : '<span style="color:var(--ink-faint)">—</span>'}</td>
           <td>${t.notes ? escapeHtml(t.notes) : '<span style="color:var(--ink-faint)">—</span>'}</td>
+          <td><button type="button" class="btn btn-ghost wh-receipt-btn" data-receipt-id="${t.id}">View</button></td>
         </tr>`;
     }).join('');
   } catch (err) {
@@ -598,6 +1288,24 @@ async function loadWhSuppliers() {
   const select = document.getElementById('wh-supplier');
   try {
     whSupplierCache = await Api.listSuppliers();
+    // fix57: also list supplier names typed on invoices that were never saved as a supplier
+    try {
+      const known = new Set(whSupplierCache.map((s) => (s.name || '').trim().toLowerCase()));
+      const extra = [];
+      const addName = (raw) => {
+        const nm = (raw || '').trim();
+        const k = nm.toLowerCase();
+        if (!nm || known.has(k)) return;
+        known.add(k);
+        extra.push({ id: 'name:' + encodeURIComponent(nm), name: nm });
+      };
+      pushableInvoiceItemsCache.forEach((it) => addName(it.supplier_name));
+      if (currentBranchId) {
+        const invs = await Api.listPurchaseInvoices({ branchId: currentBranchId, excludeTransfers: true });
+        (invs || []).forEach((inv) => addName(inv.supplier_name));
+      }
+      whSupplierCache = whSupplierCache.concat(extra);
+    } catch (e) { /* fix57: keep the saved suppliers list if this extra lookup fails */ }
     const current = select.value;
     select.innerHTML = '<option value="">All suppliers</option>' +
       whSupplierCache.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
@@ -1440,7 +2148,7 @@ intakeSupplierSelect.addEventListener('change', async () => {
     return;
   }
   try {
-    intakeInvoiceCache = await Api.listPurchaseInvoices({ branchId: currentBranchId, supplierId: intakeSupplierSelect.value });
+    intakeInvoiceCache = await Api.listPurchaseInvoices({ branchId: currentBranchId, excludeTransfers: true, supplierId: intakeSupplierSelect.value });
     intakeInvoiceSelect.innerHTML = intakeInvoiceCache.length
       ? '<option value="">Select a delivery…</option>' + intakeInvoiceCache.map((inv) => `
           <option value="${inv.id}">
@@ -1564,3 +2272,4 @@ loadBranches().then(() => {
   loadWarehouseStock();
   loadWarehouseHistory();
 });
+// fix56: movement button reads View

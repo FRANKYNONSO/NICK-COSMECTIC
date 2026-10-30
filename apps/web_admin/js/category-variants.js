@@ -366,12 +366,6 @@ qapForm.addEventListener('submit', async (e) => {
   qapModalError.classList.remove('visible');
 
   const name = document.getElementById('qap-name').value.trim();
-  const costInput = document.getElementById('qap-cost').value;
-  // Optional, but asked for up front -- a product quick-added with no
-  // cost stays at NGN0 cost until it's properly restocked from
-  // Warehouse, which also means any loss recorded against it in the
-  // meantime shows NGN0.00 with no obvious reason why.
-  const costPriceNaira = costInput !== '' ? Number(costInput) : undefined;
   const barcode = document.getElementById('qap-barcode').value.trim() || null;
 
   if (!name) {
@@ -385,7 +379,6 @@ qapForm.addEventListener('submit', async (e) => {
     const product = await Api.createProduct({
       name,
       barcode,
-      ...(costPriceNaira !== undefined ? { cost_price_naira: costPriceNaira } : {}),
     });
 
     // Image upload needs a product id, so it happens as a follow-up

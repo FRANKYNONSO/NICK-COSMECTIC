@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/style.css" />
 <script src="js/theme.js"></script>
   <script src="js/numeric-input-fix.js"></script>
+  <script src="ui-dialog.js"></script>
 </head>
 <body>
 
@@ -71,6 +72,10 @@
     </div>
     </div>
 
+    <div class="table-card" id="invoice-total-card" style="padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <span style="color:var(--ink-muted);font-size:13px;">Total amount (invoices shown below)</span>
+      <span><strong id="invoice-total-amount" style="font-size:20px;"></strong> <span id="invoice-total-count" style="color:var(--ink-muted);font-size:13px;margin-left:8px;"></span></span>
+    </div>
     <div class="table-card" id="purchase-invoices-section">
       <table id="purchase-invoices-table">
         <thead>

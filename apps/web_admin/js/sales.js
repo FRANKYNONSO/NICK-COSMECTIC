@@ -126,14 +126,43 @@ async function loadSales() {
 
   try {
     salesCache = await Api.listSales({ branchId, dateFrom, dateTo, cashierId });
-    if (!salesCache.length) {
+    // Approved losses are shown in this list too (display-only rows).
+    let lossRows = [];
+    try {
+      lossRows = (await Api.lossesHistory({ branchId })) || [];
+    } catch (err) {
+      lossRows = []; // not every role can view losses -- not an error here
+    }
+    const lossFrom = dateFrom ? new Date(`${dateFrom}T00:00:00`) : null;
+    const lossTo = dateTo ? new Date(`${dateTo}T23:59:59.999`) : null;
+    lossRows = lossRows.filter((r) => {
+      const when = new Date(r.created_at);
+      if (lossFrom && when < lossFrom) return false;
+      if (lossTo && when > lossTo) return false;
+      if (cashierId && r.recorded_by !== cashierId) return false;
+      return true;
+    });
+    window.salesLossRows = lossRows;
+    if (!window.__salesLossViewBound) {
+      window.__salesLossViewBound = true;
+      document.addEventListener('click', (e) => {
+        const b = e.target.closest ? e.target.closest('[data-sales-loss-view]') : null;
+        if (!b) return;
+        e.preventDefault();
+        const r = (window.salesLossRows || []).find((x) => String(x.id) === b.dataset.salesLossView);
+        if (r && typeof showLossDetailModal === 'function' && typeof lossFromHistory === 'function') {
+          showLossDetailModal(lossFromHistory(r));
+        }
+      });
+    }
+    if (!salesCache.length && !lossRows.length) {
       table.style.display = 'none';
       emptyState.style.display = 'block';
       return;
     }
     tbody.innerHTML = salesCache.map((s) => `
       <tr>
-        <td class="mono">${escapeHtml((s.receipt_number || s.id).slice(0, 8))}…</td>
+        <td class="mono">${s.channel === 'transfer' ? '<span style="display:inline-block;padding:1px 7px;border-radius:999px;background:rgba(96,165,250,0.18);color:#60a5fa;font-size:11px;font-weight:600;margin-right:6px;">Branch transfer</span>' : ''}${escapeHtml((s.receipt_number || s.id).slice(0, 8))}…</td>
         <td><strong>${formatDateTime(s.created_at)}</strong></td>
         <td><strong>${escapeHtml(s.cashier_name || '—')}</strong></td>
         <td>${s.discount_naira ? '−' + formatNaira(s.discount_naira) : '—'}</td>
@@ -141,10 +170,29 @@ async function loadSales() {
         <td>${changeStatusBadge(s.pending_changes)}</td>
         <td class="row-actions-links">
           <a href="#" class="action-link action-link-view" data-view="${s.id}">View</a>
-          <a href="#" class="action-link action-link-refund" data-refund="${s.id}">Refund</a>
+          ${s.channel === 'transfer' ? '' : `<a href="#" class="action-link action-link-refund" data-refund="${s.id}">Refund</a>`}
         </td>
       </tr>`).join('');
 
+    if (lossRows.length) {
+      const saleTrs = Array.from(tbody.children);
+      const nodes = salesCache.map((s, i) => ({ t: new Date(s.created_at).getTime(), el: saleTrs[i] }));
+      lossRows.forEach((r) => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-loss-row', r.id);
+        tr.innerHTML = `
+          <td><span style="display:inline-block;padding:1px 7px;border-radius:999px;background:rgba(248,113,113,0.18);color:#f87171;font-size:11px;font-weight:600;margin-right:6px;">Loss</span>${escapeHtml(r.product_name || 'Item')} &times; ${r.quantity}</td>
+          <td><strong>${formatDateTime(r.created_at)}</strong></td>
+          <td><strong>${escapeHtml(r.recorded_by_name || '')}</strong></td>
+          <td>&mdash;</td>
+          <td><strong style="color:#f87171;">&minus;${formatNaira(r.value_naira)}</strong></td>
+          <td>&mdash;</td>
+          <td style="text-align:right;">${lossStatusTagHtml(r.category)}<div style="margin-top:7px;"><a href="#" data-sales-loss-view="${r.id}" style="display:inline-block;border:1px solid #4f8cff;color:#8db2ff;border-radius:999px;padding:3px 12px;font-size:12.5px;font-weight:500;line-height:1.3;text-decoration:none;text-transform:none;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:5px;" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>View</a></div></td>`;
+        nodes.push({ t: new Date(r.created_at).getTime(), el: tr });
+      });
+      nodes.sort((a, b) => b.t - a.t);
+      tbody.replaceChildren(...nodes.map((n) => n.el));
+    }
     salesCache.forEach((s) => {
       document.querySelector(`[data-view="${s.id}"]`)?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -184,9 +232,32 @@ const refundPanel = document.getElementById('refund-panel');
 const refundToggle = document.getElementById('receipt-refund-toggle');
 let currentReceiptSale = null;
 
+// fix05: outlined status tag for loss rows (expired = amber, damaged = red)
+function lossStatusTagHtml(cat) {
+  const c = String(cat || '');
+  const colors = { expired: ['rgba(245,166,35,.14)', '#d9a24a'], damaged: ['rgba(248,113,113,.14)', '#e08888'] };
+  const pair = colors[c] || ['rgba(143,160,191,.14)', '#9aa8c4'];
+  return '<span style="display:inline-block;background:' + pair[0] + ';color:' + pair[1]
+    + ';border-radius:6px;padding:2px 10px;font-size:12px;font-weight:500;line-height:1.4;text-transform:capitalize;">'
+    + escapeHtml(c.replace(/_/g, ' ')) + '</span>';
+}
 async function openReceipt(saleId) {
   try {
     const sale = await Api.getSale(saleId);
+    // The sale's own refunds list may not carry the itemized lines.
+    // For any refund that arrives without items, pull them from the
+    // refund detail record (same source as the Refund History
+    // "Details" receipt) so the main receipt can show what was refunded.
+    if (Array.isArray(sale.refunds) && sale.refunds.length) {
+      await Promise.all(sale.refunds.map(async (r) => {
+        const hasLines = (r.items && r.items.length) || (r.lines && r.lines.length);
+        if (hasLines || !r.id) return;
+        try {
+          const detail = await Api.getRefundDetail(r.id);
+          if (detail && Array.isArray(detail.items) && detail.items.length) r.items = detail.items;
+        } catch (e) { /* leave this refund without item lines */ }
+      }));
+    }
     currentReceiptSale = sale;
     const created = new Date(sale.created_at);
     const receiptNumber = (sale.receipt_number || sale.id || '').toString();
@@ -196,7 +267,7 @@ async function openReceipt(saleId) {
     // Refund is only possible against a sale that's still (partially)
     // active, or an open booking (spec section 13) -- matches the
     // server's own check in POST /sales/{id}/refund.
-    const refundable = ['completed', 'partially_refunded', 'booking'].includes(sale.status || 'completed');
+    const refundable = ['completed', 'partially_refunded', 'booking'].includes(sale.status || 'completed') && sale.channel !== 'transfer';
     refundToggle.style.display = refundable ? '' : 'none';
     refundPanel.style.display = 'none';
     document.getElementById('refund-error').classList.remove('visible');
@@ -336,12 +407,42 @@ document.getElementById('refund-exchange-variant').addEventListener('change', up
 document.getElementById('refund-exchange-qty').addEventListener('input', updateExchangePricePreview);
 document.getElementById('refund-tbody').addEventListener('input', updateExchangePricePreview);
 
+// Restock and Spoiled are mutually exclusive per item: ticking one
+// automatically unticks the other (a returned item is either put back
+// on the shelf or written off as spoiled, never both).
+document.getElementById('refund-tbody').addEventListener('change', (e) => {
+  const t = e.target;
+  if (!t || t.type !== 'checkbox' || !t.checked) return;
+  if (t.dataset.refundRestock) {
+    const other = document.querySelector(`[data-refund-spoiled="${t.dataset.refundRestock}"]`);
+    if (other) other.checked = false;
+  } else if (t.dataset.refundSpoiled) {
+    const other = document.querySelector(`[data-refund-restock="${t.dataset.refundSpoiled}"]`);
+    if (other) other.checked = false;
+  }
+});
+
 function updateSettlementBankFields() {
   const isTransfer = document.getElementById('refund-settlement-method').value === 'transfer';
   document.getElementById('refund-settlement-bank-fields').style.display = isTransfer ? 'block' : 'none';
 }
 document.getElementById('refund-settlement-method').addEventListener('change', updateSettlementBankFields);
 
+// Restock and Spoiled are mutually exclusive per item: ticking one
+// unticks the other (both can be left unticked = refunded, not put back).
+document.getElementById('refund-tbody').addEventListener('change', (e) => {
+  const box = e.target;
+  if (!box || box.type !== 'checkbox' || !box.checked) return;
+  const row = box.closest('tr');
+  if (!row) return;
+  if (box.hasAttribute('data-refund-restock')) {
+    const other = row.querySelector('[data-refund-spoiled]');
+    if (other) other.checked = false;
+  } else if (box.hasAttribute('data-refund-spoiled')) {
+    const other = row.querySelector('[data-refund-restock]');
+    if (other) other.checked = false;
+  }
+});
 document.getElementById('refund-submit').addEventListener('click', async () => {
   if (!currentReceiptSale) return;
   const errorEl = document.getElementById('refund-error');
@@ -1015,7 +1116,7 @@ async function loadBookingHistory() {
   tbody.innerHTML = '<tr class="loading-row"><td colspan="5">Loading…</td></tr>';
   let entries;
   try {
-    entries = await Api.auditLog({ entityType: 'sale', limit: 300 });
+    entries = await Api.auditLog({ entityType: 'sale', limit: 300, branchId: BranchContext.get() });
   } catch (err) {
     tbody.innerHTML = '';
     showToast(err.message, true);
@@ -1155,6 +1256,7 @@ Promise.all([loadBranchFilter(), Perms.isStaff() ? Promise.resolve() : loadCashi
 window.addEventListener('branch-context-changed', () => {
   loadSales();
   loadBookings();
+  if (activeTab === 'bookings') loadBookingHistory();
   if (activeTab === 'refunds') loadRefundHistory();
 });
 // PATCH3E-SWAP-LABELS

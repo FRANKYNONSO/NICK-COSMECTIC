@@ -14,6 +14,7 @@
   <script src="js/numeric-input-fix.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
         onerror="window.__chartLoadFailed = true"></script>
+  <script src="ui-dialog.js"></script>
 </head>
 <body>
 
@@ -111,6 +112,39 @@
     <div class="section-eyebrow" style="margin-top:24px;">Inventory analytics</div>
     <div class="section-hint" id="stock-overview-hint">— products · — units · — value</div>
 
+    <div class="toolbar" style="margin:8px 0 12px;gap:10px;align-items:center;flex-wrap:wrap;">
+      <label for="analysis-window" style="font-size:12px;color:var(--ink-muted);">Sales window for top sellers &amp; slow movers</label>
+      <select id="analysis-window" style="width:auto;">
+        <option value="30">Last 30 days</option>
+        <option value="90" selected>Last 90 days</option>
+        <option value="180">Last 180 days</option>
+        <option value="365">Last 12 months</option>
+      </select>
+    </div>
+
+    <div class="kpi-row" id="inventory-kpis">
+      <div class="kpi-card">
+        <div class="label">Retail value of stock</div>
+        <div class="value" id="inv-kpi-retail">—</div>
+        <div class="sub">Units on hand × selling price</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Cost value of stock</div>
+        <div class="value" id="inv-kpi-cost">—</div>
+        <div class="sub" id="inv-kpi-cost-sub">Units on hand × cost price</div>
+      </div>
+      <div class="kpi-card revenue">
+        <div class="label">Potential margin</div>
+        <div class="value" id="inv-kpi-margin">—</div>
+        <div class="sub" id="inv-kpi-margin-sub">Retail minus cost</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Needs reordering</div>
+        <div class="value" id="inv-kpi-reorder">—</div>
+        <div class="sub" id="inv-kpi-reorder-sub">Out of stock or low</div>
+      </div>
+    </div>
+
     <div class="chart-card">
       <div class="card-head">
         <span class="card-icon success"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg></span>
@@ -147,8 +181,68 @@
 
     <div class="table-card" style="margin-bottom:24px;">
       <table class="wh-table wh-flush">
-        <thead><tr><th>Category</th><th>Products</th><th>Units</th><th>Stock value</th><th>Share of units</th></tr></thead>
+        <thead><tr><th>Category</th><th>Products</th><th>Units</th><th>Retail value</th><th>Share of units</th></tr></thead>
         <tbody id="category-breakdown-tbody"></tbody>
+      </table>
+    </div>
+
+    <div style="margin:-12px 0 24px;">
+      <button type="button" class="btn btn-ghost btn-sm" id="export-category-btn" style="width:auto;">Export category breakdown (CSV)</button>
+    </div>
+
+    <!-- Reorder list -->
+    <div class="table-card admin-only-section" id="reorder-card" style="margin-top:24px;">
+      <div class="wh-card-head-row">
+        <div>
+          <h3>Reorder list</h3>
+          <p id="reorder-sub">Products that are out of stock or at/below their reorder level.</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <a href="restock-list.html" class="btn btn-ghost btn-sm" style="width:auto;text-decoration:none;">Open restock list</a>
+          <button type="button" class="btn btn-ghost btn-sm" id="export-reorder-btn" style="width:auto;">Export CSV</button>
+        </div>
+      </div>
+      <table class="wh-table">
+        <thead><tr><th>Product</th><th>Category</th><th>Status</th><th>On hand</th><th>Reorder level</th><th>Below level by</th></tr></thead>
+        <tbody id="reorder-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="reorder-empty" style="display:none;"><div class="display">Nothing needs reordering</div></div>
+    </div>
+
+    <!-- Expiry -->
+    <div class="table-card admin-only-section" id="expiry-card" style="margin-top:24px;">
+      <h3 class="wh-card-title">Expiry watch</h3>
+      <p class="wh-card-sub" id="expiry-sub">Stock that has expired or expires within 90 days.</p>
+      <table class="wh-table">
+        <thead><tr><th>Product</th><th>Category</th><th>On hand</th><th>Expiry date</th><th>Status</th></tr></thead>
+        <tbody id="expiry-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="expiry-empty" style="display:none;"><div class="display" id="expiry-empty-text">Nothing expiring soon</div></div>
+    </div>
+
+    <!-- Slow movers -->
+    <div class="table-card admin-only-section" id="slow-card" style="margin-top:24px;">
+      <div class="wh-card-head-row">
+        <div>
+          <h3>Slow-moving &amp; dead stock</h3>
+          <p id="slow-sub">In-stock products with no sales, or more than 180 days of cover, in the selected window.</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="export-slow-btn" style="width:auto;">Export CSV</button>
+      </div>
+      <table class="wh-table">
+        <thead><tr><th>Product</th><th>Category</th><th>On hand</th><th>Sold in window</th><th>Days of cover</th><th>Tied-up value</th></tr></thead>
+        <tbody id="slow-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="slow-empty" style="display:none;"><div class="display">No slow movers found</div></div>
+    </div>
+
+    <!-- Branch comparison: only shown on "All branches" -->
+    <div class="table-card admin-only-section" id="branch-compare-card" style="display:none;margin-top:24px;">
+      <h3 class="wh-card-title">Branch comparison</h3>
+      <p class="wh-card-sub">Stock position by branch (carried products only).</p>
+      <table class="wh-table">
+        <thead><tr><th>Branch</th><th>Products</th><th>Units</th><th>Retail value</th><th>Low stock</th><th>Out of stock</th></tr></thead>
+        <tbody id="branch-compare-tbody"></tbody>
       </table>
     </div>
 
@@ -166,6 +260,7 @@
         </div>
       </div>
       <div class="value" id="reports-losses-total" style="font-size:28px;font-weight:700;margin:6px 0 14px;">—</div>
+      <div id="reports-losses-breakdown" style="margin:0 0 14px;"></div>
       <a href="sales.html#losses" class="btn btn-ghost btn-sm" style="width:auto;text-decoration:none;">View full losses history →</a>
     </div>
 
@@ -187,7 +282,7 @@
       <h3 class="wh-card-title">Sales by worker</h3>
       <p class="wh-card-sub">Team performance over the last year</p>
       <table class="wh-table">
-        <thead><tr><th>Worker</th><th>Today</th><th>This week</th><th>This month</th><th>All time</th><th>Sales</th></tr></thead>
+        <thead><tr><th>Worker</th><th>Today</th><th>This week</th><th>This month</th><th>Last 12 months</th><th>Sales</th></tr></thead>
         <tbody id="worker-sales-tbody"></tbody>
       </table>
     </div>

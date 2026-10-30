@@ -11,12 +11,15 @@ class BranchCreate(BaseModel):
     # the New Branch modal. phone/is_warehouse are gone entirely.
     address: str = Field(min_length=1, max_length=300)
     name: str = Field(min_length=1, max_length=200)
+    support_line: str | None = Field(default=None, max_length=40)
 
 
 class BranchOut(BaseModel):
     id: uuid.UUID
     address: str | None
     name: str
+    support_line: str | None = None
+    is_suspended: bool = False
 
     model_config = {"from_attributes": True}
 

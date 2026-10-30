@@ -56,6 +56,13 @@ class StockTransferCreate(BaseModel):
     # branch_to_branch transfer (this endpoint's only transfer_type),
     # unlike the warehouse-internal move types.
     payment_method: str = Field(pattern="^(cash|transfer)$")
+    # XFER1-TRANSFER-AS-SALE: price per piece the receiving branch pays.
+    # Empty = the item's selling price (or wholesale price at/above its
+    # wholesale quantity). A typed price overrides it.
+    unit_price_naira: float | None = Field(default=None, ge=0)
+    # XFER2-SHELF-OR-WAREHOUSE: where the pieces are taken from first (the other
+    # place covers any shortfall).
+    take_from: str = Field(default="shelf", pattern="^(shelf|warehouse|both)$")
 
 
 class StockTransferOut(BaseModel):
@@ -88,8 +95,22 @@ class StockTransferOut(BaseModel):
     # September 2026 change spec section 19.
     total_cost_naira: float | None = None
     payment_method: str | None = None
+    unit_price_naira: float | None = None
+    total_price_naira: float | None = None
+    price_basis: str | None = None
+    sale_id: uuid.UUID | None = None
+    # RET2: invoice made for the receiving branch, and how much has gone back.
+    invoice_id: uuid.UUID | None = None
+    returned_pieces: int = 0
+    open_return_pieces: int = 0
+    # XFER2-SHELF-OR-WAREHOUSE: only filled on the response to a new transfer.
+    from_shelf_pieces: int | None = None
+    from_warehouse_pieces: int | None = None
+    to_shelf_pieces: int | None = None
+    to_warehouse_pieces: int | None = None
     created_by: uuid.UUID | None
     created_by_name: str | None = None
+    product_name: str | None = None  # fix54
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -2234,6 +2234,14 @@ async def refund_sale(
     orm_sale = await session.get(ORMSale, sale_id)
     if orm_sale is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Sale not found")
+    if orm_sale.channel == "transfer":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "A branch transfer cannot be refunded as a customer sale. "
+                "Use Request back or Return items on the Warehouse page."
+            ),
+        )
     # 'booking' included (spec section 13: Open Booking gets the same
     # refund flow as a normal sale) alongside the pre-existing
     # completed/partially_refunded sale statuses.
@@ -2314,6 +2322,9 @@ async def refund_sale(
             await session.flush()
             session.add(ORMStockAdjustment(
                 stock_batch_id=spoiled_batch.id,
+                branch_id=orm_sale.branch_id,
+                value_kobo=line.quantity * sale_item.unit_price_kobo,
+                status="pending_review",
                 adjusted_by=current_user.id,
                 quantity_delta=-line.quantity,
                 reason="damaged",

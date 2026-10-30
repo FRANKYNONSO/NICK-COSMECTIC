@@ -141,8 +141,8 @@ async def delete_role(
     role = await repo.get_by_name(name)
     if role is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Role '{name}' not found")
-    if role.is_system:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="System roles can't be deleted")
+    if role.name == "super_admin":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="The super admin role can't be deleted")
 
     in_use = await repo.count_users_with_role(name)
     if in_use:

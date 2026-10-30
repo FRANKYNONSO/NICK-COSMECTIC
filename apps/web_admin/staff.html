@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/style.css" />
 <script src="js/theme.js"></script>
   <script src="js/numeric-input-fix.js"></script>
+  <script src="ui-dialog.js"></script>
 </head>
 <body>
 
@@ -230,6 +231,8 @@
           <tr>
             <th>Name</th>
             <th>Address</th>
+            <th>Support line</th>
+            <th>Status</th>
             <th>Shift closing time</th>
             <th class="th-actions">Actions</th>
           </tr>
@@ -596,6 +599,10 @@
       <div class="field">
         <label for="address">Street address</label>
         <input type="text" id="address" placeholder="e.g. 12 Allen Avenue" required />
+      </div>
+      <div class="field">
+        <label for="support-line">Support line</label>
+        <input type="text" id="support-line" placeholder="e.g. 0803 000 0000 (shown on receipts)" />
       </div>
       <div class="modal-actions">
         <button type="button" class="btn btn-ghost" id="branch-modal-cancel">Cancel</button>

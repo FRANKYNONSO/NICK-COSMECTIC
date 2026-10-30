@@ -492,25 +492,175 @@ async def create_stock_transfer(
 
     quantity_pieces = body.unit_count * body.pieces_per_unit
 
-    avg_unit_cost_kobo = await _fifo_deduct(
-        session, body.product_id, body.from_branch_id, quantity_pieces
+    from api.v1.transfer_pricing import branch_selling_price_kobo, default_transfer_price
+
+    # XFER1-TRANSFER-AS-SALE: a branch-to-branch transfer is a sale from the
+    # sending branch to the receiving one. Default price = the item's selling
+    # price, or its wholesale price at/above the wholesale quantity; a price
+    # typed by the manager overrides it.
+    selling_kobo = await branch_selling_price_kobo(session, body.from_branch_id, variant)
+    default_price_kobo, default_basis = default_transfer_price(
+        selling_kobo,
+        variant.wholesale_price_kobo,
+        variant.wholesale_min_quantity,
+        quantity_pieces,
     )
-    # September 2026 change spec section 19: priced at the item's
-    # original invoice/supplier cost (this same quantity-weighted
-    # average FIFO cost basis), never the retail selling price -- this
-    # is an internal accountability transfer between branches of the
-    # same business, not a retail sale.
+    if body.unit_price_naira is None:
+        unit_price_kobo, price_basis = default_price_kobo, default_basis
+    else:
+        unit_price_kobo = Money.from_naira(body.unit_price_naira).kobo
+        price_basis = default_basis if unit_price_kobo == default_price_kobo else "custom"
+    total_price_kobo = unit_price_kobo * quantity_pieces
+
+    from api.v1.transfer_pricing import (
+        branch_shelf_limit,
+        plan_transfer_split,
+        shelf_pieces,
+        transfer_split_text,
+    )
+
+    # XFER2-SHELF-OR-WAREHOUSE: lock both warehouse rows in a fixed order (same
+    # rule as transfer_warehouse_to_branch), then take from the chosen place
+    # first and the other one for any shortfall.
+    if str(body.to_branch_id) < str(body.from_branch_id):
+        dest_wh_row = await _lock_branch_warehouse_row(session, body.to_branch_id, body.product_id)
+        src_wh_row = await _get_or_create_warehouse_row(session, body.from_branch_id, body.product_id)
+    else:
+        src_wh_row = await _get_or_create_warehouse_row(session, body.from_branch_id, body.product_id)
+        dest_wh_row = await _lock_branch_warehouse_row(session, body.to_branch_id, body.product_id)
+    shelf_available = await shelf_pieces(session, body.from_branch_id, body.product_id)
+    warehouse_available = int(src_wh_row.quantity_pieces)
+    plan = plan_transfer_split(
+        quantity_pieces,
+        body.take_from,
+        shelf_available,
+        warehouse_available,
+        await shelf_pieces(session, body.to_branch_id, body.product_id),
+        await branch_shelf_limit(session, body.to_branch_id, body.product_id),
+    )
+    if plan is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Not enough stock at the source branch to transfer {quantity_pieces} piece(s) -- "
+                f"only {shelf_available + warehouse_available} available in total "
+                f"(shelf {shelf_available}, warehouse {warehouse_available})."
+            ),
+        )
+    split_text = transfer_split_text(plan)
+    shelf_cost_kobo = 0
+    if plan["from_shelf"] > 0:
+        shelf_avg_kobo = await _fifo_deduct(session, body.product_id, body.from_branch_id, plan["from_shelf"])
+        shelf_cost_kobo = shelf_avg_kobo * plan["from_shelf"]
+    src_wh_row.quantity_pieces -= plan["from_warehouse"]
+    avg_unit_cost_kobo = (
+        shelf_cost_kobo + int(variant.cost_price_kobo or 0) * plan["from_warehouse"]
+    ) // quantity_pieces
+    # XFER1: total_cost_kobo is now only the sending branch's own cost
+    # (the quantity-weighted average FIFO cost basis), kept for profit
+    # tracking. The receiving branch is charged unit_price_kobo.
     total_cost_kobo = avg_unit_cost_kobo * quantity_pieces
 
     new_batch = StockBatch(
         product_id=body.product_id,
         branch_id=body.to_branch_id,
         batch_number=f"transfer-{body.unit_label}",
-        quantity_received=quantity_pieces,
-        quantity_remaining=quantity_pieces,
-        unit_cost_kobo=avg_unit_cost_kobo,
+        quantity_received=plan["to_shelf"],
+        quantity_remaining=plan["to_shelf"],
+        unit_cost_kobo=unit_price_kobo,  # XFER1: the receiving branch's cost is what it paid
     )
-    session.add(new_batch)
+    if plan["to_shelf"] > 0:
+        session.add(new_batch)
+    dest_wh_row.quantity_pieces += plan["to_warehouse"]
+
+    from datetime import datetime, timezone
+    from infrastructure.db.models import Sale as ORMSale
+    from infrastructure.db.models import SaleItem as ORMSaleItem
+    from infrastructure.db.models import SalePayment as ORMSalePayment
+
+    from_branch = await session.get(Branch, body.from_branch_id)
+    to_branch = await session.get(Branch, body.to_branch_id)
+    route_note = f"Branch transfer: {from_branch.name} \u2192 {to_branch.name}"
+    if body.notes:
+        route_note += f" ({body.notes})"
+    route_note += f" | {split_text}"
+    transfer_sale = ORMSale(
+        branch_id=body.from_branch_id,
+        customer_id=None,
+        served_by=current_user.id,
+        shift_id=None,
+        channel="transfer",
+        status="completed",
+        subtotal_kobo=total_price_kobo,
+        discount_kobo=0,
+        total_kobo=total_price_kobo,
+        payment_method=body.payment_method,
+        local_ref_id=f"transfer-{uuid.uuid4()}",
+        notes=route_note,
+    )
+    session.add(transfer_sale)
+    await session.flush()  # gives the sale its id
+    session.add(
+        ORMSaleItem(
+            sale_id=transfer_sale.id,
+            product_id=body.product_id,
+            stock_batch_id=None,
+            quantity=quantity_pieces,
+            unit_price_kobo=unit_price_kobo,
+            line_total_kobo=total_price_kobo,
+        )
+    )
+    session.add(
+        ORMSalePayment(
+            sale_id=transfer_sale.id,
+            method=body.payment_method,
+            amount_kobo=total_price_kobo,
+            recorded_by=current_user.id,
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+
+    # XFER5: the receiving branch gets an invoice for what it bought. Saved in
+    # the same transaction as the sale and the transfer: all or nothing.
+    from datetime import timedelta
+
+    product_row = await session.get(Product, body.product_id)
+    arrive_parts = []
+    if plan["to_shelf"]:
+        arrive_parts.append(f"shelf {plan['to_shelf']}")
+    if plan["to_warehouse"]:
+        arrive_parts.append(f"warehouse {plan['to_warehouse']}")
+    arrive_text = " + ".join(arrive_parts) or "shelf 0"
+    invoice_payment = {"transfer": "bank_transfer"}.get(
+        body.payment_method, body.payment_method or "not_specified"
+    )
+    transfer_invoice = PurchaseInvoice(
+        branch_id=body.to_branch_id,
+        status="completed",
+        source="branch_transfer",
+        supplier_name=f"{from_branch.name} (branch transfer)",
+        invoice_date=(datetime.now(timezone.utc) + timedelta(hours=1)).date(),
+        amount_kobo=total_price_kobo,
+        amount_paid_kobo=total_price_kobo,
+        description=f"Branch transfer from {from_branch.name} to {to_branch.name}. Arrives as {arrive_text}.",
+        invoice_number="TRF-" + str(transfer_sale.id)[:8].upper(),
+        payment_method=invoice_payment,
+        created_by=current_user.id,
+    )
+    session.add(transfer_invoice)
+    await session.flush()  # gives the invoice its id
+    session.add(
+        PurchaseInvoiceLineItem(
+            invoice_id=transfer_invoice.id,
+            position=0,
+            item_name=product_row.name if product_row is not None else "Transferred item",
+            product_id=None,
+            quantity=quantity_pieces,
+            unit_label="pieces",
+            rate_kobo=unit_price_kobo,
+            line_total_kobo=total_price_kobo,
+        )
+    )
 
     transfer = StockTransfer(
         product_id=body.product_id,
@@ -522,9 +672,13 @@ async def create_stock_transfer(
         pieces_per_unit=body.pieces_per_unit,
         quantity_pieces=quantity_pieces,
         receipt_id=body.receipt_id,
-        notes=body.notes,
+        notes=((body.notes + " | ") if body.notes else "") + split_text,
         total_cost_kobo=total_cost_kobo,
         payment_method=body.payment_method,
+        unit_price_kobo=unit_price_kobo,
+        price_basis=price_basis,
+        sale_id=transfer_sale.id,
+        invoice_id=transfer_invoice.id,
         created_by=current_user.id,
     )
     session.add(transfer)
@@ -547,10 +701,111 @@ async def create_stock_transfer(
         notes=transfer.notes,
         total_cost_naira=Money(transfer.total_cost_kobo).naira if transfer.total_cost_kobo is not None else None,
         payment_method=transfer.payment_method,
+        unit_price_naira=Money(transfer.unit_price_kobo).naira if transfer.unit_price_kobo is not None else None,
+        total_price_naira=(
+            Money(transfer.unit_price_kobo * transfer.quantity_pieces).naira
+            if transfer.unit_price_kobo is not None else None
+        ),
+        price_basis=transfer.price_basis,
+        sale_id=transfer.sale_id,
+        from_shelf_pieces=plan["from_shelf"],
+        from_warehouse_pieces=plan["from_warehouse"],
+        to_shelf_pieces=plan["to_shelf"],
+        to_warehouse_pieces=plan["to_warehouse"],
         created_by=transfer.created_by,
         created_by_name=current_user.full_name,
         created_at=transfer.created_at,
     )
+
+
+@router.get("/transfer-split-preview")
+async def preview_transfer_split(
+    product_id: uuid.UUID,
+    from_branch_id: uuid.UUID,
+    to_branch_id: uuid.UUID,
+    quantity_pieces: int,
+    take_from: str = "shelf",
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_permission("manage_inventory")),
+) -> dict:
+    """XFER2-SHELF-OR-WAREHOUSE: live figures for the transfer form and the
+    confirm screen -- what the sending branch holds (shelf / warehouse), where
+    the pieces would be taken from, and how they would land at the receiving
+    branch. Read-only: nothing is locked or changed."""
+    from api.v1.transfer_pricing import (
+        branch_shelf_limit,
+        plan_transfer_split,
+        shelf_pieces,
+        transfer_split_text,
+        warehouse_pieces,
+    )
+
+    take = "warehouse" if take_from in ("warehouse", "both") else "shelf"
+    shelf = await shelf_pieces(session, from_branch_id, product_id)
+    warehouse = await warehouse_pieces(session, from_branch_id, product_id)
+    limit = await branch_shelf_limit(session, to_branch_id, product_id)
+    dest_now = await shelf_pieces(session, to_branch_id, product_id)
+    qty = int(quantity_pieces)
+    plan = plan_transfer_split(qty, take, shelf, warehouse, dest_now, limit)
+    out = {
+        "ok": plan is not None,
+        "message": None,
+        "shelf_available": shelf,
+        "warehouse_available": warehouse,
+        "total_available": shelf + warehouse,
+        "dest_shelf_limit": limit,
+        "dest_shelf_now": dest_now,
+        "take_from": take,
+    }
+    if plan is None:
+        out["message"] = (
+            "Enter a quantity greater than 0."
+            if qty <= 0
+            else (
+                f"Not enough stock at the source branch to transfer {qty} piece(s) -- "
+                f"only {shelf + warehouse} available in total (shelf {shelf}, warehouse {warehouse})."
+            )
+        )
+        return out
+    out.update(plan)
+    out["text"] = transfer_split_text(plan)
+    return out
+
+
+@router.get("/transfer-price-preview")
+async def preview_transfer_price(
+    product_id: uuid.UUID,
+    quantity_pieces: int,
+    from_branch_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_permission("manage_inventory")),
+) -> dict:
+    """XFER1-TRANSFER-AS-SALE: the default price per piece for a branch-to-
+    branch transfer (selling price, or wholesale price at/above the wholesale
+    quantity). Price only -- no stock check, so the form can show it live."""
+    from api.v1.transfer_pricing import branch_selling_price_kobo, default_transfer_price
+
+    product = await session.get(Product, product_id)
+    if product is None or product.is_deleted:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
+    qty = max(int(quantity_pieces), 1)
+    selling_kobo = (
+        await branch_selling_price_kobo(session, from_branch_id, product)
+        if from_branch_id is not None else int(product.selling_price_kobo or 0)
+    )
+    price_kobo, basis = default_transfer_price(
+        selling_kobo, product.wholesale_price_kobo, product.wholesale_min_quantity, qty
+    )
+    return {
+        "selling_price_naira": Money(selling_kobo).naira,
+        "wholesale_price_naira": (
+            Money(product.wholesale_price_kobo).naira if product.wholesale_price_kobo is not None else None
+        ),
+        "wholesale_min_quantity": product.wholesale_min_quantity,
+        "default_unit_price_naira": Money(price_kobo).naira,
+        "default_price_basis": basis,
+        "default_total_price_naira": Money(price_kobo * qty).naira,
+    }
 
 
 @router.get("/transfer-cost-preview")
@@ -871,6 +1126,7 @@ async def list_pushable_invoice_items(
         select(PurchaseInvoiceLineItem, PurchaseInvoice)
         .join(PurchaseInvoice, PurchaseInvoiceLineItem.invoice_id == PurchaseInvoice.id)
         .where((PurchaseInvoice.branch_id == branch_id) | (PurchaseInvoice.branch_id.is_(None)))
+        .where(PurchaseInvoice.source.is_distinct_from("branch_transfer"))
         .order_by(PurchaseInvoice.invoice_date.desc())
     )
     rows = result.all()
@@ -975,6 +1231,11 @@ async def link_invoice_line_item_product(
     if line_item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Invoice line item not found")
     invoice = await session.get(PurchaseInvoice, line_item.invoice_id)
+    if invoice is not None and invoice.source == "branch_transfer":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="This invoice was made by a branch transfer. Its goods are already in stock and cannot be pushed to the warehouse.",
+        )
     if (
         invoice is not None
         and invoice.branch_id is not None
@@ -1106,6 +1367,11 @@ async def push_to_warehouse(
                     detail="That invoice line item is for a different product/variant.",
                 )
         invoice = await session.get(PurchaseInvoice, line_item.invoice_id)
+        if invoice is not None and invoice.source == "branch_transfer":
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail="This invoice was made by a branch transfer. Its goods are already in stock and cannot be pushed to the warehouse.",
+            )
         if invoice is not None and invoice.branch_id is not None and invoice.branch_id != branch_id:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
@@ -1156,6 +1422,25 @@ async def push_to_warehouse(
                     ),
                 )
 
+    # PUSH-NOTE-FIX (patch 24a): a push with no typed note gets an
+    # automatic note saying which invoice the goods came from.
+    _push_note = (body.notes or "").strip() or None
+    if _push_note is None:
+        if body.invoice_line_item_id is not None:
+            _text = "Pushed from invoice"
+            _sup = ((invoice.supplier_name or "").strip()) if invoice is not None else ""
+            if _sup:
+                _text += ": " + _sup
+            if invoice is not None and invoice.invoice_date is not None:
+                _d = invoice.invoice_date
+                _text += (", dated " if _sup else " dated ") + str(_d.day) + " " + _d.strftime("%b %Y")
+            _num = ((invoice.invoice_number or "").strip()) if invoice is not None else ""
+            if _num:
+                _text += " (No. " + _num + ")"
+            _push_note = _text
+        else:
+            _push_note = "Pushed from invoice photo (no invoice line linked)"
+
     # NOTE: deliberately no shop-floor StockBatch deduction here -- see
     # docstring. Pushing to the warehouse documents backstock; it does
     # not remove anything from what's sellable on the shop floor.
@@ -1186,7 +1471,7 @@ async def push_to_warehouse(
         bags_half=bool(body.bags_half) if is_components else False,
         pieces_count=body.pieces_count if is_components else None,
         invoice_line_item_id=body.invoice_line_item_id,
-        notes=body.notes,
+        notes=_push_note,
         created_by=current_user.id,
     )
     session.add(transfer)
@@ -1313,15 +1598,8 @@ async def pull_to_store(
                 f"only {warehouse_row.quantity_pieces} available"
             ),
         )
-    await _enforce_shelf_limit(
-        session,
-        branch_id,
-        variant,
-        quantity_pieces,
-        current_user=current_user,
-        override=override_shelf_limit,
-        override_reason=override_reason,
-    )
+    # fix45: restocking from the warehouse may put more on the shelf than the shelf limit
+    # (for example a big customer order). The saved limit is left unchanged.
     warehouse_row.quantity_pieces -= quantity_pieces
     await _create_store_batch(session, branch_id, variant, quantity_pieces, body.unit_label)
 
@@ -1334,7 +1612,7 @@ async def pull_to_store(
         unit_count=body.unit_count,
         pieces_per_unit=body.pieces_per_unit,
         quantity_pieces=quantity_pieces,
-        notes=body.notes,
+        notes=body.notes or "Restock: moved from the warehouse to the shelf",  # fix52
         created_by=current_user.id,
     )
     session.add(transfer)
@@ -1580,6 +1858,33 @@ async def list_stock_transfers(
         users_result = await session.execute(select(User).where(User.id.in_(creator_ids)))
         creator_names = {u.id: u.full_name for u in users_result.scalars().all()}
 
+    # fix54: product names so the history tables can show which item moved
+    product_ids = {t.product_id for t in transfers}
+    product_names: dict[uuid.UUID, str] = {}
+    if product_ids:
+        products_result = await session.execute(select(Product).where(Product.id.in_(product_ids)))
+        product_names = {pr.id: pr.name for pr in products_result.scalars().all()}
+
+    # RET2: how many pieces of each transfer have gone back, and how many are asked for.
+    returned_map = {}
+    open_map = {}
+    ret_rows = (
+        await session.execute(
+            select(
+                TransferReturn.transfer_id,
+                TransferReturn.status,
+                func.coalesce(func.sum(TransferReturn.quantity_pieces), 0),
+            )
+            .where(TransferReturn.transfer_id.in_([t.id for t in transfers]))
+            .group_by(TransferReturn.transfer_id, TransferReturn.status)
+        )
+    ).all()
+    for ret_tid, ret_status, ret_qty in ret_rows:
+        if ret_status == "completed":
+            returned_map[ret_tid] = returned_map.get(ret_tid, 0) + int(ret_qty)
+        elif ret_status in ("requested", "accepted"):
+            open_map[ret_tid] = open_map.get(ret_tid, 0) + int(ret_qty)
+
     return [
         StockTransferOut(
             id=t.id,
@@ -1609,9 +1914,577 @@ async def list_stock_transfers(
             notes=t.notes,
             total_cost_naira=Money(t.total_cost_kobo).naira if t.total_cost_kobo is not None else None,
             payment_method=t.payment_method,
+            unit_price_naira=Money(t.unit_price_kobo).naira if t.unit_price_kobo is not None else None,
+            total_price_naira=Money(t.unit_price_kobo * t.quantity_pieces).naira if t.unit_price_kobo is not None else None,
+            price_basis=t.price_basis,
+            sale_id=t.sale_id,
+            invoice_id=t.invoice_id,
+            returned_pieces=returned_map.get(t.id, 0),
+            open_return_pieces=open_map.get(t.id, 0),
             created_by=t.created_by,
             created_by_name=creator_names.get(t.created_by),
+            product_name=product_names.get(t.product_id),
             created_at=t.created_at,
         )
         for t in transfers
     ]
+
+
+
+# ===================================================================== RET2
+# Branch transfer returns: goods go back to the branch that sent them, linked to
+# the first transfer. Never a new sale and never a new invoice.
+from datetime import timezone as _tr_tz  # noqa: E402
+
+from pydantic import BaseModel, Field  # noqa: E402
+
+from infrastructure.db.models import Sale as ORMSale  # noqa: E402
+from infrastructure.db.models import SaleItem as ORMSaleItem  # noqa: E402
+from infrastructure.db.models import SalePayment as ORMSalePayment  # noqa: E402
+from infrastructure.db.models import TransferReturn  # noqa: E402
+from infrastructure.db.models import AuditLog as _TrAuditLog  # noqa: E402
+from sqlalchemy.orm import selectinload as _tr_selectinload  # noqa: E402
+
+
+class TransferReturnCreate(BaseModel):
+    transfer_id: uuid.UUID
+    quantity_pieces: int = Field(gt=0)
+    note: str | None = None
+    # Only a super admin must say which side he acts for.
+    side: str | None = Field(default=None, pattern="^(sender|receiver)$")
+    # RET4: optional account details, kept only when the receiver side starts the return.
+    bank_name: str | None = Field(default=None, max_length=120)
+    account_number: str | None = Field(default=None, max_length=40)
+    account_name: str | None = Field(default=None, max_length=120)
+
+
+class TransferReturnApprove(BaseModel):
+    payment_method: str = Field(pattern="^(cash|transfer)$")
+
+
+class TransferReturnAccept(BaseModel):
+    # RET4: optional account details typed by the receiving branch when it accepts.
+    bank_name: str | None = Field(default=None, max_length=120)
+    account_number: str | None = Field(default=None, max_length=40)
+    account_name: str | None = Field(default=None, max_length=120)
+
+
+class TransferReturnStepOut(BaseModel):
+    action: str
+    user_name: str | None = None
+    branch_id: uuid.UUID | None = None
+    payment_method: str | None = None
+    quantity_pieces: int | None = None
+    created_at: datetime
+
+
+class TransferReturnOut(BaseModel):
+    id: uuid.UUID
+    transfer_id: uuid.UUID
+    product_id: uuid.UUID
+    product_name: str | None = None
+    from_branch_id: uuid.UUID
+    to_branch_id: uuid.UUID
+    started_by_side: str
+    quantity_pieces: int
+    unit_price_naira: float
+    amount_naira: float
+    status: str
+    note: str | None = None
+    payment_method: str | None = None
+    refund_bank_name: str | None = None
+    refund_account_number: str | None = None
+    refund_account_name: str | None = None
+    requested_by_name: str | None = None
+    requested_at: datetime
+    responded_at: datetime | None = None
+    approved_at: datetime | None = None
+    taken_shelf_pieces: int | None = None
+    taken_warehouse_pieces: int | None = None
+    landed_shelf_pieces: int | None = None
+    landed_warehouse_pieces: int | None = None
+
+
+def _tr_now():
+    return datetime.now(_tr_tz.utc)
+
+
+def _tr_in_branch(user, branch_id):
+    if user.role == "super_admin":
+        return True
+    return user.branch_id is not None and user.branch_id == branch_id
+
+
+def _tr_clean(value):
+    # Account details: trimmed text, or None when empty.
+    text = (value or "").strip()
+    return text or None
+
+
+def _tr_log(session, user, action, ret, acting_branch_id, extra=None):
+    # RET4: one audit record per step, saved in the same commit as the step.
+    from infrastructure.db.audit import log_audit_event
+
+    meta = {
+        "transfer_id": str(ret.transfer_id),
+        "quantity_pieces": ret.quantity_pieces,
+        "amount_kobo": int(ret.amount_kobo),
+        "from_branch_id": str(ret.from_branch_id),
+        "to_branch_id": str(ret.to_branch_id),
+        "acting_branch_id": str(acting_branch_id) if acting_branch_id else None,
+        "started_by_side": ret.started_by_side,
+    }
+    if extra:
+        meta.update(extra)
+    log_audit_event(
+        session,
+        user_id=user.id,
+        action=action,
+        entity_type="transfer_return",
+        entity_id=ret.id,
+        metadata=meta,
+    )
+
+
+async def _tr_counts(session, transfer_id):
+    rows = (
+        await session.execute(
+            select(TransferReturn.status, func.coalesce(func.sum(TransferReturn.quantity_pieces), 0))
+            .where(TransferReturn.transfer_id == transfer_id)
+            .group_by(TransferReturn.status)
+        )
+    ).all()
+    done = sum(int(q) for s, q in rows if s == "completed")
+    open_ = sum(int(q) for s, q in rows if s in ("requested", "accepted"))
+    return done, open_
+
+
+async def _tr_get_locked(session, return_id):
+    row = (
+        await session.execute(
+            select(TransferReturn)
+            .where(TransferReturn.id == return_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Return request not found")
+    return row
+
+
+async def _tr_build_out(session, rows):
+    if not rows:
+        return []
+    pids = {r.product_id for r in rows}
+    pn = {
+        p.id: p.name
+        for p in (await session.execute(select(Product).where(Product.id.in_(pids)))).scalars().all()
+    }
+    uids = {r.requested_by for r in rows}
+    un = {
+        u.id: u.full_name
+        for u in (await session.execute(select(User).where(User.id.in_(uids)))).scalars().all()
+    }
+    return [
+        TransferReturnOut(
+            id=r.id,
+            transfer_id=r.transfer_id,
+            product_id=r.product_id,
+            product_name=pn.get(r.product_id),
+            from_branch_id=r.from_branch_id,
+            to_branch_id=r.to_branch_id,
+            started_by_side=r.started_by_side,
+            quantity_pieces=r.quantity_pieces,
+            unit_price_naira=Money(r.unit_price_kobo).naira,
+            amount_naira=Money(r.amount_kobo).naira,
+            status=r.status,
+            note=r.note,
+            payment_method=r.payment_method,
+            refund_bank_name=r.refund_bank_name,
+            refund_account_number=r.refund_account_number,
+            refund_account_name=r.refund_account_name,
+            requested_by_name=un.get(r.requested_by),
+            requested_at=r.requested_at,
+            responded_at=r.responded_at,
+            approved_at=r.approved_at,
+            taken_shelf_pieces=r.taken_shelf_pieces,
+            taken_warehouse_pieces=r.taken_warehouse_pieces,
+            landed_shelf_pieces=r.landed_shelf_pieces,
+            landed_warehouse_pieces=r.landed_warehouse_pieces,
+        )
+        for r in rows
+    ]
+
+
+@router.post("/transfer-returns", response_model=TransferReturnOut, status_code=status.HTTP_201_CREATED)
+async def create_transfer_return(
+    body: TransferReturnCreate,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("manage_inventory")),
+) -> TransferReturnOut:
+    transfer = (
+        await session.execute(
+            select(StockTransfer)
+            .where(StockTransfer.id == body.transfer_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one_or_none()
+    if transfer is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Transfer not found")
+    if (
+        transfer.transfer_type != "branch_to_branch"
+        or transfer.sale_id is None
+        or transfer.invoice_id is None
+        or transfer.unit_price_kobo is None
+    ):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="This transfer cannot be returned (it has no sale or no invoice).",
+        )
+    if current_user.role == "super_admin":
+        if body.side is None:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Say which side you act for: sender or receiver.")
+        side = body.side
+    elif current_user.branch_id == transfer.from_branch_id:
+        side = "sender"
+    elif current_user.branch_id == transfer.to_branch_id:
+        side = "receiver"
+    else:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This transfer is not from or to your branch.")
+    if side != "receiver":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Only the branch that received the goods can ask to return them.",
+        )
+    done, open_ = await _tr_counts(session, transfer.id)
+    available = transfer.quantity_pieces - done - open_
+    if body.quantity_pieces > available:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "You can return at most %d piece(s) of this transfer "
+                "(sent %d, already returned %d, already asked for %d)."
+                % (max(available, 0), transfer.quantity_pieces, done, open_)
+            ),
+        )
+    now = _tr_now()
+    row = TransferReturn(
+        transfer_id=transfer.id,
+        product_id=transfer.product_id,
+        from_branch_id=transfer.from_branch_id,
+        to_branch_id=transfer.to_branch_id,
+        started_by_side=side,
+        quantity_pieces=body.quantity_pieces,
+        unit_price_kobo=transfer.unit_price_kobo,
+        amount_kobo=body.quantity_pieces * transfer.unit_price_kobo,
+        status="requested" if side == "sender" else "accepted",
+        note=body.note,
+        requested_by=current_user.id,
+        requested_at=now,
+        responded_by=None if side == "sender" else current_user.id,
+        responded_at=None if side == "sender" else now,
+        refund_bank_name=_tr_clean(body.bank_name) if side == "receiver" else None,
+        refund_account_number=_tr_clean(body.account_number) if side == "receiver" else None,
+        refund_account_name=_tr_clean(body.account_name) if side == "receiver" else None,
+    )
+    session.add(row)
+    await session.flush()
+    _tr_log(
+        session,
+        current_user,
+        "transfer_return_requested",
+        row,
+        row.from_branch_id if side == "sender" else row.to_branch_id,
+    )
+    await session.commit()
+    await session.refresh(row)
+    return (await _tr_build_out(session, [row]))[0]
+
+
+@router.get("/transfer-returns", response_model=list[TransferReturnOut])
+async def list_transfer_returns(
+    branch_id: uuid.UUID | None = None,
+    transfer_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("manage_inventory")),
+) -> list[TransferReturnOut]:
+    effective = current_user.branch_id if current_user.branch_id is not None else branch_id
+    stmt = select(TransferReturn).order_by(TransferReturn.requested_at.desc())
+    if effective is not None:
+        stmt = stmt.where(
+            (TransferReturn.from_branch_id == effective) | (TransferReturn.to_branch_id == effective)
+        )
+    if transfer_id is not None:
+        stmt = stmt.where(TransferReturn.transfer_id == transfer_id)
+    rows = list((await session.execute(stmt)).scalars().all())
+    return await _tr_build_out(session, rows)
+
+
+@router.get("/transfer-returns/{return_id}/history", response_model=list[TransferReturnStepOut])
+async def transfer_return_history(
+    return_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("manage_inventory")),
+) -> list[TransferReturnStepOut]:
+    r = (
+        await session.execute(select(TransferReturn).where(TransferReturn.id == return_id))
+    ).scalar_one_or_none()
+    if r is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Return request not found")
+    if not (_tr_in_branch(current_user, r.from_branch_id) or _tr_in_branch(current_user, r.to_branch_id)):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This return is not from or to your branch.")
+    entries = list(
+        (
+            await session.execute(
+                select(_TrAuditLog)
+                .options(_tr_selectinload(_TrAuditLog.user))
+                .where(_TrAuditLog.entity_type == "transfer_return", _TrAuditLog.entity_id == return_id)
+                .order_by(_TrAuditLog.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    out = []
+    for e in entries:
+        meta = e.log_metadata or {}
+        bid = meta.get("acting_branch_id")
+        out.append(
+            TransferReturnStepOut(
+                action=e.action,
+                user_name=e.user.full_name if e.user else None,
+                branch_id=uuid.UUID(bid) if bid else None,
+                payment_method=meta.get("payment_method"),
+                quantity_pieces=meta.get("quantity_pieces"),
+                created_at=e.created_at,
+            )
+        )
+    return out
+
+
+@router.post("/transfer-returns/{return_id}/accept", response_model=TransferReturnOut)
+async def accept_transfer_return(
+    return_id: uuid.UUID,
+    body: TransferReturnAccept | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("manage_inventory")),
+) -> TransferReturnOut:
+    r = await _tr_get_locked(session, return_id)
+    if r.status != "requested" or r.started_by_side != "sender":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This request is not waiting for your answer.")
+    if not _tr_in_branch(current_user, r.to_branch_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only the branch that received the goods can accept.")
+    r.status = "accepted"
+    r.responded_by = current_user.id
+    r.responded_at = _tr_now()
+    if body is not None:
+        r.refund_bank_name = _tr_clean(body.bank_name)
+        r.refund_account_number = _tr_clean(body.account_number)
+        r.refund_account_name = _tr_clean(body.account_name)
+    _tr_log(session, current_user, "transfer_return_accepted", r, r.to_branch_id)
+    await session.commit()
+    await session.refresh(r)
+    return (await _tr_build_out(session, [r]))[0]
+
+
+@router.post("/transfer-returns/{return_id}/decline", response_model=TransferReturnOut)
+async def decline_transfer_return(
+    return_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("manage_inventory")),
+) -> TransferReturnOut:
+    r = await _tr_get_locked(session, return_id)
+    if r.status == "requested" and r.started_by_side == "sender":
+        answering = r.to_branch_id
+    elif r.status == "accepted" and r.started_by_side == "receiver":
+        answering = r.from_branch_id
+    else:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This request is not waiting for your answer.")
+    if not _tr_in_branch(current_user, answering):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This request is not waiting for your branch.")
+    r.status = "declined"
+    r.responded_by = current_user.id
+    r.responded_at = _tr_now()
+    _tr_log(session, current_user, "transfer_return_declined", r, answering)
+    await session.commit()
+    await session.refresh(r)
+    return (await _tr_build_out(session, [r]))[0]
+
+
+@router.post("/transfer-returns/{return_id}/cancel", response_model=TransferReturnOut)
+async def cancel_transfer_return(
+    return_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("manage_inventory")),
+) -> TransferReturnOut:
+    r = await _tr_get_locked(session, return_id)
+    if r.status not in ("requested", "accepted"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This request is already closed.")
+    starter = r.from_branch_id if r.started_by_side == "sender" else r.to_branch_id
+    if not _tr_in_branch(current_user, starter):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Only the branch that asked can cancel.")
+    r.status = "cancelled"
+    r.responded_by = current_user.id
+    r.responded_at = _tr_now()
+    _tr_log(session, current_user, "transfer_return_cancelled", r, starter)
+    await session.commit()
+    await session.refresh(r)
+    return (await _tr_build_out(session, [r]))[0]
+
+
+@router.post("/transfer-returns/{return_id}/approve", response_model=TransferReturnOut)
+async def approve_transfer_return(
+    return_id: uuid.UUID,
+    body: TransferReturnApprove,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("manage_inventory")),
+) -> TransferReturnOut:
+    from api.v1.transfer_pricing import branch_shelf_limit, plan_transfer_split, shelf_pieces
+
+    r = await _tr_get_locked(session, return_id)
+    if r.status != "accepted":
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This request is not ready for a refund.")
+    if not _tr_in_branch(current_user, r.from_branch_id):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="Only the branch that sent the goods (and gets the money back to pay) can approve the refund.",
+        )
+    transfer = (
+        await session.execute(
+            select(StockTransfer)
+            .where(StockTransfer.id == r.transfer_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    done, _open = await _tr_counts(session, transfer.id)
+    qty = r.quantity_pieces
+    if done + qty > transfer.quantity_pieces:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="More than the transfer sent would be returned.")
+    amount = qty * r.unit_price_kobo
+    giver = r.to_branch_id
+    getter = r.from_branch_id
+
+    # Lock both warehouse rows in a fixed order (same rule as a transfer).
+    if str(getter) < str(giver):
+        get_wh = await _lock_branch_warehouse_row(session, getter, r.product_id)
+        giv_wh = await _lock_branch_warehouse_row(session, giver, r.product_id)
+    else:
+        giv_wh = await _lock_branch_warehouse_row(session, giver, r.product_id)
+        get_wh = await _lock_branch_warehouse_row(session, getter, r.product_id)
+    giver_shelf = await shelf_pieces(session, giver, r.product_id)
+    giver_wh_pieces = int(giv_wh.quantity_pieces)
+    plan = plan_transfer_split(
+        qty,
+        "shelf",
+        giver_shelf,
+        giver_wh_pieces,
+        await shelf_pieces(session, getter, r.product_id),
+        await branch_shelf_limit(session, getter, r.product_id),
+    )
+    if plan is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "The branch that must give the pieces back holds only %d piece(s) now "
+                "(shelf %d, warehouse %d), so %d cannot go back."
+                % (giver_shelf + giver_wh_pieces, giver_shelf, giver_wh_pieces, qty)
+            ),
+        )
+    if plan["from_shelf"] > 0:
+        await _fifo_deduct(session, r.product_id, giver, plan["from_shelf"])
+    giv_wh.quantity_pieces -= plan["from_warehouse"]
+
+    # The sender gets the pieces back at its own first cost. No invoice is made.
+    if transfer.total_cost_kobo is not None and transfer.quantity_pieces:
+        unit_cost = int(transfer.total_cost_kobo) // int(transfer.quantity_pieces)
+    else:
+        prod = await session.get(Product, r.product_id)
+        unit_cost = int(prod.cost_price_kobo or 0) if prod is not None else 0
+    if plan["to_shelf"] > 0:
+        session.add(
+            StockBatch(
+                product_id=r.product_id,
+                branch_id=getter,
+                batch_number="return-" + str(r.id)[:8],
+                quantity_received=plan["to_shelf"],
+                quantity_remaining=plan["to_shelf"],
+                unit_cost_kobo=unit_cost,
+            )
+        )
+    get_wh.quantity_pieces += plan["to_warehouse"]
+
+    # The sale at the sending branch.
+    sale = (
+        await session.execute(
+            select(ORMSale)
+            .where(ORMSale.id == transfer.sale_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    remaining_after = transfer.quantity_pieces - done - qty
+    if remaining_after <= 0:
+        sale.status = "refunded"
+    else:
+        item = (
+            await session.execute(select(ORMSaleItem).where(ORMSaleItem.sale_id == sale.id))
+        ).scalars().first()
+        sale.subtotal_kobo = max(int(sale.subtotal_kobo) - amount, 0)
+        sale.total_kobo = max(int(sale.total_kobo) - amount, 0)
+        if item is not None:
+            item.quantity = max(int(item.quantity) - qty, 0)
+            item.line_total_kobo = max(int(item.line_total_kobo) - amount, 0)
+        pay = (
+            await session.execute(select(ORMSalePayment).where(ORMSalePayment.sale_id == sale.id))
+        ).scalars().first()
+        if pay is not None:
+            pay.amount_kobo = max(int(pay.amount_kobo) - amount, 0)
+    sale.notes = (sale.notes or "") + " | Returned %d pcs (return %s)" % (qty, str(r.id)[:8])
+
+    # The invoice at the receiving branch always goes down.
+    invoice = (
+        await session.execute(
+            select(PurchaseInvoice)
+            .where(PurchaseInvoice.id == transfer.invoice_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).scalar_one()
+    invoice.amount_kobo = max(int(invoice.amount_kobo or 0) - amount, 0)
+    invoice.amount_paid_kobo = max(int(invoice.amount_paid_kobo or 0) - amount, 0)
+    invoice.description = (invoice.description or "") + " Returned %d pcs." % qty
+    inv_line = (
+        await session.execute(
+            select(PurchaseInvoiceLineItem).where(PurchaseInvoiceLineItem.invoice_id == invoice.id)
+        )
+    ).scalars().first()
+    if inv_line is not None:
+        inv_line.quantity = max(int(inv_line.quantity) - qty, 0)
+        inv_line.line_total_kobo = max(int(inv_line.line_total_kobo) - amount, 0)
+
+    r.status = "completed"
+    r.payment_method = body.payment_method
+    r.approved_by = current_user.id
+    r.approved_at = _tr_now()
+    r.taken_shelf_pieces = plan["from_shelf"]
+    r.taken_warehouse_pieces = plan["from_warehouse"]
+    r.landed_shelf_pieces = plan["to_shelf"]
+    r.landed_warehouse_pieces = plan["to_warehouse"]
+    _tr_log(
+        session,
+        current_user,
+        "transfer_return_approved",
+        r,
+        r.from_branch_id,
+        {
+            "payment_method": body.payment_method,
+            "landed_shelf_pieces": plan["to_shelf"],
+            "landed_warehouse_pieces": plan["to_warehouse"],
+        },
+    )
+    await session.commit()
+    await session.refresh(r)
+    return (await _tr_build_out(session, [r]))[0]

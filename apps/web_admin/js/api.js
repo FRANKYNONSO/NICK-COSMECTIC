@@ -1,3 +1,5 @@
+
+
 const API_BASE = `http://${window.location.hostname}:8000/api/v1`;
 
 // Global branch context: the branch picked on the Dashboard now scopes
@@ -358,6 +360,28 @@ const Api = {
   myApplicationStatus() {
     return apiRequest('/staff-applications/me');
   },
+  // PATCH26A-API
+  // Blank printable staff form (PDF). The endpoint needs the auth header, so a
+  // plain <a href> can't reach it -- fetch as a blob and save from here.
+  async downloadStaffFormPdf() {
+    const headers = {};
+    const token = Auth.getToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE}/staff-applications/form.pdf`, { headers });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new ApiError((data && data.detail) || 'Could not download the form.', res.status, null);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nick-cosmetics-staff-form.pdf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  },
 
   // ------------------------------------------------------------- Profile
   forgotPassword(email) {
@@ -485,6 +509,15 @@ const Api = {
   createBranch(payload) {
     return apiRequest('/branches', { method: 'POST', body: payload });
   },
+  setBranchSuspended(id, suspended) {
+    return apiRequest(`/branches/${id}/suspension`, { method: "POST", body: { suspended } });
+  },
+  updateBranchSupportLine(id, supportLine) {
+    return apiRequest(`/branches/${id}/support-line`, { method: "PATCH", body: { support_line: supportLine || null } });
+  },
+  deleteBranch(id) {
+    return apiRequest(`/branches/${id}`, { method: "DELETE" });
+  },
   salesSummary({ branchId, dateFrom, dateTo, groupBy } = {}) {
     const params = new URLSearchParams();
     if (branchId) params.set('branch_id', branchId);
@@ -585,6 +618,15 @@ const Api = {
   },
   markAdjustmentReviewed(adjustmentId) {
     return apiRequest(`/inventory/stock-adjustments/${adjustmentId}/mark-reviewed`, { method: 'POST' });
+  },
+  approveAdjustment(adjustmentId, valueNaira) {
+    return apiRequest(`/inventory/stock-adjustments/${adjustmentId}/approve?value_naira=${encodeURIComponent(valueNaira ?? '')}`, { method: 'POST' });
+  },
+  rejectAdjustment(adjustmentId, reason) {
+    return apiRequest(`/inventory/stock-adjustments/${adjustmentId}/reject?reason=${encodeURIComponent(reason ?? '')}`, { method: 'POST' });
+  },
+  lossRefundDetails(adjustmentId) {
+    return apiRequest(`/inventory/stock-adjustments/${adjustmentId}/refund-details`);
   },
   pendingReviewAdjustments() {
     return apiRequest('/inventory/stock-adjustments/pending-review');
@@ -733,6 +775,23 @@ const Api = {
     });
     return apiRequest(`/warehouse/transfer-cost-preview?${params.toString()}`);
   },
+  // XFER2-SHELF-OR-WAREHOUSE -- shelf/warehouse figures and the split of a transfer.
+  previewTransferSplit({ productId, fromBranchId, toBranchId, quantityPieces, takeFrom }) {
+    const params = new URLSearchParams({
+      product_id: productId,
+      from_branch_id: fromBranchId,
+      to_branch_id: toBranchId,
+      quantity_pieces: quantityPieces,
+      take_from: takeFrom || 'shelf',
+    });
+    return apiRequest(`/warehouse/transfer-split-preview?${params.toString()}`);
+  },
+  // XFER1-TRANSFER-AS-SALE -- default price per piece for a transfer.
+  previewTransferPrice({ productId, quantityPieces, fromBranchId }) {
+    const params = new URLSearchParams({ product_id: productId, quantity_pieces: quantityPieces });
+    if (fromBranchId) params.set('from_branch_id', fromBranchId);
+    return apiRequest(`/warehouse/transfer-price-preview?${params.toString()}`);
+  },
   listStockTransfers({ branchId, transferType, productId } = {}) {
     const params = new URLSearchParams();
     if (branchId) params.set('branch_id', branchId);
@@ -740,6 +799,32 @@ const Api = {
     if (productId) params.set('product_id', productId);
     const qs = params.toString();
     return apiRequest(`/warehouse/transfers${qs ? `?${qs}` : ''}`);
+  },
+  // RET3 -- branch transfer returns (the routes are already built and tested).
+  listTransferReturns({ branchId, transferId } = {}) {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branch_id', branchId);
+    if (transferId) params.set('transfer_id', transferId);
+    const qs = params.toString();
+    return apiRequest(`/warehouse/transfer-returns${qs ? `?${qs}` : ''}`);
+  },
+  createTransferReturn(payload) {
+    return apiRequest('/warehouse/transfer-returns', { method: 'POST', body: payload });
+  },
+  acceptTransferReturn(returnId) {
+    return apiRequest(`/warehouse/transfer-returns/${encodeURIComponent(returnId)}/accept`, { method: 'POST' });
+  },
+  declineTransferReturn(returnId) {
+    return apiRequest(`/warehouse/transfer-returns/${encodeURIComponent(returnId)}/decline`, { method: 'POST' });
+  },
+  cancelTransferReturn(returnId) {
+    return apiRequest(`/warehouse/transfer-returns/${encodeURIComponent(returnId)}/cancel`, { method: 'POST' });
+  },
+  approveTransferReturn(returnId, paymentMethod) {
+    return apiRequest(`/warehouse/transfer-returns/${encodeURIComponent(returnId)}/approve`, { method: 'POST', body: { payment_method: paymentMethod } });
+  },
+  getTransferReturnHistory(returnId) {
+    return apiRequest(`/warehouse/transfer-returns/${encodeURIComponent(returnId)}/history`);
   },
   // Distinct from createStockTransfer above, which moves sellable shop
   // stock directly between two branches with no warehouse involved.
@@ -792,6 +877,10 @@ const Api = {
   },
   saveShelfSetting(payload) {
     return apiRequest('/goods-receiving/shelf-settings', { method: 'PUT', body: payload });
+  },
+  // fix52: Reduce stock -- sends pieces above the shelf default back to the warehouse
+  reduceShelfStock(payload) {
+    return apiRequest('/goods-receiving/shelf-reduce', { method: 'POST', body: payload });
   },
   goodsCostSummary(branchId) {
     const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
@@ -997,9 +1086,10 @@ const Api = {
   // created, payment added, item swapped, completed, cancelled -- in
   // one place, since a booking's own row only ever reflects its
   // *current* state once it leaves status='booking'.
-  auditLog({ entityType, limit } = {}) {
+  auditLog({ entityType, limit, branchId } = {}) {
     const params = new URLSearchParams();
     if (entityType) params.set('entity_type', entityType);
+    if (branchId) params.set('branch_id', branchId);
     if (limit) params.set('limit', limit);
     const qs = params.toString();
     return apiRequest(`/sales/audit-log${qs ? `?${qs}` : ''}`);
@@ -1152,13 +1242,14 @@ const Api = {
     return apiRequest(`/branches/${branchId}/shift-settings`, { method: 'PUT', body: payload });
   },
   // ----- Purchase invoices (supplier invoices, super admin/branch manager) -----
-  listPurchaseInvoices({ branchId, year, month, supplierId, status } = {}) {
+  listPurchaseInvoices({ branchId, year, month, supplierId, status, excludeTransfers } = {}) {
     const params = new URLSearchParams();
     if (branchId) params.set('branch_id', branchId);
     if (year) params.set('year', year);
     if (month) params.set('month', month);
     if (supplierId) params.set('supplier_id', supplierId);
     if (status) params.set('status', status);
+    if (excludeTransfers) params.set('exclude_transfers', 'true');
     const qs = params.toString();
     return apiRequest(`/purchase-invoices${qs ? `?${qs}` : ''}`);
   },
@@ -1188,7 +1279,7 @@ const Api = {
     list(branchId) {
       return apiRequest(`/restock-list?branch_id=${encodeURIComponent(branchId)}`);
     },
-    addItem({ productId, branchId, quantity, unitLabel, isManual, customName, customImageUrl }) {
+    addItem({ productId, branchId, quantity, unitLabel, isManual, customName, customImageUrl, note }) {
       return apiRequest('/restock-list/items', {
         method: 'POST',
         body: {
@@ -1199,6 +1290,7 @@ const Api = {
           quantity,
           unit_label: unitLabel,
           is_manual: isManual,
+          note: note === undefined ? null : note,
         },
       });
     },
@@ -1207,14 +1299,31 @@ const Api = {
       formData.append('file', file);
       return apiUpload('/restock-list/upload-image', formData);
     },
-    updateItem(entryId, { quantity, unitLabel }) {
+    updateItem(entryId, { quantity, unitLabel, note }) {
       return apiRequest(`/restock-list/items/${entryId}`, {
         method: 'PATCH',
-        body: { quantity, unit_label: unitLabel },
+        body: { quantity, unit_label: unitLabel, note },
       });
     },
     removeItem(entryId) {
       return apiRequest(`/restock-list/items/${entryId}`, { method: 'DELETE' });
+    },
+    markReceived(entryId) {
+      return apiRequest(`/restock-list/items/${entryId}/received`, { method: 'POST' });
+    },
+    markSendReceived(sendId) {
+      return apiRequest(`/restock-list/sends/${sendId}/received`, { method: 'POST' });
+    },
+    listRequests(branchId, q) {
+      const params = new URLSearchParams({ branch_id: branchId });
+      if (q) params.set('q', q);
+      return apiRequest(`/restock-list/requests?${params.toString()}`);
+    },
+    downloadRequest(requestId, requestNo) {
+      return apiDownload(`/restock-list/requests/${requestId}/pdf`, `${requestNo}.pdf`);
+    },
+    deleteRequest(requestId) {
+      return apiRequest(`/restock-list/requests/${requestId}`, { method: 'DELETE' });
     },
     async download(entryIds, supplierName) {
       const headers = { 'Content-Type': 'application/json' };

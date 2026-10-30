@@ -124,8 +124,8 @@ async def run_daily_metric_rollup(target_day: date | None = None) -> None:
                             StockAdjustment.status == "completed",
                             StockAdjustment.reason.in_(["damaged", "expired", "theft"]),
                             StockAdjustment.branch_id == branch_id,
-                            StockAdjustment.created_at >= start,
-                            StockAdjustment.created_at < end,
+                            func.coalesce(StockAdjustment.reviewed_at, StockAdjustment.created_at) >= start,
+                            func.coalesce(StockAdjustment.reviewed_at, StockAdjustment.created_at) < end,
                         )
                     )
                 ).scalar_one()

@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/style.css" />
 <script src="js/theme.js"></script>
 <script src="js/numeric-input-fix.js"></script>
+  <script src="ui-dialog.js"></script>
 </head>
 <body>
 
@@ -45,7 +46,7 @@
     <div class="page-head">
       <div>
         <h2 class="display">Restock List</h2>
-        <p>Items to reorder — auto-added when stock runs low, added from Inventory, or typed in below. Downloading removes the items you selected; the rest stay put. An item also leaves automatically once it's actually restocked.</p>
+        <p>Items to reorder — auto-added when stock runs low, added from Inventory, or typed in below. Downloading does not remove anything. A stock item leaves once it is restocked above its low-stock level; a typed item leaves once its customer order is marked arrived.</p>
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <span id="branch-badge"></span>
@@ -95,6 +96,17 @@
         <div class="display">Pick a branch first</div>
         <p>The Restock List is tracked per branch — select one from the Dashboard to see it here.</p>
       </div>
+    </div>
+    <div class="table-card" id="restock-history" style="margin-top:20px; padding:16px;">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
+        <div style="font-weight:600; flex:1; min-width:180px;">Past restock requests</div>
+        <input type="text" id="restock-history-search" placeholder="Search by number (RS-2026-001), supplier or item" style="min-width:260px; max-width:360px; flex:1;" />
+      </div>
+      <table id="restock-history-table">
+        <thead><tr><th>Number</th><th>Supplier</th><th>Date</th><th>Items</th><th></th></tr></thead>
+        <tbody id="restock-history-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="restock-history-empty" style="display:none;"><p>No requests saved yet. Each PDF you download is saved here so you can download it again.</p></div>
     </div>
   </main>
 </div>

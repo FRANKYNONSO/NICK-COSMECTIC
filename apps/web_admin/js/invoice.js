@@ -156,6 +156,15 @@ const ADJUSTMENT_STATUS_LABELS = {
   refunded: 'Refunded',
 };
 
+// Total of the Amount column for the invoices now showing (follows the filters).
+function updateInvoiceTotal(invoices) {
+  const total = invoices.reduce((sum, inv) => sum + Number(inv.total_landed_cost_naira ?? inv.amount_naira ?? 0), 0);
+  const amountEl = document.getElementById('invoice-total-amount');
+  const countEl = document.getElementById('invoice-total-count');
+  if (amountEl) amountEl.textContent = formatNaira(total);
+  if (countEl) countEl.textContent = `${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`;
+}
+
 async function loadPurchaseInvoices() {
   const tbody = document.getElementById('purchase-invoices-tbody');
   const table = document.getElementById('purchase-invoices-table');
@@ -174,6 +183,7 @@ async function loadPurchaseInvoices() {
     return;
   }
   if (!purchaseInvoiceCache.length) {
+    updateInvoiceTotal([]);
     table.style.display = 'none';
     emptyState.style.display = 'block';
     tbody.innerHTML = '';
@@ -192,6 +202,7 @@ async function loadPurchaseInvoices() {
       <td>${escapeHtml(inv.created_by_name)}</td>
       <td><button type="button" class="btn btn-ghost btn-sm" data-invoice-detail="${inv.id}">View invoice</button></td>
     </tr>`).join('');
+  updateInvoiceTotal(purchaseInvoiceCache);
 
   tbody.querySelectorAll('[data-invoice-detail]').forEach((btn) => {
     btn.addEventListener('click', () => openInvoiceDetail(btn.dataset.invoiceDetail));
@@ -267,6 +278,7 @@ function openInvoiceDetail(invoiceId) {
       `Check &amp; balance: ${formatNaira(inv.adjustment_amount_naira ?? 0)}${inv.adjustment_status ? ` — ${escapeHtml(ADJUSTMENT_STATUS_LABELS[inv.adjustment_status] || inv.adjustment_status)}` : ''}${inv.adjustment_note ? ` — ${escapeHtml(inv.adjustment_note)}` : ''}`
     );
   }
+  if (inv.source === 'branch_transfer') letterheadBits.unshift('This invoice was made automatically by a branch transfer. It cannot be edited.');
   document.getElementById('invoice-detail-letterhead').innerHTML = letterheadBits.length
     ? letterheadBits.map((b) => `<div>${b}</div>`).join('')
     : '';
@@ -309,6 +321,9 @@ function openInvoiceDetail(invoiceId) {
     video.style.display = 'none';
     video.src = '';
   }
+  const editBtn = document.getElementById('invoice-detail-edit');
+  if (editBtn.dataset.shownDisplay === undefined) editBtn.dataset.shownDisplay = editBtn.style.display;
+  editBtn.style.display = inv.source === 'branch_transfer' ? 'none' : editBtn.dataset.shownDisplay;
   editingInvoiceIdPending = invoiceId;
   invoiceDetailBackdrop.classList.add('visible');
 }
@@ -1164,14 +1179,28 @@ document.getElementById('invoice-add-form').addEventListener('submit', async (e)
         : undefined,
       remove_item_ids: editingInvoiceId ? removedExistingItemIds : undefined,
     };
+    let createdInvoice = null;
     if (editingInvoiceId) {
       await Api.updatePurchaseInvoice(editingInvoiceId, invoicePayload);
     } else {
-      await Api.createPurchaseInvoice(invoicePayload);
+      createdInvoice = await Api.createPurchaseInvoice(invoicePayload);
     }
     showToast('Purchase invoice saved.');
     invoiceAddBackdrop.classList.remove('visible');
     await loadPurchaseInvoices();
+    // Opened from Receive Goods ("Create invoice"): offer to go straight back and link it.
+    if (prefillReceiptId && !editingInvoiceId) {
+      const backTo = prefillReceiptId;
+      prefillReceiptId = null;
+      const go = await showConfirmModal(
+        'Invoice saved. Go back to Receive Goods to link it to the receipt you confirmed? Linking fixes the costs. It does not add any stock.',
+        { title: 'Link it to the receipt', confirmLabel: 'Go to Receive Goods' }
+      );
+      if (go) {
+        window.location.href = 'receive-goods.html?link_receipt=' + encodeURIComponent(backTo) +
+          (createdInvoice && createdInvoice.id ? '&invoice=' + encodeURIComponent(createdInvoice.id) : '');
+      }
+    }
   } catch (err) {
     invoiceAddError.textContent = err.message;
     invoiceAddError.classList.add('visible');
@@ -1181,3 +1210,74 @@ document.getElementById('invoice-add-form').addEventListener('submit', async (e)
 });
 
 loadBranches().then(() => { populateYearFilter(); populateSupplierFilter(); loadPurchaseInvoices(); });
+
+// ---------------------------------------------------------------- Prefill from Receive Goods
+// Receive Goods -> "Create invoice" opens invoice.html?from_receipt=<receipt id>. The form opens
+// with one row per received product (name, product, quantity in pieces). The person only adds the
+// prices, checks the supplier and date, and saves.
+let prefillReceiptId = null;
+(async function prefillFromReceipt() {
+  const rid = new URLSearchParams(window.location.search).get('from_receipt');
+  if (!rid) return;
+  try { window.history.replaceState(null, '', window.location.pathname); } catch (e) { /* cosmetic */ }
+  if (!Perms.can('manage_suppliers')) {
+    showToast('Your role cannot add purchase invoices. Ask a super admin to record it.', true);
+    return;
+  }
+  let rec;
+  try {
+    rec = await Api.getGoodsReceipt(rid);
+  } catch (err) {
+    showToast(err.message, true);
+    return;
+  }
+  if (!rec || !rec.lines || !rec.lines.length) return;
+  if (BranchContext.get() && BranchContext.get() !== rec.branch_id) {
+    showToast('That receipt belongs to a different branch. Switch to its branch first.', true);
+    return;
+  }
+  let list = [];
+  try {
+    const res = await Api.listProducts({ branchId: rec.branch_id });
+    list = Array.isArray(res) ? res : (res && res.items) || [];
+  } catch (e) { /* names are a convenience; rows still get the product id */ }
+  const byId = {};
+  list.forEach((p) => { byId[p.id] = p; });
+
+  const addBtn = document.getElementById('add-invoice-btn');
+  addBtn.addEventListener('click', () => {
+    const old = document.getElementById('invoice-receipt-note');
+    if (old) old.remove();
+    prefillReceiptId = null;
+  });
+  addBtn.click();
+  if (!invoiceAddBackdrop.classList.contains('visible')) return;
+  prefillReceiptId = rid;
+
+  invoiceItemsTbody.innerHTML = '';
+  rec.lines.forEach((l) => {
+    addInvoiceItemRow();
+    const tr = invoiceItemsTbody.lastElementChild;
+    const p = byId[l.product_id];
+    tr.querySelector('.item-name').value = p ? p.name : '';
+    tr.querySelector('.item-variant-id').value = l.product_id;
+    tr.dataset.ppCarton = p && p.default_pieces_per_carton ? p.default_pieces_per_carton : '';
+    tr.querySelector('.item-unit').value = 'pieces';
+    tr.querySelector('.item-qty').value = l.quantity_received;
+    updateQtySummaryButton(tr);
+    recomputeRowTotal(tr);
+  });
+  if (rec.supplier_name) supplierInput.value = rec.supplier_name;
+  const when = rec.delivered_at ? new Date(rec.delivered_at) : new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  document.getElementById('invoice-date').value = when.getFullYear() + '-' + pad(when.getMonth() + 1) + '-' + pad(when.getDate());
+
+  const note = document.createElement('p');
+  note.id = 'invoice-receipt-note';
+  note.className = 'hint';
+  note.style.marginBottom = '10px';
+  note.textContent = 'Filled in from receipt ' + String(rid).slice(0, 8) + ': products and quantities (in pieces) come from what you received. ' +
+    'Add the prices, check the supplier and date, then save. To change a quantity to cartons, click it.';
+  const form = document.getElementById('invoice-add-form');
+  form.insertBefore(note, form.firstChild);
+})();
