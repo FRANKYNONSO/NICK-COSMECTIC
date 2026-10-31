@@ -52,6 +52,213 @@ from nickcosmetics_core.domain.money import Money
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
 
+# ---------------------------------------------------------------------------
+# PATCH9A-UNITS -- packaging units (carton / bag / roll / dozen / piece ...).
+# Anyone signed in can read the list; changing it needs manage_products.
+# Sizes: dozen is fixed (12); carton / bag / roll are per product (product form).
+# ---------------------------------------------------------------------------
+from pydantic import BaseModel as _UnitBase  # noqa: E402
+
+
+class PackagingUnitOut(_UnitBase):
+    id: uuid.UUID
+    code: str
+    label: str
+    plural_label: str
+    fixed_pieces: int | None = None
+    include_in_breakdown: bool
+    is_active: bool
+    is_builtin: bool
+    sort_order: int
+
+    model_config = {"from_attributes": True}
+
+
+class PackagingUnitCreate(_UnitBase):
+    label: str
+    plural_label: str | None = None
+    fixed_pieces: int | None = None
+    include_in_breakdown: bool = True
+
+
+class PackagingUnitUpdate(_UnitBase):
+    label: str | None = None
+    plural_label: str | None = None
+    fixed_pieces: int | None = None
+    include_in_breakdown: bool | None = None
+    is_active: bool | None = None
+    sort_order: int | None = None
+
+
+def _unit_code_from_label(label: str) -> str:
+    code = re.sub(r"[^a-z0-9]+", "_", label.strip().lower()).strip("_")
+    return code or "unit"
+
+
+@router.get("/packaging-units", response_model=list[PackagingUnitOut])
+async def list_packaging_units(
+    include_inactive: bool = False,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(get_current_user),
+) -> list[PackagingUnitOut]:
+    from infrastructure.db.models import PackagingUnit
+
+    stmt = select(PackagingUnit).order_by(PackagingUnit.sort_order, PackagingUnit.label)
+    if not include_inactive:
+        stmt = stmt.where(PackagingUnit.is_active.is_(True))
+    result = await session.execute(stmt)
+    return [PackagingUnitOut.model_validate(u) for u in result.scalars().all()]
+
+
+@router.post("/packaging-units", response_model=PackagingUnitOut, status_code=status.HTTP_201_CREATED)
+async def create_packaging_unit(
+    body: PackagingUnitCreate,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_permission("manage_products")),
+) -> PackagingUnitOut:
+    from infrastructure.db.models import PackagingUnit
+
+    label = body.label.strip()
+    if not label:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Give the unit a name.")
+    if body.fixed_pieces is not None and body.fixed_pieces < 2:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Pieces in one unit must be 2 or more.")
+    code = _unit_code_from_label(label)
+    existing = await session.execute(select(PackagingUnit).where(PackagingUnit.code == code))
+    if existing.scalar_one_or_none() is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"A unit called '{label}' already exists.")
+    max_sort = await session.execute(select(func.max(PackagingUnit.sort_order)))
+    unit = PackagingUnit(
+        code=code,
+        label=label,
+        plural_label=(body.plural_label or "").strip() or label + "s",
+        fixed_pieces=body.fixed_pieces,
+        include_in_breakdown=body.include_in_breakdown,
+        is_active=True,
+        is_builtin=False,
+        sort_order=(max_sort.scalar() or 0) + 10,
+    )
+    session.add(unit)
+    await session.commit()
+    await session.refresh(unit)
+    return PackagingUnitOut.model_validate(unit)
+
+
+@router.patch("/packaging-units/{unit_id}", response_model=PackagingUnitOut)
+async def update_packaging_unit(
+    unit_id: uuid.UUID,
+    body: PackagingUnitUpdate,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_permission("manage_products")),
+) -> PackagingUnitOut:
+    from infrastructure.db.models import PackagingUnit
+
+    unit = await session.get(PackagingUnit, unit_id)
+    if unit is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unit not found.")
+    data = body.model_dump(exclude_unset=True)
+    if "label" in data:
+        label = (data["label"] or "").strip()
+        if not label:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Give the unit a name.")
+        unit.label = label
+    if "plural_label" in data:
+        unit.plural_label = (data["plural_label"] or "").strip() or unit.label + "s"
+    if "fixed_pieces" in data:
+        # carton / bag / roll sizes live on each product, piece is always 1.
+        if unit.code in ("carton", "bag", "roll", "piece"):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail="This unit's size is set per product on the product form, not here.",
+            )
+        if data["fixed_pieces"] is not None and data["fixed_pieces"] < 2:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Pieces in one unit must be 2 or more.")
+        unit.fixed_pieces = data["fixed_pieces"]
+    if "include_in_breakdown" in data and data["include_in_breakdown"] is not None:
+        unit.include_in_breakdown = data["include_in_breakdown"]
+    if "is_active" in data and data["is_active"] is not None:
+        if unit.code == "piece" and not data["is_active"]:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Piece is the base unit and stays on.")
+        unit.is_active = data["is_active"]
+    if "sort_order" in data and data["sort_order"] is not None:
+        unit.sort_order = data["sort_order"]
+    await session.commit()
+    await session.refresh(unit)
+    return PackagingUnitOut.model_validate(unit)
+
+class ProductUnitSizesIn(_UnitBase):
+    # unit id -> pieces in one unit of THIS product. null removes the product's own size.
+    sizes: dict[uuid.UUID, int | None]
+
+
+class ProductUnitSizeOut(_UnitBase):
+    product_id: uuid.UUID
+    unit_id: uuid.UUID
+    pieces: int
+
+    model_config = {"from_attributes": True}
+
+
+@router.get("/product-unit-sizes", response_model=list[ProductUnitSizeOut])
+async def list_product_unit_sizes(
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(get_current_user),
+) -> list[ProductUnitSizeOut]:
+    from infrastructure.db.models import ProductUnitSize
+
+    result = await session.execute(select(ProductUnitSize))
+    return [ProductUnitSizeOut.model_validate(r) for r in result.scalars().all()]
+
+
+@router.put("/products/{product_id}/unit-sizes", response_model=list[ProductUnitSizeOut])
+async def set_product_unit_sizes(
+    product_id: uuid.UUID,
+    body: ProductUnitSizesIn,
+    session: AsyncSession = Depends(get_db_session),
+    _: User = Depends(require_permission("manage_products")),
+) -> list[ProductUnitSizeOut]:
+    from infrastructure.db.models import PackagingUnit, ProductUnitSize
+
+    product = await session.get(Product, product_id)
+    if product is None or product.is_deleted:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found.")
+    units = {u.id: u for u in (await session.execute(select(PackagingUnit))).scalars().all()}
+    existing = {
+        r.unit_id: r
+        for r in (
+            await session.execute(
+                select(ProductUnitSize).where(ProductUnitSize.product_id == product_id)
+            )
+        ).scalars().all()
+    }
+    # check everything first, write after
+    for unit_id, pieces in body.sizes.items():
+        unit = units.get(unit_id)
+        if unit is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unit not found.")
+        if unit.code in ("carton", "bag", "roll", "piece"):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail="Carton, bag and roll sizes are set in the product's own pack boxes.",
+            )
+        if pieces is not None and pieces < 2:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Pieces in one unit must be 2 or more.")
+    for unit_id, pieces in body.sizes.items():
+        row = existing.get(unit_id)
+        if pieces is None:
+            if row is not None:
+                await session.delete(row)
+        elif row is not None:
+            row.pieces = pieces
+        else:
+            session.add(ProductUnitSize(product_id=product_id, unit_id=unit_id, pieces=pieces))
+    await session.commit()
+    result = await session.execute(
+        select(ProductUnitSize).where(ProductUnitSize.product_id == product_id)
+    )
+    return [ProductUnitSizeOut.model_validate(r) for r in result.scalars().all()]
+
+
 # Same default host used by the older upload_product_image.py CLI
 # script -- override via API_PUBLIC_BASE_URL when the API is reachable
 # at a different host/port than this process binds to (e.g. behind a

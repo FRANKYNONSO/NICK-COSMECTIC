@@ -2385,3 +2385,48 @@ class CustomerRequest(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
+
+
+# PATCH9A-UNITS: the list of packaging units (carton, bag, roll, dozen, piece,
+# plus anything the owner adds later). Edited from Warehouse > Manage units.
+# fixed_pieces NULL means the size is per product (carton / bag / roll read the
+# product's default_pieces_per_* boxes). Stock itself is always in pieces.
+class PackagingUnit(Base):
+    __tablename__ = "packaging_units"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    code: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    label: Mapped[str] = mapped_column(String, nullable=False)
+    plural_label: Mapped[str] = mapped_column(String, nullable=False)
+    fixed_pieces: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    include_in_breakdown: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_builtin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+
+
+from sqlalchemy import ForeignKey as _PUS_FK, UniqueConstraint as _PUS_UC  # noqa: E402
+
+
+class ProductUnitSize(Base):
+    """PATCH10A: pieces in one unit of ONE product (carton / bag / roll stay on Product)."""
+
+    __tablename__ = "product_unit_sizes"
+    __table_args__ = (_PUS_UC("product_id", "unit_id", name="uq_product_unit_sizes_product_unit"),)
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _PUS_FK("products.id", ondelete="CASCADE"), nullable=False
+    )
+    unit_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _PUS_FK("packaging_units.id", ondelete="CASCADE"), nullable=False
+    )
+    pieces: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )

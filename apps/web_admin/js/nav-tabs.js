@@ -15,7 +15,8 @@
       { file: 'low-stock.html', label: 'Alerts' },
       { file: 'restock-list.html', label: 'Restock List', perm: 'view_restock_list' },
       { file: 'customer-requests.html', label: 'Customer Orders', perm: 'view_restock_list' },
-      { file: 'receive-goods.html', label: 'Receive Goods', perm: 'manage_inventory' }
+      { file: 'receive-goods.html', label: 'Receive Goods', perm: 'manage_inventory' },
+      { file: 'manage-units.html', label: 'Manage Units', perm: 'manage_products' }
     ] },
     { tabs: [
       { file: 'reports.html', label: 'Reports' },

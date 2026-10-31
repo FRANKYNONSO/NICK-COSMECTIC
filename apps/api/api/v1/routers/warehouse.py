@@ -1,4 +1,4 @@
-﻿import uuid
+import uuid
 from datetime import datetime
 from pathlib import Path
 
@@ -1780,7 +1780,16 @@ async def list_warehouse_stock(
         .outerjoin(Category, Product.category_id == Category.id)
         .where(Product.id.in_(product_ids))
     )
-    lookup = {p.id: (p.name, c.name if c else None) for p, c in products_result.all()}
+    prod_rows = products_result.all()
+    lookup = {p.id: (p.name, c.name if c else None) for p, c in prod_rows}
+    # PATCH9A-UNITS: describe the CURRENT piece total in the product's own units
+    # (100 pieces at 24 per carton = 4 cartons + 4 pieces), not the push history.
+    from infrastructure.units import format_split, load_unit_sizes, load_units, pack_units_for_product, split_pieces
+
+    prod_by_id = {p.id: p for p, _c in prod_rows}
+    all_units = await load_units(session)
+    sizes_by_product = await load_unit_sizes(session, list(prod_by_id.keys()))
+    packs_by_row = {r.id: pack_units_for_product(all_units, prod_by_id.get(r.product_id), sizes_by_product.get(r.product_id)) for r in rows}
 
     push_result = await session.execute(
         select(StockTransfer).where(
@@ -1820,10 +1829,13 @@ async def list_warehouse_stock(
             name=lookup.get(r.product_id, (None, None))[0],
             category_name=lookup.get(r.product_id, (None, None))[1],
             quantity_pieces=r.quantity_pieces,
-            unit_breakdown=[],
-            breakdown_text=_wh_breakdown_text(totals[(r.branch_id, r.product_id)])
-            if (r.branch_id, r.product_id) in totals
-            else None,
+            unit_breakdown=[
+                WarehouseStockUnitBreakdown(
+                    unit_label=p.label if n == 1 else p.plural_label, unit_count=n
+                )
+                for p, n in split_pieces(r.quantity_pieces, packs_by_row[r.id])[0]
+            ],
+            breakdown_text=format_split(r.quantity_pieces, packs_by_row[r.id]),
             updated_at=r.updated_at,
         )
         for r in rows

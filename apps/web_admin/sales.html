@@ -952,10 +952,12 @@
                cash as a refund method entirely" (except the same-day
                booking cancellation/change case, which has its own
                separate flow entirely and isn't this panel). -->
-          <select id="refund-method" disabled>
+          <!-- PATCH11A: cash is allowed again for a plain refund. -->
+          <select id="refund-method">
             <option value="transfer" selected>Bank transfer</option>
+            <option value="cash">Cash</option>
           </select>
-          <div class="hint" id="refund-method-hint" style="margin-top:4px;">Refunds are always paid out by bank transfer.</div>
+          <div class="hint" id="refund-method-hint" style="margin-top:4px;">Choose how the customer is paid back.</div>
         </div>
       </div>
       <div id="refund-bank-fields" style="display:none;">

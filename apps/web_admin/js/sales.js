@@ -294,7 +294,7 @@ async function openReceipt(saleId) {
     // 'transfer' (see sales.html), regardless of how the original
     // sale was paid.
     document.getElementById('refund-method').value = 'transfer';
-    document.getElementById('refund-method-hint').textContent = 'Refunds are always paid out by bank transfer.';
+    // (the hint under the method box is set in updateRefundBankFields)
     populateBankSelect(document.getElementById('refund-bank-name'));
     populateBankSelect(document.getElementById('refund-settlement-bank-name'));
     document.getElementById('refund-account-number').value = '';
@@ -336,8 +336,13 @@ function updateRefundBankFields() {
   const wantsExchange = document.getElementById('refund-want').value === 'exchange';
   // Section 10: refund-method is now fixed to 'transfer' -- bank
   // fields always show for a plain refund now, not conditionally.
-  const isTransfer = !wantsExchange;
+  // PATCH11A: bank fields only when the method is Bank transfer.
+  const methodValue = document.getElementById('refund-method').value;
+  const isTransfer = !wantsExchange && methodValue === 'transfer';
   document.getElementById('refund-bank-fields').style.display = isTransfer ? 'block' : 'none';
+  document.getElementById('refund-method-hint').textContent = methodValue === 'cash'
+    ? 'Cash: hand the money to the customer now. No management step.'
+    : 'Bank transfer: management will send the money within 24 hours.';
 }
 document.getElementById('refund-method').addEventListener('change', updateRefundBankFields);
 
@@ -508,7 +513,7 @@ document.getElementById('refund-submit').addEventListener('click', async () => {
       }
     }
   } else {
-    payload.action = document.getElementById('refund-method').value; // always 'transfer' now (section 10)
+    payload.action = document.getElementById('refund-method').value; // 'transfer' or 'cash' (PATCH11A)
     if (payload.action === 'transfer') {
       payload.bank_name = document.getElementById('refund-bank-name').value;
       payload.account_number = document.getElementById('refund-account-number').value.trim();
@@ -530,7 +535,7 @@ document.getElementById('refund-submit').addEventListener('click', async () => {
       payload.image_url = uploaded.url;
     }
     const refund = await Api.refundSale(currentReceiptSale.id, payload);
-    let message = 'Refund processed.';
+    let message = refund.action === 'cash' ? 'Refund processed. Hand the cash to the customer.' : 'Refund processed.';
     if (refund.action === 'transfer' || refund.status === 'pending') {
       message = 'Refund submitted — tell the customer management will process this within 24 hours.';
     } else if (refund.settlement === 'store_paid_customer') {

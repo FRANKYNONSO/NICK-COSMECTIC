@@ -17,6 +17,52 @@ const Receipt = (() => {
     return `₦${Number(amount || 0).toLocaleString('en-NG', { maximumFractionDigits: 2 })}`;
   }
 
+  // PATCH9A-UNITS -- "30 pieces" -> "1 carton + 6 pieces", using the pack sizes the
+  // server sends with each sale line (pack_units). Pieces stay the real quantity.
+  function packBreakdownText(totalPieces, packUnits) {
+    let left = Math.max(Number(totalPieces) || 0, 0);
+    const packs = (packUnits || [])
+      .filter((p) => p && Number(p.pieces) > 1)
+      .sort((a, b) => Number(b.pieces) - Number(a.pieces));
+    const bits = [];
+    packs.forEach((p) => {
+      const n = Math.floor(left / Number(p.pieces));
+      if (n > 0) {
+        bits.push(`${n} ${String(n === 1 ? p.label : p.plural_label).toLowerCase()}`);
+        left -= n * Number(p.pieces);
+      }
+    });
+    if (!bits.length) return '';
+    if (left > 0) bits.push(`${left} piece${left === 1 ? '' : 's'}`);
+    return bits.join(' + ');
+  }
+
+  // One product at one price is one receipt line, even when the till had to take it
+  // from two stock batches (so 24 + 6 reads as 30 = 1 carton + 6 pieces).
+  function mergePackLines(items) {
+    const out = [];
+    const byKey = new Map();
+    (items || []).forEach((it) => {
+      if (!it.product_id) { out.push({ ...it }); return; }
+      const key = `${it.product_id}|${it.unit_price_naira}`;
+      const hit = byKey.get(key);
+      if (hit) {
+        hit.quantity += it.quantity;
+        hit.line_total_naira += it.line_total_naira;
+      } else {
+        const copy = { ...it };
+        byKey.set(key, copy);
+        out.push(copy);
+      }
+    });
+    return out;
+  }
+
+  function packLineHtml(it) {
+    const text = packBreakdownText(it.quantity, it.pack_units);
+    return text ? `<div class="receipt-line-pack" style="font-size:12px;">= ${escapeHtml(text)}</div>` : '';
+  }
+
   const paymentLabels = {
     cash: 'Cash',
     card: 'Card',
@@ -42,13 +88,14 @@ const Receipt = (() => {
       ? `<img src="${escapeHtml(store.logoUrl)}" alt="${escapeHtml(store.name || 'Store logo')}" class="receipt-logo-img" />`
       : `<div class="receipt-logo-placeholder">📷 Your logo</div>`;
 
-    const itemsHtml = items.map((it) => `
+    const itemsHtml = mergePackLines(items).map((it) => `
       <div class="receipt-line-item">
         <div class="receipt-line-item-row">
           <span class="receipt-line-qty">${it.quantity}</span>
           <span class="receipt-line-name">${escapeHtml(it.product_name)}</span>
           <span class="receipt-line-amount">${formatNaira(it.line_total_naira)}</span>
         </div>
+        ${packLineHtml(it)}
         ${it.unit_price_naira != null ? `<div class="receipt-line-unit">${formatNaira(it.unit_price_naira)} / ${escapeHtml(it.unit_label || 'unit')}</div>` : ''}
       </div>`).join('');
 

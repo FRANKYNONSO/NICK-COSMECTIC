@@ -51,6 +51,9 @@ class SaleItemOut(BaseModel):
     line_total_naira: float
     product_name: str | None = None
     unit_label: str | None = None
+    # PATCH9A-UNITS: this product's pack sizes (biggest first) so a receipt can
+    # show 30 pieces as "1 carton + 6 pieces". Pieces stay the real quantity.
+    pack_units: list[dict] = []
 
 
 class SalePaymentOut(BaseModel):

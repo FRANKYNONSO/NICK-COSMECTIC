@@ -319,7 +319,7 @@
             <p id="tr-availability-hint" style="margin:0;font-size:12.5px;color:var(--ink-faint);"></p>
           </div>
           <div class="field">
-            <label for="tr-unit">Unit label</label>
+            <label for="tr-unit">Unit label <button type="button" id="manage-units-btn" class="btn-ghost btn-sm" style="margin-left:6px;">Manage units</button></label>
             <select id="tr-unit">
               <option value="carton">Carton</option>
               <option value="dozen">Dozen</option>
@@ -334,6 +334,10 @@
           <div class="field" id="tr-per-unit-group">
             <label for="tr-per-unit" id="tr-per-unit-label">Pieces per carton</label>
             <input type="number" id="tr-per-unit" min="1" value="1" required />
+          </div>
+          <!-- PATCH9A-UNITS: live pieces line -->
+          <div class="field" style="grid-column:1/-1;">
+            <p id="tr-pieces-preview" style="margin:0;font-size:13px;font-weight:600;"></p>
           </div>
           <!-- September 2026 change spec section 19: how the receiving
                branch settles this transfer with the sending branch --
@@ -483,6 +487,27 @@
   </div>
 </div>
 
+<!-- PATCH9A-UNITS: Manage units -->
+<div class="modal-backdrop" id="units-backdrop">
+  <div class="modal" style="max-width:680px;">
+    <h3>Packaging units</h3>
+    <p style="font-size:12.5px;color:var(--ink-faint);margin:0 0 10px;">Stock is always stored in pieces. Units only describe a piece total (for example 100 pieces = 4 cartons + 4 pieces). Carton, bag and roll sizes are set per product on the product form; a dozen is a fixed 12. Switching a unit off stops it appearing in dropdowns and breakdowns.</p>
+    <div id="units-body" style="font-size:13.5px;"></div>
+    <div id="units-add" style="margin-top:12px;border-top:1px solid var(--line, #ddd);padding-top:12px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:6px;">Add a unit</div>
+      <div style="display:grid;grid-template-columns:1.1fr 1.1fr .8fr auto;gap:8px;align-items:center;">
+        <input type="text" id="new-unit-name" placeholder="Name, e.g. Pack" />
+        <input type="text" id="new-unit-plural" placeholder="Plural (optional)" />
+        <input type="number" id="new-unit-pieces" min="2" placeholder="Pieces in one" />
+        <button type="button" class="btn btn-primary btn-sm" id="new-unit-add">Add</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="units-close">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- RET3: one window for Request back / Return items, Approve refund and View. -->
 <div class="modal-backdrop" id="tr-return-backdrop">
   <div class="modal" style="max-width:460px;">
@@ -533,6 +558,7 @@
 
 <script src="js/api.js"></script>
 <script src="js/permissions.js"></script>
+<script src="js/nigerian-banks.js"></script>
 <script src="js/receipt.js"></script>
 <script src="js/warehouse.js"></script>
 </body>

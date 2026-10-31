@@ -854,6 +854,23 @@ const Api = {
     const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
     return apiRequest(`/warehouse/stock${qs}`);
   },
+  // PATCH9A-UNITS -- shared list of packaging units (carton / bag / roll / dozen / ...).
+  listPackagingUnits({ includeInactive = false } = {}) {
+    return apiRequest(`/catalog/packaging-units${includeInactive ? '?include_inactive=true' : ''}`);
+  },
+  createPackagingUnit(body) {
+    return apiRequest('/catalog/packaging-units', { method: 'POST', body });
+  },
+  updatePackagingUnit(unitId, body) {
+    return apiRequest(`/catalog/packaging-units/${unitId}`, { method: 'PATCH', body });
+  },
+  // PATCH10B-UNITSIZES -- per-product size for each packaging unit.
+  listProductUnitSizes() {
+    return apiRequest('/catalog/product-unit-sizes');
+  },
+  setProductUnitSizes(productId, sizes) {
+    return apiRequest(`/catalog/products/${productId}/unit-sizes`, { method: 'PUT', body: { sizes } });
+  },
   listIntakeReceipts(branchId) {
     const qs = branchId ? `?branch_id=${branchId}` : '';
     return apiRequest(`/warehouse/receipts${qs}`);

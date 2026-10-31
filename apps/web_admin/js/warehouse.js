@@ -769,18 +769,19 @@ function trOpenRequestModal(transferId) {
     + trLine('Route sent', escapeHtml(branchName(t.from_branch_id)) + ' \u2192 ' + escapeHtml(branchName(t.to_branch_id)))
     + '<div class="field" style="margin-top:12px;"><label for="tr-ret-pieces">Pieces (up to ' + left + ')</label>'
     + '<input type="number" id="tr-ret-pieces" min="1" max="' + left + '" step="1" value="1" /></div>'
-    + '<div class="field" style="margin-top:10px;"><label for="tr-ret-note">Note (optional)</label>'
+    + '<div class="field" style="margin-top:10px;"><label for="tr-ret-note">Reason for return</label>'
     + '<input type="text" id="tr-ret-note" /></div>'
     + '<div style="margin-top:14px;font-weight:600;">Account to receive the money (optional)</div>'
-    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-bank">Bank name</label>'
-    + '<input type="text" id="tr-ret-bank" maxlength="120" /></div>'
-    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-acct-no">Account number</label>'
-    + '<input type="text" id="tr-ret-acct-no" maxlength="40" /></div>'
-    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-acct-name">Account name</label>'
-    + '<input type="text" id="tr-ret-acct-name" maxlength="120" /></div>'
+    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-account-number">Account number</label>'
+    + '<input type="text" id="tr-ret-account-number" inputmode="numeric" maxlength="10" /></div>'
+    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-bank-name">Bank name</label>'
+    + '<select id="tr-ret-bank-name"></select></div>'
+    + '<div class="field" style="margin-top:8px;"><label for="tr-ret-account-name">Account name</label>'
+    + '<input type="text" id="tr-ret-account-name" maxlength="120" placeholder="For confirmation" /></div>'
     + '<div style="margin-top:6px;font-size:12.5px;color:var(--ink-faint);">The sending branch will see these when it pays the refund.</div>'
     + '<div id="tr-ret-money" style="margin-top:12px;font-size:13px;color:var(--ink-faint);"></div>';
   trOpenModal(title, body, 'Send request');
+  populateBankSelect(document.getElementById('tr-ret-bank-name'));
   document.getElementById('tr-ret-pieces').addEventListener('input', trRefreshMoney);
   trRefreshMoney();
 }
@@ -815,6 +816,27 @@ function trRefreshPayWarn(r) {
   }
 }
 
+// ---- Paid by toggle (Cash | Bank transfer)
+(function () {
+  if (document.getElementById('tr-pay-style')) return;
+  const st = document.createElement('style');
+  st.id = 'tr-pay-style';
+  st.textContent = ''
+    + '.tr-pay-toggle{display:flex;border:1px solid var(--border,#2b3a5c);border-radius:10px;overflow:hidden;margin-top:6px;}'
+    + '.tr-pay-toggle .tr-pay-opt{flex:1;margin:0;cursor:pointer;position:relative;display:block !important;}'
+    + '.tr-pay-toggle .tr-pay-opt input{position:absolute;opacity:0;pointer-events:none;}'
+    + '.tr-pay-toggle .tr-pay-opt span{display:block;text-align:center;padding:10px 12px;font-weight:600;color:var(--ink-faint);}'
+    + '.tr-pay-toggle .tr-pay-opt input:checked + span{background:var(--primary,#4f8cff);color:#fff;}';
+  document.head.appendChild(st);
+})();
+
+function trRefreshPayTo() {
+  const el = document.getElementById('tr-pay-to');
+  if (!el) return;
+  const picked = document.querySelector('input[name="tr-pay"]:checked');
+  el.style.display = (picked && picked.value === 'transfer') ? 'block' : 'none';
+}
+
 // ---- Approve refund
 function trOpenApproveModal(returnId) {
   const r = trReturnsCache.find((x) => String(x.id) === String(returnId));
@@ -824,15 +846,15 @@ function trOpenApproveModal(returnId) {
   const pcsWord = Number(r.quantity_pieces) === 1 ? 'piece' : 'pieces';
   const body = ''
     + '<p style="margin:0 0 12px;">You are paying back <strong>' + money + '</strong> to <strong>' + escapeHtml(branchName(r.to_branch_id)) + '</strong> for <strong>' + r.quantity_pieces + ' ' + pcsWord + '</strong> of <strong>' + escapeHtml(r.product_name || 'this item') + '</strong>.</p>'
-    + trPayToHtml(r)
-    + '<div class="field"><label>Paid by</label>'
-    + '<label style="display:flex;gap:8px;align-items:center;font-weight:400;"><input type="radio" name="tr-pay" value="cash" /> Cash</label>'
-    + '<label style="display:flex;gap:8px;align-items:center;font-weight:400;"><input type="radio" name="tr-pay" value="transfer" /> Bank transfer</label></div>'
+    + '<div style="margin:0 0 12px;padding:10px 12px;border-radius:8px;background:rgba(255,255,255,.05);"><div style="font-weight:600;margin-bottom:4px;">Reason for return</div><div>' + (r.note ? escapeHtml(r.note) : '<span style="color:var(--ink-faint)">No reason was written.</span>') + '</div></div>'
+    + '<div class="field"><label>Paid by</label><div class="tr-pay-toggle"><label class="tr-pay-opt"><input type="radio" name="tr-pay" value="cash" checked /><span>Cash</span></label><label class="tr-pay-opt"><input type="radio" name="tr-pay" value="transfer" /><span>Bank transfer</span></label></div></div>'
+    
+    + '<div id="tr-pay-to" style="display:none;margin-top:12px;">' + trPayToHtml(r) + '</div>'
     + '<div id="tr-pay-warn" style="display:none;margin-top:10px;font-size:12.5px;color:var(--danger);"></div>'
     + '<div style="margin-top:14px;padding:10px 12px;border-radius:8px;background:var(--warning-tint);color:var(--warning);font-size:12.5px;">'
     + 'When you click Approve refund: the pieces come back to your branch. Your sale goes down by ' + money + '. Their invoice and their Total Invested go down by ' + money + '. This cannot be undone.</div>';
   trOpenModal('Approve refund', body, 'Approve refund');
-  document.querySelectorAll('input[name="tr-pay"]').forEach((el) => el.addEventListener('change', () => trRefreshPayWarn(r)));
+  document.querySelectorAll('input[name="tr-pay"]').forEach((el) => el.addEventListener('change', () => { trRefreshPayTo(); trRefreshPayWarn(r); }));
 }
 
 // ---- View (completed return)
@@ -850,7 +872,7 @@ function trOpenViewModal(returnId) {
     + trLine('Paid by', r.payment_method === 'cash' ? 'Cash' : (r.payment_method ? 'Bank transfer' : dash))
     + trLine('Asked by', escapeHtml(r.requested_by_name || 'Unknown') + ', ' + trDate(r.requested_at))
     + trLine('On shelf / in warehouse', Number(r.landed_shelf_pieces || 0) + ' / ' + Number(r.landed_warehouse_pieces || 0) + ' pcs')
-    + trLine('Note', r.note ? escapeHtml(r.note) : dash);
+    + trLine('Reason', r.note ? escapeHtml(r.note) : dash);
   trOpenModal('Return details', body, null);
 }
 
@@ -869,9 +891,9 @@ document.getElementById('tr-return-submit')?.addEventListener('click', async () 
     const note = document.getElementById('tr-ret-note').value.trim();
     btn.disabled = true;
     try {
-      const bankName = document.getElementById('tr-ret-bank').value.trim();
-      const acctNo = document.getElementById('tr-ret-acct-no').value.trim();
-      const acctName = document.getElementById('tr-ret-acct-name').value.trim();
+      const bankName = document.getElementById('tr-ret-bank-name').value.trim();
+      const acctNo = document.getElementById('tr-ret-account-number').value.trim();
+      const acctName = document.getElementById('tr-ret-account-name').value.trim();
       await Api.createTransferReturn({
         transfer_id: st.transfer.id,
         quantity_pieces: pieces,
@@ -1028,7 +1050,7 @@ async function loadTransferReturns() {
     tbody.innerHTML = rows.map((r) => `
       <tr>
         <td>${trDate(r.requested_at)}</td>
-        <td>${escapeHtml(r.product_name || 'Product')}</td>
+        <td>${escapeHtml(r.product_name || 'Product')}${r.note ? '<div style="font-size:12px;color:var(--ink-faint);margin-top:2px;">Reason: ' + escapeHtml(r.note) + '</div>' : ''}</td>
         <td>${escapeHtml(branchName(r.to_branch_id))} \u2192 ${escapeHtml(branchName(r.from_branch_id))}</td>
         <td>${r.quantity_pieces} pcs</td>
         <td>${formatNaira(r.amount_naira)}</td>
@@ -2273,3 +2295,180 @@ loadBranches().then(() => {
   loadWarehouseHistory();
 });
 // fix56: movement button reads View
+
+// ---------------------------------------------------------------------------
+// PATCH9A-UNITS -- unit dropdown from the shared list (Manage units), pieces-per-unit
+// filled from the product, a live "2 cartons x 24 = 48 pieces" line, and the Manage
+// units window. Stock is always stored in pieces; units only describe it.
+// ---------------------------------------------------------------------------
+let packUnits = [];   // active units from /catalog/units
+let trProduct = null; // product chosen in the transfer form (carries its pack sizes)
+
+const PER_PRODUCT_PACK_FIELD = {
+  carton: 'default_pieces_per_carton',
+  bag: 'default_pieces_per_bag',
+  roll: 'default_pieces_per_roll',
+};
+
+function packSizeFor(code, product) {
+  if (code === 'piece') return 1;
+  const field = PER_PRODUCT_PACK_FIELD[code];
+  if (field) return product && product[field] ? Number(product[field]) : null;
+  const u = packUnits.find((x) => x.code === code);
+  return u && u.fixed_pieces ? Number(u.fixed_pieces) : null;
+}
+
+function trUpdatePiecesPreview() {
+  const el = document.getElementById('tr-pieces-preview');
+  if (!el) return;
+  const code = document.getElementById('tr-unit').value;
+  const count = Number(document.getElementById('tr-count').value || 0);
+  const per = code === 'piece' ? 1 : Number(document.getElementById('tr-per-unit').value || 0);
+  if (!(count > 0) || !(per > 0)) { el.textContent = ''; return; }
+  if (code === 'piece') { el.textContent = `${count} piece${count === 1 ? '' : 's'}`; return; }
+  const u = packUnits.find((x) => x.code === code);
+  const name = u ? String(count === 1 ? u.label : u.plural_label).toLowerCase() : code;
+  el.textContent = `${count} ${name} x ${per} = ${count * per} pieces`;
+}
+
+function trSyncUnitFields() {
+  const code = document.getElementById('tr-unit').value;
+  const u = packUnits.find((x) => x.code === code);
+  if (u && !UNIT_FIELD_CONFIG[code]) {
+    document.getElementById('tr-count-label').textContent = `${u.label} count`;
+    document.getElementById('tr-per-unit-label').textContent = `Pieces per ${u.label.toLowerCase()}`;
+  }
+  const size = packSizeFor(code, trProduct);
+  if (code !== 'piece' && size) document.getElementById('tr-per-unit').value = size;
+  trUpdatePiecesPreview();
+}
+
+async function trLoadProductForUnits() {
+  const id = document.getElementById('tr-product').value;
+  trProduct = null;
+  if (id) {
+    try { trProduct = await Api.getProduct(id); } catch (err) { trProduct = null; }
+  }
+  trSyncUnitFields();
+}
+
+async function loadPackUnits() {
+  try {
+    packUnits = await Api.listPackagingUnits();
+  } catch (err) {
+    return; // keep the built-in dropdown
+  }
+  const select = document.getElementById('tr-unit');
+  const keep = select.value;
+  select.innerHTML = packUnits.map((u) => `<option value="${escapeHtml(u.code)}">${escapeHtml(u.label)}</option>`).join('');
+  if (packUnits.some((u) => u.code === keep)) select.value = keep;
+  applyUnitFieldConfig();
+  trSyncUnitFields();
+}
+
+document.getElementById('tr-unit').addEventListener('change', trSyncUnitFields);
+document.getElementById('tr-product').addEventListener('change', trLoadProductForUnits);
+['tr-count', 'tr-per-unit'].forEach((id) => document.getElementById(id).addEventListener('input', trUpdatePiecesPreview));
+
+// The product list is (re)filled by script without a change event, so follow the
+// existing variant-sync step to pick up the product's pack sizes.
+const _loadVariantsFilterBeforeUnits = loadVariantsFilter;
+loadVariantsFilter = async function (prefix) {
+  await _loadVariantsFilterBeforeUnits(prefix);
+  if (prefix === 'tr') trLoadProductForUnits();
+};
+
+// ---- Manage units window
+const PER_PRODUCT_UNIT_CODES = ['carton', 'bag', 'roll'];
+
+async function renderUnitsList() {
+  const body = document.getElementById('units-body');
+  body.innerHTML = 'Loading...';
+  let rows;
+  try {
+    rows = await Api.listPackagingUnits({ includeInactive: true });
+  } catch (err) {
+    body.textContent = err.message || 'Could not load the units.';
+    return;
+  }
+  const canEdit = Perms.can('manage_products');
+  const dis = canEdit ? '' : 'disabled';
+  body.innerHTML = rows.map((u) => {
+    const sizeCell = u.code === 'piece'
+      ? '<span style="font-size:12px;color:var(--ink-faint);">1 piece</span>'
+      : (PER_PRODUCT_UNIT_CODES.includes(u.code)
+        ? '<span style="font-size:12px;color:var(--ink-faint);">per product</span>'
+        : `<input type="number" min="2" data-f="fixed_pieces" value="${u.fixed_pieces || ''}" ${dis} />`);
+    return `<div data-unit-id="${u.id}" style="display:grid;grid-template-columns:1.1fr 1.1fr .8fr auto auto auto;gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" data-f="label" value="${escapeHtml(u.label)}" ${dis} />
+      <input type="text" data-f="plural_label" value="${escapeHtml(u.plural_label)}" ${dis} />
+      ${sizeCell}
+      <label style="font-size:12px;"><input type="checkbox" data-f="include_in_breakdown" ${u.include_in_breakdown ? 'checked' : ''} ${u.code === 'piece' ? 'disabled' : dis} /> Show in breakdown</label>
+      <label style="font-size:12px;"><input type="checkbox" data-f="is_active" ${u.is_active ? 'checked' : ''} ${u.code === 'piece' ? 'disabled' : dis} /> In use</label>
+      ${canEdit ? `<button type="button" class="btn-ghost btn-sm" data-unit-save="${u.id}">Save</button>` : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('units-add').style.display = canEdit ? '' : 'none';
+}
+
+function openUnitsModal() {
+  renderUnitsList();
+  document.getElementById('units-backdrop').classList.add('visible');
+}
+
+async function afterUnitsChanged() {
+  await loadPackUnits();
+  await renderUnitsList();
+  loadWarehouseStock();
+}
+
+(function wireUnitsModal() {
+  const openBtn = document.getElementById('manage-units-btn');
+  if (!openBtn) return;
+  openBtn.addEventListener('click', (ev) => { ev.preventDefault(); openUnitsModal(); });
+  document.getElementById('units-close').addEventListener('click', () => {
+    document.getElementById('units-backdrop').classList.remove('visible');
+  });
+  document.getElementById('units-body').addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('[data-unit-save]');
+    if (!btn) return;
+    const row = btn.closest('[data-unit-id]');
+    const field = (name) => row.querySelector(`[data-f="${name}"]`);
+    const body = {
+      label: field('label').value,
+      plural_label: field('plural_label').value,
+      include_in_breakdown: field('include_in_breakdown').checked,
+      is_active: field('is_active').checked,
+    };
+    if (field('fixed_pieces')) body.fixed_pieces = Number(field('fixed_pieces').value || 0);
+    btn.disabled = true;
+    try {
+      await Api.updatePackagingUnit(btn.dataset.unitSave, body);
+      showToast('Unit saved.');
+      await afterUnitsChanged();
+    } catch (err) {
+      showToast(err.message || 'That did not save.', true);
+      btn.disabled = false;
+    }
+  });
+  document.getElementById('new-unit-add').addEventListener('click', async () => {
+    const label = document.getElementById('new-unit-name').value.trim();
+    const plural = document.getElementById('new-unit-plural').value.trim();
+    const pieces = Number(document.getElementById('new-unit-pieces').value || 0);
+    if (!label || !(pieces >= 2)) { showToast('Give the unit a name and how many pieces are in it (2 or more).', true); return; }
+    try {
+      await Api.createPackagingUnit({ label, plural_label: plural || null, fixed_pieces: pieces });
+      document.getElementById('new-unit-name').value = '';
+      document.getElementById('new-unit-plural').value = '';
+      document.getElementById('new-unit-pieces').value = '';
+      showToast('Unit added.');
+      await afterUnitsChanged();
+    } catch (err) {
+      showToast(err.message || 'That did not save.', true);
+    }
+  });
+  if (!Perms.can('manage_products')) openBtn.style.display = 'none';
+})();
+
+loadPackUnits();
+trLoadProductForUnits();

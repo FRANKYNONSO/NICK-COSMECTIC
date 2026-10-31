@@ -219,6 +219,10 @@ def _to_sale_out(
                 unit_price_naira=Money(item.unit_price_kobo).naira,
                 line_total_naira=Money(item.line_total_kobo).naira,
                 product_name=product_names.get(item.product_id),
+                pack_units=[
+                    {"code": p.code, "label": p.label, "plural_label": p.plural_label, "pieces": p.pieces}
+                    for p in getattr(item, "_pack_units", [])
+                ],
             )
             for item in orm_items
         ],
@@ -254,10 +258,18 @@ async def _resolve_product_names(
     product_ids = {item.product_id for item in items}
     if not product_ids:
         return {}
-    result = await session.execute(
-        select(Product.id, Product.name).where(Product.id.in_(product_ids))
-    )
-    return {product_id: name for product_id, name in result.all()}
+    result = await session.execute(select(Product).where(Product.id.in_(product_ids)))
+    products = list(result.scalars().all())
+    # PATCH9A-UNITS: hang each product's pack sizes on its sale items so
+    # _to_sale_out can send them with the receipt.
+    from infrastructure.units import load_unit_sizes, load_units, pack_units_for_product
+
+    all_units = await load_units(session)
+    sizes_by_product = await load_unit_sizes(session, [p.id for p in products])
+    packs = {p.id: pack_units_for_product(all_units, p, sizes_by_product.get(p.id)) for p in products}
+    for item in items:
+        item._pack_units = packs.get(item.product_id, [])
+    return {p.id: p.name for p in products}
 
 
 @router.get("/bookings/holds", response_model=dict)
@@ -2259,14 +2271,8 @@ async def refund_sale(
     # refund endpoint. A plain refund or an exchange's cash payout
     # therefore can no longer be 'cash' here, regardless of how the
     # original sale was paid or how recently.
-    if body.action == "cash":
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST,
-            detail=(
-                "Cash refunds are no longer available -- process this as a bank transfer instead. "
-                "(Cash is only still offered for a same-day booking cancellation or item change.)"
-            ),
-        )
+    # PATCH11A: a plain cash refund is allowed again (owner decision).
+    # It is saved as 'completed' below and needs no bank details.
     if body.action == "exchange" and body.settlement_method == "cash":
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
