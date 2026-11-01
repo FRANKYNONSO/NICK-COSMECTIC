@@ -12,6 +12,19 @@
 <script src="js/theme.js"></script>
   <script src="js/numeric-input-fix.js"></script>
   <script src="ui-dialog.js"></script>
+<style id="inv-trash-style">
+  /* TRASH2: invoice Trash tabs and windows */
+  .inv-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;}
+  .inv-tab{padding:6px 16px;border-radius:999px;font-size:12.5px;cursor:pointer;font-family:inherit;color:var(--ink-muted);border:1px solid var(--border);background:var(--surface-raised,var(--surface));}
+  .inv-tab:hover:not(.active){color:var(--ink);background:var(--bg-muted);}
+  .inv-tab.active{background:var(--accent,#6c4bd6);color:#fff;border-color:transparent;font-weight:500;}
+  .inv-hidden{display:none !important;}
+  .trash-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .trash-note{color:var(--ink-muted);font-size:13px;margin:0 0 12px;}
+  .trash-sub{display:block;color:var(--ink-faint);font-size:12px;margin-top:2px;}
+  .inv-history-row{padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;line-height:1.5;}
+  .inv-reason-box{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;resize:vertical;}
+</style>
 </head>
 <body>
 
@@ -43,6 +56,13 @@
   </aside>
 
   <main class="main">
+    <div class="inv-tabs" id="inv-tabs">
+      <button type="button" class="inv-tab active" data-inv-tab="invoices">Invoices</button>
+      <button type="button" class="inv-tab" data-inv-tab="trash">Trash <span id="trash-count"></span></button>
+      <button type="button" class="inv-tab inv-hidden" id="inv-tab-review" data-inv-tab="review">Review <span id="review-count"></span></button>
+      <button type="button" class="inv-tab inv-hidden" id="inv-tab-final" data-inv-tab="final">Final deletions</button>
+      <button type="button" class="inv-tab inv-hidden" id="inv-tab-activity" data-inv-tab="activity">Activity</button>
+    </div>
     <div class="page-top">
     <div class="page-head">
       <div class="card-head" style="margin-bottom:0;">
@@ -97,7 +117,59 @@
         <p>Store what you've bought from a supplier — typed in, with an optional photo of the paper invoice.</p>
       </div>
     </div>
+      <div id="trash-pane" class="inv-hidden">
+      <p class="trash-note" id="trash-note"></p>
+      <div class="table-card" style="overflow-x:auto;">
+        <table id="trash-table">
+          <thead id="trash-thead"></thead>
+          <tbody id="trash-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="trash-empty" style="display:none;">
+          <div class="display" id="trash-empty-text"></div>
+        </div>
+      </div>
+    </div>
   </main>
+</div>
+
+<!-- TRASH2: reason window (delete / delete permanently) -->
+<div class="modal-backdrop" id="trash-reason-backdrop">
+  <div class="modal" style="max-width:480px;">
+    <h3 id="trash-reason-title" style="margin-bottom:4px;"></h3>
+    <p class="modal-sub" id="trash-reason-text"></p>
+    <div id="trash-reason-error" class="error-banner"></div>
+    <div class="field">
+      <label for="trash-reason-input">Reason (required)</label>
+      <textarea id="trash-reason-input" class="inv-reason-box" rows="3" maxlength="500"></textarea>
+    </div>
+    <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+      <button type="button" class="btn btn-ghost" id="trash-reason-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="trash-reason-confirm" style="flex:1;">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRASH2: invoice history window -->
+<div class="modal-backdrop" id="inv-history-backdrop">
+  <div class="modal" style="max-width:560px;">
+    <h3 style="margin-bottom:4px;">Invoice history</h3>
+    <p class="modal-sub" id="inv-history-sub"></p>
+    <div id="inv-history-list"></div>
+    <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+      <button type="button" class="btn btn-primary" id="inv-history-close" style="flex:1;">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRASH2: final-deletion record window (super admin) -->
+<div class="modal-backdrop" id="final-view-backdrop">
+  <div class="modal" style="max-width:640px;">
+    <h3 style="margin-bottom:8px;">Final deletion record</h3>
+    <div id="final-view-body"></div>
+    <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+      <button type="button" class="btn btn-primary" id="final-view-close" style="flex:1;">Close</button>
+    </div>
+  </div>
 </div>
 
 <!-- Add purchase invoice -->
@@ -251,6 +323,7 @@
     <img id="invoice-detail-photo" src="" alt="Invoice" data-enlarge-image="" style="display:none;max-width:100%;border-radius:10px;margin:10px 0;cursor:zoom-in;" />
     <video id="invoice-detail-video" src="" controls style="display:none;max-width:100%;border-radius:10px;margin:10px 0;"></video>
     <div class="modal-actions" style="display:flex;gap:10px;margin-top:16px;">
+      <button type="button" class="btn btn-ghost" id="invoice-detail-delete" style="flex:1;color:#c0392b;">Delete</button>
       <button type="button" class="btn btn-ghost" id="invoice-detail-edit" style="flex:1;">Edit</button>
       <button type="button" class="btn btn-primary" id="invoice-detail-close" style="flex:1;">Close</button>
     </div>

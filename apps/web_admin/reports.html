@@ -93,6 +93,34 @@
       </div>
     </div>
 
+    <!-- Gross profit (patch 26a) -- admin/manager only, see js/reports.js loadProfitSummary() -->
+    <div class="admin-only-section" id="profit-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Gross profit</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Today</div>
+          <div class="value" id="profit-today">&mdash;</div>
+          <div class="sub" id="profit-today-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">This week</div>
+          <div class="value" id="profit-week">&mdash;</div>
+          <div class="sub" id="profit-week-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">This month</div>
+          <div class="value" id="profit-month">&mdash;</div>
+          <div class="sub" id="profit-month-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">All time</div>
+          <div class="value" id="profit-alltime">&mdash;</div>
+          <div class="sub" id="profit-alltime-sub">&nbsp;</div>
+        </div>
+      </div>
+      <p class="wh-card-sub" id="profit-note" style="margin-top:8px;">Gross profit = sales (after discounts) minus what the stock cost you.</p>
+    </div>
+
     <!-- Revenue trends -- the full daily/weekly/monthly/yearly chart
          used to be duplicated here (this was a near-identical copy of
          what Performance Records already shows for the Revenue
@@ -113,7 +141,7 @@
     <div class="section-hint" id="stock-overview-hint">— products · — units · — value</div>
 
     <div class="toolbar" style="margin:8px 0 12px;gap:10px;align-items:center;flex-wrap:wrap;">
-      <label for="analysis-window" style="font-size:12px;color:var(--ink-muted);">Sales window for top sellers &amp; slow movers</label>
+      <label for="analysis-window" style="font-size:12px;color:var(--ink-muted);">Window for top sellers, slow movers &amp; the sales, returns and purchases reports</label>
       <select id="analysis-window" style="width:auto;">
         <option value="30">Last 30 days</option>
         <option value="90" selected>Last 90 days</option>
@@ -198,12 +226,19 @@
           <p id="reorder-sub">Products that are out of stock or at/below their reorder level.</p>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <label for="reorder-cover-days" style="font-size:12px;color:var(--ink-muted);align-self:center;">Order up to</label>
+          <select id="reorder-cover-days" style="width:auto;">
+            <option value="14">14 days of stock</option>
+            <option value="30" selected>30 days of stock</option>
+            <option value="45">45 days of stock</option>
+            <option value="60">60 days of stock</option>
+          </select>
           <a href="restock-list.html" class="btn btn-ghost btn-sm" style="width:auto;text-decoration:none;">Open restock list</a>
           <button type="button" class="btn btn-ghost btn-sm" id="export-reorder-btn" style="width:auto;">Export CSV</button>
         </div>
       </div>
       <table class="wh-table">
-        <thead><tr><th>Product</th><th>Category</th><th>Status</th><th>On hand</th><th>Reorder level</th><th>Below level by</th></tr></thead>
+        <thead><tr><th>Product</th><th>Category</th><th>Status</th><th>On hand</th><th>Reorder level</th><th>Below level by</th><th>Days left</th><th>Suggested order</th></tr></thead>
         <tbody id="reorder-tbody"></tbody>
       </table>
       <div class="empty-state" id="reorder-empty" style="display:none;"><div class="display">Nothing needs reordering</div></div>
@@ -234,6 +269,63 @@
         <tbody id="slow-tbody"></tbody>
       </table>
       <div class="empty-state" id="slow-empty" style="display:none;"><div class="display">No slow movers found</div></div>
+    </div>
+
+    <!-- Bookings & reserved stock (patch 26a) -- admin/manager only, see js/reports.js loadBookingsReport() -->
+    <div class="admin-only-section" id="bookings-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Bookings &amp; reserved stock</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Open bookings</div>
+          <div class="value" id="bk-open">&mdash;</div>
+          <div class="sub" id="bk-open-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Units on booking</div>
+          <div class="value" id="bk-units">&mdash;</div>
+          <div class="sub" id="bk-units-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Deposits held</div>
+          <div class="value" id="bk-deposits">&mdash;</div>
+          <div class="sub" id="bk-deposits-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Awaiting customer refund</div>
+          <div class="value" id="bk-refund">&mdash;</div>
+          <div class="sub" id="bk-refund-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Open bookings</h3>
+        <p class="wh-card-sub">Oldest first. Money held against each booking and what the customer still owes.</p>
+        <table class="wh-table">
+          <thead><tr><th>Customer</th><th>Items</th><th>Units</th><th>Total</th><th>Paid</th><th>Balance</th><th>Age</th><th>Pickup note</th><th>Branch</th></tr></thead>
+          <tbody id="bk-open-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="bk-open-empty" style="display:none;"><div class="display">No open bookings</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Reserved stock by product</h3>
+        <p class="wh-card-sub">Sellable = on hand minus units on open bookings and arrived customer orders. Over-committed means more is promised than is on the shelf.</p>
+        <table class="wh-table">
+          <thead><tr><th>Product</th><th>On hand</th><th>On open bookings</th><th>Customer orders</th><th>Sellable</th></tr></thead>
+          <tbody id="bk-reserved-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="bk-reserved-empty" style="display:none;"><div class="display">No stock is currently reserved</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Cancelled bookings awaiting refund</h3>
+        <p class="wh-card-sub">Deposits that still have to be sent back to the customer.</p>
+        <table class="wh-table">
+          <thead><tr><th>Customer</th><th>Amount</th><th>Cancelled</th><th>Reason</th><th>Branch</th></tr></thead>
+          <tbody id="bk-refund-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="bk-refund-empty" style="display:none;"><div class="display">No refunds waiting</div></div>
+      </div>
     </div>
 
     <!-- Branch comparison: only shown on "All branches" -->
@@ -269,11 +361,417 @@
       <h3 class="wh-card-title">Top selling products</h3>
       <p class="wh-card-sub">Ranked by revenue with share of top performers</p>
       <table class="wh-table">
-        <thead><tr><th>#</th><th>Product</th><th>Category</th><th>Units sold</th><th>Revenue</th></tr></thead>
+        <thead><tr><th>#</th><th>Product</th><th>Category</th><th>Units sold</th><th>Revenue</th><th>Profit</th><th>Margin</th></tr></thead>
         <tbody id="top-products-tbody"></tbody>
       </table>
       <div class="empty-state" id="top-products-empty" style="display:none;">
         <div class="display">No product sales yet</div>
+      </div>
+    </div>
+
+    <!-- Sales breakdown (patch 26b) -- see js/reports.js loadSalesBreakdown() -->
+    <div class="admin-only-section" id="breakdown-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Sales breakdown</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Sales</div>
+          <div class="value" id="bd-sales">&mdash;</div>
+          <div class="sub" id="bd-sales-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Transactions</div>
+          <div class="value" id="bd-count">&mdash;</div>
+          <div class="sub" id="bd-count-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Average sale</div>
+          <div class="value" id="bd-avg">&mdash;</div>
+          <div class="sub" id="bd-avg-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Discounts given</div>
+          <div class="value" id="bd-discount">&mdash;</div>
+          <div class="sub" id="bd-discount-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By payment method</h3>
+        <p class="wh-card-sub">How customers paid in the selected window.</p>
+        <table class="wh-table">
+          <thead><tr><th>Method</th><th>Amount</th><th>Share</th><th>Payments</th></tr></thead>
+          <tbody id="bd-pay-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="bd-pay-empty" style="display:none;"><div class="display">No sales in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By category</h3>
+        <p class="wh-card-sub">Sales and profit per category. Sales here are line totals, before any sale-level discount.</p>
+        <table class="wh-table">
+          <thead><tr><th>Category</th><th>Units</th><th>Sales</th><th>Cost</th><th>Profit</th><th>Margin</th></tr></thead>
+          <tbody id="bd-cat-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="bd-cat-empty" style="display:none;"><div class="display">No sales in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By day of the week</h3>
+        <p class="wh-card-sub">Which days bring in the most.</p>
+        <table class="wh-table">
+          <thead><tr><th>Day</th><th>Sales</th><th>Revenue</th><th>Relative</th></tr></thead>
+          <tbody id="bd-day-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="bd-day-empty" style="display:none;"><div class="display">No sales in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By hour of the day</h3>
+        <p class="wh-card-sub">Your busiest hours (Lagos time).</p>
+        <table class="wh-table">
+          <thead><tr><th>Hour</th><th>Sales</th><th>Revenue</th><th>Relative</th></tr></thead>
+          <tbody id="bd-hour-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="bd-hour-empty" style="display:none;"><div class="display">No sales in this window</div></div>
+      </div>
+    </div>
+
+    <!-- Returns & refunds (patch 26b) -- see js/reports.js loadReturnsReport() -->
+    <div class="admin-only-section" id="returns-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Returns &amp; refunds</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Refunds</div>
+          <div class="value" id="rt-count">&mdash;</div>
+          <div class="sub" id="rt-count-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Refund rate</div>
+          <div class="value" id="rt-rate">&mdash;</div>
+          <div class="sub" id="rt-rate-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Awaiting payout</div>
+          <div class="value" id="rt-pending">&mdash;</div>
+          <div class="sub" id="rt-pending-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Most common reason</div>
+          <div class="value" id="rt-reason">&mdash;</div>
+          <div class="sub" id="rt-reason-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <div class="wh-card-head-row">
+          <div><h3>Most returned products</h3><p>Ranked by refund value. Return rate = units returned / units sold in the same window.</p></div>
+          <div><button type="button" class="btn btn-ghost btn-sm" id="export-returns-btn" style="width:auto;">Export CSV</button></div>
+        </div>
+        <table class="wh-table">
+          <thead><tr><th>Product</th><th>Returned</th><th>Sold</th><th>Return rate</th><th>Refund value</th><th>Restocked</th><th>Spoiled</th></tr></thead>
+          <tbody id="rt-prod-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="rt-prod-empty" style="display:none;"><div class="display">No returns in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Reasons given</h3>
+        <p class="wh-card-sub">Grouped ignoring capital letters and spacing.</p>
+        <table class="wh-table">
+          <thead><tr><th>Reason</th><th>Refunds</th><th>Amount</th></tr></thead>
+          <tbody id="rt-reason-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="rt-reason-empty" style="display:none;"><div class="display">No refunds in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Processed by</h3>
+        <p class="wh-card-sub">Who handled the refunds.</p>
+        <table class="wh-table">
+          <thead><tr><th>Staff</th><th>Refunds</th><th>Amount</th></tr></thead>
+          <tbody id="rt-staff-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="rt-staff-empty" style="display:none;"><div class="display">No refunds in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Payout method</h3>
+        <p class="wh-card-sub">How the money went back to customers.</p>
+        <table class="wh-table">
+          <thead><tr><th>Method</th><th>Refunds</th><th>Amount</th></tr></thead>
+          <tbody id="rt-action-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="rt-action-empty" style="display:none;"><div class="display">No refunds in this window</div></div>
+      </div>
+    </div>
+
+    <!-- Purchases & suppliers (patch 26b) -- see js/reports.js loadPurchasesReport() -->
+    <div class="admin-only-section" id="purchases-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Purchases &amp; suppliers</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Bought (goods)</div>
+          <div class="value" id="pu-goods">&mdash;</div>
+          <div class="sub" id="pu-goods-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Extra costs</div>
+          <div class="value" id="pu-extra">&mdash;</div>
+          <div class="sub" id="pu-extra-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Paid</div>
+          <div class="value" id="pu-paid">&mdash;</div>
+          <div class="sub" id="pu-paid-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Owed to suppliers</div>
+          <div class="value" id="pu-owed">&mdash;</div>
+          <div class="sub" id="pu-owed-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <div class="wh-card-head-row">
+          <div><h3>Spend by supplier</h3><p>From your filed supplier invoices. Extra costs are waybill, transit and handling.</p></div>
+          <div><button type="button" class="btn btn-ghost btn-sm" id="export-suppliers-btn" style="width:auto;">Export CSV</button></div>
+        </div>
+        <table class="wh-table">
+          <thead><tr><th>Supplier</th><th>Invoices</th><th>Goods</th><th>Extra costs</th><th>Total</th><th>Still owed</th><th>Last purchase</th></tr></thead>
+          <tbody id="pu-supplier-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="pu-supplier-empty" style="display:none;"><div class="display">No supplier invoices in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Unpaid invoices</h3>
+        <p class="wh-card-sub">Oldest first.</p>
+        <table class="wh-table">
+          <thead><tr><th>Supplier</th><th>Invoice date</th><th>Amount</th><th>Paid</th><th>Balance</th></tr></thead>
+          <tbody id="pu-unpaid-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="pu-unpaid-empty" style="display:none;"><div class="display">Nothing owed</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Spend by month</h3>
+        <p class="wh-card-sub">Goods plus extra costs.</p>
+        <table class="wh-table">
+          <thead><tr><th>Month</th><th>Invoices</th><th>Goods</th><th>Extra costs</th><th>Total</th></tr></thead>
+          <tbody id="pu-month-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="pu-month-empty" style="display:none;"><div class="display">No supplier invoices in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Supplier price changes</h3>
+        <p class="wh-card-sub">Cost per piece, latest delivery vs the one before it (last 12 months). Only products bought at least twice.</p>
+        <table class="wh-table">
+          <thead><tr><th>Product</th><th>Previous cost</th><th>Latest cost</th><th>Change</th><th>Purchases</th><th>Latest delivery</th></tr></thead>
+          <tbody id="pu-trend-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="pu-trend-empty" style="display:none;"><div class="display">No repeat purchases to compare yet</div></div>
+      </div>
+    </div>
+
+    <!-- Stock movement history (patch 26c) -- see js/reports.js loadStockMovements() -->
+    <div class="admin-only-section" id="movements-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Stock movement history</div>
+      <div class="toolbar" style="margin:8px 0 12px;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label for="mv-product" style="font-size:12px;color:var(--ink-muted);">Product</label>
+        <input type="text" id="mv-product" list="mv-product-list" placeholder="Start typing a product name or SKU" autocomplete="off" style="width:320px;max-width:100%;">
+        <datalist id="mv-product-list"></datalist>
+        <button type="button" class="btn btn-ghost btn-sm" id="mv-load-btn" style="width:auto;">Show history</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="mv-export-btn" style="width:auto;">Export CSV</button>
+      </div>
+      <p class="wh-card-sub" id="mv-title" style="margin:0 0 10px;">Pick a product above to see everything that happened to its stock.</p>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Received</div>
+          <div class="value" id="mv-received">&mdash;</div>
+          <div class="sub" id="mv-received-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Sold</div>
+          <div class="value" id="mv-sold">&mdash;</div>
+          <div class="sub" id="mv-sold-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Adjusted (net)</div>
+          <div class="value" id="mv-adjusted">&mdash;</div>
+          <div class="sub" id="mv-adjusted-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Transferred</div>
+          <div class="value" id="mv-moved">&mdash;</div>
+          <div class="sub" id="mv-moved-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Everything that happened to this product</h3>
+        <p class="wh-card-sub">Deliveries, sales, customer returns, adjustments and transfers, newest first. Quantities are in pieces.</p>
+        <table class="wh-table">
+          <thead><tr><th>When</th><th>Event</th><th>Where</th><th>Quantity</th><th>By</th><th>Details</th></tr></thead>
+          <tbody id="mv-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="mv-empty" style="display:none;"><div class="display">Choose a product to see its history</div></div>
+      </div>
+    </div>
+
+    <!-- Transfers & receiving (patch 26c) -- see js/reports.js loadTransfersReport() -->
+    <div class="admin-only-section" id="transfers-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Transfers &amp; receiving</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Transfers</div>
+          <div class="value" id="tr-count">&mdash;</div>
+          <div class="sub" id="tr-count-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Return requests waiting</div>
+          <div class="value" id="tr-waiting">&mdash;</div>
+          <div class="sub" id="tr-waiting-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Delivered short (units)</div>
+          <div class="value" id="tr-short">&mdash;</div>
+          <div class="sub" id="tr-short-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Damaged / missing on arrival</div>
+          <div class="value" id="tr-intake">&mdash;</div>
+          <div class="sub" id="tr-intake-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Where stock moved</h3>
+        <p class="wh-card-sub">Between different branches and warehouses.</p>
+        <table class="wh-table">
+          <thead><tr><th>Route</th><th>Transfers</th><th>Units</th><th>Value</th></tr></thead>
+          <tbody id="tr-route-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="tr-route-empty" style="display:none;"><div class="display">No transfers between locations in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By type of movement</h3>
+        <p class="wh-card-sub">Includes deliveries put on the shelf or in the warehouse.</p>
+        <table class="wh-table">
+          <thead><tr><th>Type</th><th>Movements</th><th>Units</th></tr></thead>
+          <tbody id="tr-type-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="tr-type-empty" style="display:none;"><div class="display">No transfers in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Most moved products</h3>
+        <p class="wh-card-sub">Ranked by units.</p>
+        <table class="wh-table">
+          <thead><tr><th>Product</th><th>Transfers</th><th>Units</th></tr></thead>
+          <tbody id="tr-prod-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="tr-prod-empty" style="display:none;"><div class="display">No transfers in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Latest transfers</h3>
+        <p class="wh-card-sub">The 25 most recent.</p>
+        <table class="wh-table">
+          <thead><tr><th>When</th><th>Product</th><th>Route</th><th>Type</th><th>Units</th><th>By</th></tr></thead>
+          <tbody id="tr-recent-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="tr-recent-empty" style="display:none;"><div class="display">No transfers in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Return requests waiting for an answer</h3>
+        <p class="wh-card-sub">Goods a branch wants to send back that nobody has accepted or declined yet.</p>
+        <table class="wh-table">
+          <thead><tr><th>Product</th><th>Route</th><th>Units</th><th>Amount</th><th>Requested</th><th>Started by</th></tr></thead>
+          <tbody id="tr-wait-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="tr-wait-empty" style="display:none;"><div class="display">No return requests waiting</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Deliveries received short</h3>
+        <p class="wh-card-sub">Where the quantity received was less than the quantity on the invoice. Biggest gaps first.</p>
+        <table class="wh-table">
+          <thead><tr><th>When</th><th>Product</th><th>Supplier</th><th>Branch</th><th>Invoiced</th><th>Received</th><th>Short</th><th>Value</th></tr></thead>
+          <tbody id="tr-short-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="tr-short-empty" style="display:none;"><div class="display">Nothing was received short in this window</div></div>
+      </div>
+    </div>
+
+    <!-- Stock count variance (patch 26c) -- see js/reports.js loadCountVariance() -->
+    <div class="admin-only-section" id="variance-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Stock count variance</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Stock counts</div>
+          <div class="value" id="cv-count">&mdash;</div>
+          <div class="sub" id="cv-count-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Short (units)</div>
+          <div class="value" id="cv-short">&mdash;</div>
+          <div class="sub" id="cv-short-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Surplus (units)</div>
+          <div class="value" id="cv-surplus">&mdash;</div>
+          <div class="sub" id="cv-surplus-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Net value</div>
+          <div class="value" id="cv-net">&mdash;</div>
+          <div class="sub" id="cv-net-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <div class="wh-card-head-row">
+          <div><h3>By product</h3><p>Where the count did not match the system. Values are at cost. Short = count found less than expected.</p></div>
+          <div><button type="button" class="btn btn-ghost btn-sm" id="cv-export-btn" style="width:auto;">Export CSV</button></div>
+        </div>
+        <table class="wh-table">
+          <thead><tr><th>Product</th><th>Counts</th><th>Short</th><th>Surplus</th><th>Short value</th><th>Net value</th></tr></thead>
+          <tbody id="cv-prod-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="cv-prod-empty" style="display:none;"><div class="display">No stock counts in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By branch</h3>
+        <p class="wh-card-sub">Which branch's counts differ most from the system.</p>
+        <table class="wh-table">
+          <thead><tr><th>Branch</th><th>Counts</th><th>Short</th><th>Surplus</th><th>Net value</th></tr></thead>
+          <tbody id="cv-branch-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="cv-branch-empty" style="display:none;"><div class="display">No stock counts in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By person who recorded the count</h3>
+        <p class="wh-card-sub">Useful for spotting patterns, not for blame by itself.</p>
+        <table class="wh-table">
+          <thead><tr><th>Staff</th><th>Counts</th><th>Short</th><th>Surplus</th><th>Net value</th></tr></thead>
+          <tbody id="cv-staff-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="cv-staff-empty" style="display:none;"><div class="display">No stock counts in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Latest counts</h3>
+        <p class="wh-card-sub">The 25 most recent.</p>
+        <table class="wh-table">
+          <thead><tr><th>When</th><th>Product</th><th>Branch</th><th>Change</th><th>Value</th><th>By</th><th>Notes</th></tr></thead>
+          <tbody id="cv-recent-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="cv-recent-empty" style="display:none;"><div class="display">No stock counts in this window</div></div>
       </div>
     </div>
 

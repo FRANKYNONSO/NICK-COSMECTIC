@@ -256,7 +256,9 @@ let editingInvoiceId = null;
 let editingInvoiceIdPending = null;
 
 function openInvoiceDetail(invoiceId) {
-  const inv = purchaseInvoiceCache.find((row) => row.id === invoiceId);
+  // TRASH3: also finds an invoice that is in the Trash / Review list (see trashInvoiceLookup).
+  const inv = purchaseInvoiceCache.find((row) => row.id === invoiceId)
+    || (typeof trashInvoiceLookup !== 'undefined' ? trashInvoiceLookup[invoiceId] : undefined);
   if (!inv) return;
   document.getElementById('invoice-detail-readout').textContent =
     `${inv.supplier_name} — ${new Date(inv.invoice_date).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' })}${inv.amount_naira != null ? ` — ${formatNaira(inv.amount_naira)}` : ''} — filed by ${inv.created_by_name}. ${inv.description || ''}`;
@@ -323,7 +325,13 @@ function openInvoiceDetail(invoiceId) {
   }
   const editBtn = document.getElementById('invoice-detail-edit');
   if (editBtn.dataset.shownDisplay === undefined) editBtn.dataset.shownDisplay = editBtn.style.display;
-  editBtn.style.display = inv.source === 'branch_transfer' ? 'none' : editBtn.dataset.shownDisplay;
+  // TRASH3: an invoice opened from the Trash / Review tab is view-only: no Edit, no Delete, and a note saying where it is.
+  const viewingTrashed = !!inv.__trash;
+  editBtn.style.display = (inv.source === 'branch_transfer' || viewingTrashed) ? 'none' : editBtn.dataset.shownDisplay;
+  // TRASH2: Delete is for people who can manage invoices; a branch-transfer invoice is paperwork and cannot be deleted.
+  const deleteBtn = document.getElementById('invoice-detail-delete');
+  if (deleteBtn) deleteBtn.style.display = (Perms.can('manage_suppliers') && inv.source !== 'branch_transfer' && !viewingTrashed) ? '' : 'none';
+  if (viewingTrashed) document.getElementById('invoice-detail-letterhead').insertAdjacentHTML('afterbegin', trashBanner(inv));
   editingInvoiceIdPending = invoiceId;
   invoiceDetailBackdrop.classList.add('visible');
 }
@@ -1280,4 +1288,411 @@ let prefillReceiptId = null;
     'Add the prices, check the supplier and date, then save. To change a quantity to cartons, click it.';
   const form = document.getElementById('invoice-add-form');
   form.insertBefore(note, form.firstChild);
+})();
+
+
+// =====================================================================
+// TRASH2 -- invoice Trash screens (Oct 2026)
+// Tabs on the Invoice page: Invoices | Trash | Review (super admin) |
+// Final deletions (super admin) | Activity. The server does all the work and
+// all the permission checks (see routers/purchase_invoices.py, TRASH1); this
+// file only shows the lists and asks for confirmation and a reason.
+// =====================================================================
+const canManageInvoices = Perms.can('manage_suppliers');
+const isSuperAdminUser = Perms.isSuperAdmin();
+
+function trashEsc(v) { return escapeHtml(v == null ? '' : String(v)); }
+function trashDate(iso) {
+  if (!iso) return '\u2014';
+  return new Date(iso).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Africa/Lagos' });
+}
+function trashWhen(iso) { return iso ? formatDateTime(iso) : '\u2014'; }
+function trashMoney(n) { return n != null ? formatNaira(n) : '\u2014'; }
+function trashSub(text) { return text ? `<span class="trash-sub">${trashEsc(text)}</span>` : ''; }
+
+function trashButton(action, id, label) {
+  return `<button type="button" class="btn btn-ghost btn-sm" data-trash-action="${action}" data-id="${trashEsc(id)}">${label}</button>`;
+}
+
+const TRASH_TABS = {
+  trash: {
+    note: 'Deleted invoices stay here until they are restored or deleted permanently.',
+    empty: 'The Trash is empty.',
+    columns: ['Deleted on', 'Supplier', 'Branch', 'Amount', 'Deleted by', 'Reason', ''],
+    load: () => Api.listTrashedInvoices(BranchContext.get()),
+    row: (r) => `
+      <tr>
+        <td>${trashWhen(r.trashed_at)}</td>
+        <td><strong>${trashEsc(r.supplier_name || 'No supplier')}</strong>${trashSub(trashDate(r.invoice_date))}</td>
+        <td>${trashEsc(r.branch_name || 'Store-wide')}</td>
+        <td>${trashMoney(r.amount_naira)}</td>
+        <td>${trashEsc(r.trashed_by_name || '\u2014')}</td>
+        <td style="max-width:240px;">${trashEsc(r.trash_reason || '\u2014')}</td>
+        <td><div class="trash-actions">${trashButton('view', r.id, 'View invoice')}${trashButton('restore', r.id, 'Restore')}${trashButton('delete-permanently', r.id, 'Delete permanently')}</div></td>
+      </tr>`,
+  },
+  review: {
+    note: 'Invoices that branch managers deleted permanently wait here. Nothing is removed until you decide.',
+    empty: 'Nothing is waiting for review.',
+    columns: ['Sent on', 'Supplier', 'Branch', 'Amount', 'Deleted by', 'Sent by', 'Their reason', ''],
+    load: () => Api.listInvoicesForReview(BranchContext.get()),
+    row: (r) => `
+      <tr>
+        <td>${trashWhen(r.review_sent_at)}</td>
+        <td><strong>${trashEsc(r.supplier_name || 'No supplier')}</strong>${trashSub(trashDate(r.invoice_date))}</td>
+        <td>${trashEsc(r.branch_name || 'Store-wide')}</td>
+        <td>${trashMoney(r.amount_naira)}</td>
+        <td>${trashEsc(r.trashed_by_name || '\u2014')}${trashSub(r.trash_reason)}</td>
+        <td>${trashEsc(r.review_sent_by_name || '\u2014')}</td>
+        <td style="max-width:240px;">${trashEsc(r.review_reason || '\u2014')}</td>
+        <td><div class="trash-actions">${trashButton('view', r.id, 'View invoice')}${trashButton('restore', r.id, 'Restore')}${trashButton('delete-permanently', r.id, 'Delete for good')}${trashButton('history', r.id, 'History')}</div></td>
+      </tr>`,
+  },
+  final: {
+    note: 'A private record of every invoice a super admin deleted for good. Branch managers cannot see this list.',
+    empty: 'No invoice has been deleted for good yet.',
+    columns: ['Deleted on', 'Deleted by', 'Invoice date', 'Supplier', 'Branch', 'Amount', 'First deleted by', 'Sent for review by', 'Reasons', ''],
+    load: () => Api.listFinalDeletions(),
+    row: (r) => `
+      <tr>
+        <td>${trashWhen(r.deleted_at)}</td>
+        <td><strong>${trashEsc(r.deleted_by_name || '\u2014')}</strong></td>
+        <td>${trashDate(r.invoice_date)}</td>
+        <td>${trashEsc(r.supplier_name || 'No supplier')}</td>
+        <td>${trashEsc(r.branch_name || 'Store-wide')}</td>
+        <td>${trashMoney(r.amount_naira)}</td>
+        <td>${trashEsc(r.trashed_by_name || '\u2014')}${trashSub(trashWhen(r.trashed_at))}</td>
+        <td>${trashEsc(r.review_sent_by_name || '\u2014')}${r.review_sent_at ? trashSub(trashWhen(r.review_sent_at)) : ''}</td>
+        <td style="max-width:280px;">${trashSub('Final: ' + (r.deleted_reason || '\u2014'))}${trashSub('Deleted: ' + (r.trash_reason || '\u2014'))}${r.review_reason ? trashSub('Review: ' + r.review_reason) : ''}</td>
+        <td>${trashButton('view-final', r.id, 'View')}</td>
+      </tr>`,
+  },
+  activity: {
+    note: 'Every delete, restore and send-for-review step recorded for your branches. The final permanent deletion by a super admin is not listed here.',
+    empty: 'Nothing has been recorded yet.',
+    columns: ['When', 'What', 'Invoice', 'Branch', 'Amount', 'By', 'Reason'],
+    load: () => Api.listInvoiceTrashActivity(BranchContext.get()),
+    row: (e) => `
+      <tr>
+        <td>${trashWhen(e.created_at)}</td>
+        <td><strong>${trashEsc(e.label)}</strong></td>
+        <td>${trashEsc(e.supplier_name || 'No supplier')}${trashSub(e.invoice_date ? trashDate(e.invoice_date) : '')}</td>
+        <td>${trashEsc(e.branch_name || 'Store-wide')}</td>
+        <td>${trashMoney(e.amount_naira)}</td>
+        <td>${trashEsc(e.user_name || '\u2014')}</td>
+        <td style="max-width:260px;">${trashEsc(e.reason || '\u2014')}</td>
+      </tr>`,
+  },
+};
+
+const trashRowCache = {};
+// TRASH3: full copies of the invoices in the Trash / Review lists, so "View invoice" can open them.
+const trashInvoiceLookup = {};
+function trashBanner(inv) {
+  const t = inv.__trash || {};
+  if (t.state === 'pending_final') {
+    return `<div><strong>Waiting for a super admin to decide.</strong> Sent for permanent deletion by ${trashEsc(t.review_sent_by_name || 'unknown')} \u00b7 ${trashWhen(t.review_sent_at)} \u00b7 Reason: ${trashEsc(t.review_reason || '\u2014')}</div>`;
+  }
+  return `<div><strong>This invoice is in the Trash.</strong> Deleted by ${trashEsc(t.trashed_by_name || 'unknown')} \u00b7 ${trashWhen(t.trashed_at)} \u00b7 Reason: ${trashEsc(t.trash_reason || '\u2014')}</div>`;
+}
+let activeInvTab = 'invoices';
+const INV_TAB_HIDE_ON_OTHER_TABS = ['purchase-invoices-filters', 'invoice-total-card', 'purchase-invoices-section', 'add-invoice-btn'];
+
+function showInvTab(name) {
+  activeInvTab = name;
+  document.querySelectorAll('[data-inv-tab]').forEach((b) => b.classList.toggle('active', b.dataset.invTab === name));
+  const onInvoices = name === 'invoices';
+  INV_TAB_HIDE_ON_OTHER_TABS.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('inv-hidden', !onInvoices);
+  });
+  document.getElementById('trash-pane').classList.toggle('inv-hidden', onInvoices);
+  if (!onInvoices) loadTrashTab(name);
+}
+
+async function loadTrashTab(name) {
+  const cfg = TRASH_TABS[name];
+  if (!cfg) return;
+  const thead = document.getElementById('trash-thead');
+  const tbody = document.getElementById('trash-tbody');
+  const empty = document.getElementById('trash-empty');
+  document.getElementById('trash-note').textContent = cfg.note;
+  thead.innerHTML = '<tr>' + cfg.columns.map((c) => `<th>${c}</th>`).join('') + '</tr>';
+  tbody.innerHTML = `<tr class="loading-row"><td colspan="${cfg.columns.length}">Loading\u2026</td></tr>`;
+  empty.style.display = 'none';
+  let rows = [];
+  try {
+    rows = await cfg.load();
+  } catch (err) {
+    tbody.innerHTML = '';
+    showToast(err.message, true);
+    return;
+  }
+  if (name !== activeInvTab) return; // the person already moved to another tab
+  trashRowCache[name] = rows;
+  rows.forEach((r) => {
+    if (r.invoice) {
+      trashInvoiceLookup[r.id] = Object.assign({}, r.invoice, {
+        __trash: {
+          state: r.trash_state,
+          trashed_by_name: r.trashed_by_name,
+          trashed_at: r.trashed_at,
+          trash_reason: r.trash_reason,
+          review_sent_by_name: r.review_sent_by_name,
+          review_sent_at: r.review_sent_at,
+          review_reason: r.review_reason,
+        },
+      });
+    }
+  });
+  if (!rows.length) {
+    tbody.innerHTML = '';
+    document.getElementById('trash-empty-text').textContent = cfg.empty;
+    empty.style.display = 'block';
+    return;
+  }
+  tbody.innerHTML = rows.map(cfg.row).join('');
+  tbody.querySelectorAll('[data-trash-action]').forEach((btn) => {
+    btn.addEventListener('click', () => handleTrashAction(btn.dataset.trashAction, btn.dataset.id));
+  });
+}
+
+function setTabCount(elementId, n) {
+  const el = document.getElementById(elementId);
+  if (el) el.textContent = `(${n})`;
+}
+
+async function refreshTrashCounts() {
+  if (!canManageInvoices) return;
+  try {
+    const trashed = await Api.listTrashedInvoices(BranchContext.get());
+    setTabCount('trash-count', trashed.length);
+  } catch (err) { /* counts are cosmetic */ }
+  if (isSuperAdminUser) {
+    try {
+      const waiting = await Api.listInvoicesForReview(BranchContext.get());
+      setTabCount('review-count', waiting.length);
+    } catch (err) { /* counts are cosmetic */ }
+  }
+}
+
+// After any delete / restore: the invoice list, its total, the tab counts and
+// the open tab all need to be fresh. Never throws.
+async function afterTrashChange() {
+  try {
+    await loadPurchaseInvoices();
+    await refreshTrashCounts();
+    if (activeInvTab !== 'invoices') await loadTrashTab(activeInvTab);
+  } catch (err) { /* the action itself already succeeded */ }
+}
+
+// ------------------------------------------------------- reason window
+const reasonBackdrop = document.getElementById('trash-reason-backdrop');
+const reasonInput = document.getElementById('trash-reason-input');
+const reasonError = document.getElementById('trash-reason-error');
+const reasonConfirmBtn = document.getElementById('trash-reason-confirm');
+let reasonRun = null;
+
+function openReasonModal(opts) {
+  document.getElementById('trash-reason-title').textContent = opts.title;
+  document.getElementById('trash-reason-text').textContent = opts.text;
+  reasonInput.value = '';
+  reasonError.textContent = '';
+  reasonError.classList.remove('visible');
+  reasonConfirmBtn.textContent = opts.confirmLabel;
+  reasonConfirmBtn.disabled = false;
+  if (opts.danger) {
+    reasonConfirmBtn.style.background = '#c0392b';
+    reasonConfirmBtn.style.borderColor = 'transparent';
+    reasonConfirmBtn.style.color = '#fff';
+  } else {
+    reasonConfirmBtn.style.background = '';
+    reasonConfirmBtn.style.borderColor = '';
+    reasonConfirmBtn.style.color = '';
+  }
+  reasonRun = opts.run;
+  reasonBackdrop.classList.add('visible');
+  setTimeout(() => reasonInput.focus(), 50);
+}
+function closeReasonModal() {
+  reasonBackdrop.classList.remove('visible');
+  reasonRun = null;
+}
+function showReasonError(message) {
+  reasonError.textContent = message;
+  reasonError.classList.add('visible');
+}
+document.getElementById('trash-reason-cancel').addEventListener('click', closeReasonModal);
+reasonBackdrop.addEventListener('click', (e) => { if (e.target === reasonBackdrop) closeReasonModal(); });
+reasonConfirmBtn.addEventListener('click', async () => {
+  if (!reasonRun) return;
+  const reason = reasonInput.value.trim();
+  if (!reason) { showReasonError('A reason is required.'); return; }
+  reasonConfirmBtn.disabled = true;
+  try {
+    await reasonRun(reason);
+    closeReasonModal();
+  } catch (err) {
+    // The window stays open so the person can read why (for example "this invoice is already used").
+    showReasonError(err.message);
+  } finally {
+    reasonConfirmBtn.disabled = false;
+  }
+});
+
+// ------------------------------------------------- Delete (invoice detail window)
+document.getElementById('invoice-detail-delete').addEventListener('click', () => {
+  const inv = purchaseInvoiceCache.find((row) => row.id === editingInvoiceIdPending);
+  if (!inv) return;
+  invoiceDetailBackdrop.classList.remove('visible');
+  const amount = inv.total_landed_cost_naira ?? inv.amount_naira;
+  openReasonModal({
+    title: 'Delete this invoice?',
+    text: `${inv.supplier_name || 'No supplier'} \u00b7 ${trashDate(inv.invoice_date)} \u00b7 ${trashMoney(amount)}. It moves to the Trash tab and its amount is taken out of your totals right away. You can restore it from the Trash.`,
+    confirmLabel: 'Delete invoice',
+    danger: true,
+    run: async (reason) => {
+      await Api.trashPurchaseInvoice(inv.id, reason);
+      showToast('Invoice moved to the Trash.');
+      afterTrashChange();
+    },
+  });
+});
+
+// ----------------------------------------------------- Trash / Review actions
+function findTrashRow(id) {
+  for (const key of ['trash', 'review', 'final']) {
+    const hit = (trashRowCache[key] || []).find((r) => r.id === id);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+async function handleTrashAction(action, id) {
+  if (action === 'history') { if (isSuperAdminUser) openInvoiceHistory(id); return; }
+  if (action === 'view-final') { openFinalView(id); return; }
+  if (action === 'view') { openInvoiceDetail(id); return; }
+
+  if (action === 'restore') {
+    const yes = await showConfirmModal(
+      'It goes back to the Invoices list exactly as it was, and its amount is added back to your totals.',
+      { title: 'Restore this invoice?', confirmLabel: 'Restore' }
+    );
+    if (!yes) return;
+    try {
+      await Api.restorePurchaseInvoice(id);
+      showToast('Invoice restored.');
+      afterTrashChange();
+    } catch (err) {
+      showToast(err.message, true);
+    }
+    return;
+  }
+
+  if (action === 'delete-permanently') {
+    const settings = isSuperAdminUser
+      ? {
+          text: 'This removes the invoice and all its items for good. It cannot be restored. A private record is kept that only super admins can see.',
+          confirmLabel: 'Delete for good',
+          success: 'Invoice deleted permanently.',
+        }
+      : {
+          text: 'This sends the invoice to a super admin for the final decision. It leaves your Trash, but it is not removed until a super admin decides.',
+          confirmLabel: 'Send for permanent deletion',
+          success: 'Sent to a super admin for review.',
+        };
+    openReasonModal({
+      title: 'Delete permanently?',
+      text: settings.text,
+      confirmLabel: settings.confirmLabel,
+      danger: true,
+      run: async (reason) => {
+        await Api.deletePurchaseInvoicePermanently(id, reason);
+        showToast(settings.success);
+        afterTrashChange();
+      },
+    });
+  }
+}
+
+// ------------------------------------------------------------ History window
+const historyBackdrop = document.getElementById('inv-history-backdrop');
+async function openInvoiceHistory(id) {
+  const row = findTrashRow(id);
+  const list = document.getElementById('inv-history-list');
+  document.getElementById('inv-history-sub').textContent = row
+    ? `${row.supplier_name || 'No supplier'} \u00b7 ${trashDate(row.invoice_date)} \u00b7 ${trashMoney(row.amount_naira)}`
+    : '';
+  list.innerHTML = '<div class="trash-sub">Loading\u2026</div>';
+  historyBackdrop.classList.add('visible');
+  try {
+    const events = await Api.getInvoiceTrashHistory(id);
+    list.innerHTML = events.length
+      ? events.map((ev) => `
+          <div class="inv-history-row">
+            <strong>${trashEsc(ev.label)}</strong> by ${trashEsc(ev.user_name || 'unknown')} \u00b7 ${trashWhen(ev.created_at)}${ev.reason ? ` \u00b7 Reason: ${trashEsc(ev.reason)}` : ''}
+          </div>`).join('')
+      : '<div class="trash-sub">No steps are recorded for this invoice.</div>';
+  } catch (err) {
+    list.innerHTML = '';
+    showToast(err.message, true);
+  }
+}
+document.getElementById('inv-history-close').addEventListener('click', () => historyBackdrop.classList.remove('visible'));
+historyBackdrop.addEventListener('click', (e) => { if (e.target === historyBackdrop) historyBackdrop.classList.remove('visible'); });
+
+// ----------------------------------------------------- Final-deletion record window
+const finalViewBackdrop = document.getElementById('final-view-backdrop');
+function openFinalView(id) {
+  const r = (trashRowCache.final || []).find((x) => x.id === id);
+  if (!r) return;
+  const snap = r.snapshot || {};
+  const items = Array.isArray(snap.items) ? snap.items : [];
+  const koboToNaira = (k) => (k == null ? null : Number(k) / 100);
+  const lines = [];
+  lines.push(`<div><strong>${trashEsc(r.supplier_name || 'No supplier')}</strong> \u00b7 ${trashDate(r.invoice_date)} \u00b7 ${trashEsc(r.branch_name || 'Store-wide')} \u00b7 ${trashMoney(r.amount_naira)}</div>`);
+  lines.push(`<div class="trash-sub">Deleted for good by ${trashEsc(r.deleted_by_name || 'unknown')} \u00b7 ${trashWhen(r.deleted_at)} \u00b7 Reason: ${trashEsc(r.deleted_reason || '\u2014')}</div>`);
+  lines.push(`<div class="trash-sub">First deleted by ${trashEsc(r.trashed_by_name || 'unknown')} \u00b7 ${trashWhen(r.trashed_at)} \u00b7 Reason: ${trashEsc(r.trash_reason || '\u2014')}</div>`);
+  if (r.review_sent_at || r.review_sent_by_name) {
+    lines.push(`<div class="trash-sub">Sent for review by ${trashEsc(r.review_sent_by_name || 'unknown')} \u00b7 ${trashWhen(r.review_sent_at)} \u00b7 Reason: ${trashEsc(r.review_reason || '\u2014')}</div>`);
+  }
+  if (snap.description) lines.push(`<div class="trash-sub">Notes: ${trashEsc(snap.description)}</div>`);
+  if (items.length) {
+    lines.push('<div class="table-card" style="padding:8px;margin:12px 0;overflow-x:auto;"><table style="width:100%;"><thead><tr><th>S/N</th><th>Quantity</th><th>Item</th><th>Rate</th><th>Total</th></tr></thead><tbody>' +
+      items.map((it, i) => `<tr><td>${i + 1}</td><td>${trashEsc(it.quantity)} ${trashEsc(it.unit_label || 'pieces')}</td><td>${trashEsc(it.item_name)}</td><td>${trashMoney(koboToNaira(it.rate_kobo))}</td><td>${trashMoney(koboToNaira(it.line_total_kobo))}</td></tr>`).join('') +
+      '</tbody></table></div>');
+  }
+  if (snap.image_url) {
+    lines.push(`<div class="trash-sub"><a href="${trashEsc(snap.image_url)}" target="_blank" rel="noopener">Photo of the paper invoice</a></div>`);
+  }
+  document.getElementById('final-view-body').innerHTML = lines.join('');
+  finalViewBackdrop.classList.add('visible');
+}
+document.getElementById('final-view-close').addEventListener('click', () => finalViewBackdrop.classList.remove('visible'));
+finalViewBackdrop.addEventListener('click', (e) => { if (e.target === finalViewBackdrop) finalViewBackdrop.classList.remove('visible'); });
+
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  closeReasonModal();
+  historyBackdrop.classList.remove('visible');
+  finalViewBackdrop.classList.remove('visible');
+});
+
+// ------------------------------------------------------------------- start up
+(function initInvoiceTrash() {
+  const bar = document.getElementById('inv-tabs');
+  if (!bar) return;
+  // A view-only account (no manage_suppliers) sees no Trash at all; the server refuses them anyway.
+  if (!canManageInvoices) { bar.classList.add('inv-hidden'); return; }
+  if (isSuperAdminUser) {
+    document.getElementById('inv-tab-review').classList.remove('inv-hidden');
+    document.getElementById('inv-tab-final').classList.remove('inv-hidden');
+    document.getElementById('inv-tab-activity').classList.remove('inv-hidden');
+  }
+  bar.querySelectorAll('[data-inv-tab]').forEach((b) => b.addEventListener('click', () => showInvTab(b.dataset.invTab)));
+  window.addEventListener('branch-context-changed', () => {
+    refreshTrashCounts();
+    if (activeInvTab !== 'invoices') loadTrashTab(activeInvTab);
+  });
+  refreshTrashCounts();
 })();

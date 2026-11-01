@@ -13,8 +13,8 @@ from api.v1.schemas.users import (
     UserUpdate,
 )
 from infrastructure.db.audit import log_audit_event
-from infrastructure.db.models import User
-from infrastructure.db.repositories import RoleRepository, UserRepository
+from infrastructure.db.models import StaffApplication, User
+from infrastructure.db.repositories import RoleRepository, StaffApplicationRepository, UserRepository
 from infrastructure.db.user_deletion import deletion_blockers, hard_delete_user
 from infrastructure.security.jwt import mark_password_changed
 from infrastructure.security.passwords import hash_password
@@ -101,7 +101,34 @@ async def create_user(
         password_hash=hash_password(body.password),
         is_active=True,
     )
-    return await repo.create(user)
+    user = await repo.create(user)
+
+    # PENDSTAFF-CREATE
+    # Accounts made from the "New staff" button are NOT usable yet. They get an
+    # 'incomplete' staff application, which the access gate in
+    # api/dependencies.py already treats as "no access to anything". At first
+    # login the person sees a form to finish their details; submitting it moves
+    # the application to 'under_review', and a super admin (or the branch
+    # manager of that branch) must still approve it before they get in.
+    # The role/branch chosen here are kept and used when it is approved.
+    application = await StaffApplicationRepository(session).create(
+        StaffApplication(
+            user_id=user.id,
+            status="incomplete",
+            role_applied_for=body.role,
+            branch_id=branch_id,
+            full_legal_name=body.full_name,
+            preferred_name=body.full_name,
+            phone_number=body.phone,
+            email=body.email or "",
+        )
+    )
+    log_audit_event(
+        session, user_id=current_user.id, action="staff_account_created_pending",
+        entity_type="staff_application", entity_id=application.id,
+    )
+    await session.commit()
+    return user
 
 
 @router.get("", response_model=list[UserOut])

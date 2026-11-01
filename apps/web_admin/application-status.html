@@ -26,6 +26,121 @@
     <h2 class="display" id="status-title">Application Status: Under Review</h2>
     <p id="status-body">Your staff application is currently being reviewed. You'll be able to sign in to the full dashboard once an administrator approves your account.</p>
 
+    <div id="complete-profile-wrap" style="display:none; text-align:left; margin-top:16px;">
+      <style>
+        .cp-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
+        @media (max-width:560px) { .cp-grid { grid-template-columns:1fr; } }
+        .cp-field { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
+        .cp-field label { font-size:13px; opacity:.85; }
+        .cp-field input, .cp-field select { padding:10px 12px; border:1px solid rgba(128,128,128,.35); border-radius:8px; background:transparent; color:inherit; font:inherit; }
+        .cp-field select option { color:#111; }
+        .cp-full { grid-column:1 / -1; }
+        .cp-h { font-size:14px; font-weight:600; margin:10px 0 8px; }
+      </style>
+      <form id="complete-profile-form">
+        <div class="cp-h">Basic information</div>
+        <div class="cp-grid">
+          <div class="cp-field cp-full"><label for="cp-full-name">Full legal name *</label><input id="cp-full-name" name="full_legal_name" required /></div>
+          <div class="cp-field"><label for="cp-pref">Preferred name / username *</label><input id="cp-pref" name="preferred_name" required /></div>
+          <div class="cp-field"><label for="cp-phone">Phone number *</label><input id="cp-phone" name="phone_number" type="tel" required /></div>
+          <div class="cp-field"><label for="cp-dob">Date of birth *</label><input id="cp-dob" name="date_of_birth" type="date" required /></div>
+          <div class="cp-field"><label for="cp-gender">Gender</label>
+            <select id="cp-gender" name="gender"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option></select></div>
+          <div class="cp-field cp-full"><label for="cp-addr">Current residential address *</label><input id="cp-addr" name="residential_address" required /></div>
+        </div>
+        <div class="cp-h">Origin</div>
+        <div class="cp-grid">
+          <div class="cp-field"><label for="cp-soo">State of origin</label><input id="cp-soo" name="state_of_origin" /></div>
+          <div class="cp-field"><label for="cp-lga">LGA of origin</label><input id="cp-lga" name="lga_of_origin" /></div>
+          <div class="cp-field"><label for="cp-town">Hometown</label><input id="cp-town" name="hometown" /></div>
+          <div class="cp-field"><label for="cp-haoo">Home address of origin</label><input id="cp-haoo" name="home_address_of_origin" /></div>
+        </div>
+        <div class="cp-h">Emergency contact</div>
+        <div class="cp-grid">
+          <div class="cp-field"><label for="cp-ecn">Contact name *</label><input id="cp-ecn" name="emergency_contact_name" required /></div>
+          <div class="cp-field"><label for="cp-ecp">Contact phone *</label><input id="cp-ecp" name="emergency_contact_phone" type="tel" required /></div>
+          <div class="cp-field cp-full"><label for="cp-ecr">Relationship to contact</label><input id="cp-ecr" name="emergency_contact_relationship" /></div>
+        </div>
+        <div class="cp-h">Identification</div>
+        <div class="cp-grid">
+          <div class="cp-field"><label for="cp-idt">ID type *</label>
+            <select id="cp-idt" name="id_type" required><option value="">Select</option><option value="national_id">National ID</option><option value="passport">Passport</option><option value="drivers_license">Driver's License</option></select></div>
+          <div class="cp-field"><label for="cp-idn">ID number *</label><input id="cp-idn" name="id_number" required /></div>
+          <div class="cp-field"><label for="cp-photo">Passport photo</label><input id="cp-photo" name="profile_photo" type="file" accept="image/*" /></div>
+          <div class="cp-field"><label for="cp-iddoc">Copy of ID</label><input id="cp-iddoc" name="id_document" type="file" accept="image/*,.pdf" /></div>
+        </div>
+        <div id="cp-error" class="error-banner"></div>
+        <button type="submit" class="btn btn-primary" id="cp-save" style="width:100%;">Submit for approval</button>
+      </form>
+      <script>
+        // PENDSTAFF-COMPLETE-JS
+        (function () {
+          var wrap = document.getElementById('complete-profile-wrap');
+          var form = document.getElementById('complete-profile-form');
+          var errBox = document.getElementById('cp-error');
+          var saveBtn = document.getElementById('cp-save');
+
+          function formatDetail(detail, status) {
+            if (Array.isArray(detail)) {
+              return detail.map(function (d) {
+                var field = d && d.loc ? String(d.loc[d.loc.length - 1]).replace(/_/g, ' ') : '';
+                return (field ? field + ': ' : '') + (d && d.msg ? d.msg : 'invalid');
+              }).join('; ');
+            }
+            if (typeof detail === 'string') return detail;
+            if (status === 401) return 'Your session expired. Please sign out and sign in again.';
+            return 'Could not submit your details (error ' + status + ').';
+          }
+
+          window.showCompleteForm = async function () {
+            document.getElementById('status-icon').innerHTML = '&#128221;';
+            document.getElementById('status-title').textContent = 'Complete your profile';
+            document.getElementById('status-body').textContent =
+              'Your account was created by an administrator. Please fill in the details below. ' +
+              'After you submit, your account stays pending until a super admin or your branch manager approves it.';
+            var page = document.querySelector('.status-page');
+            if (page) page.style.maxWidth = '640px';
+            document.getElementById('cp-dob').max = new Date().toISOString().slice(0, 10);
+            try {
+              var me = await Api.me();
+              if (me) {
+                form.elements.full_legal_name.value = me.full_name || '';
+                form.elements.phone_number.value = me.phone || '';
+              }
+            } catch (e) { /* prefill is a convenience only */ }
+            wrap.style.display = 'block';
+          };
+
+          form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            errBox.classList.remove('visible');
+            saveBtn.disabled = true;
+            try {
+              var fd = new FormData(form);
+              ['profile_photo', 'id_document'].forEach(function (k) {
+                var f = fd.get(k);
+                if (f && !f.name) fd.delete(k);
+              });
+              var res = await fetch(API_BASE + '/staff-applications/complete-profile', {
+                method: 'POST',
+                headers: { Authorization: 'Bearer ' + Auth.getToken(), Accept: 'application/json' },
+                body: fd,
+              });
+              var data = null;
+              try { data = await res.json(); } catch (_) {}
+              if (!res.ok) throw new Error(formatDetail(data && data.detail, res.status));
+              localStorage.setItem('nc_app_status', 'under_review');
+              window.location.reload();
+            } catch (err) {
+              errBox.textContent = err.message;
+              errBox.classList.add('visible');
+              saveBtn.disabled = false;
+            }
+          });
+        })();
+      </script>
+    </div>
+
     <div id="error-banner" class="error-banner"></div>
 
     <button class="btn btn-ghost" id="logout-link" style="margin-top:12px;">Sign out</button>
@@ -58,6 +173,8 @@
       body.textContent = application.rejection_reason
         ? `Your staff application was not approved. Reason given: ${application.rejection_reason}`
         : 'Your staff application was not approved. Please contact an administrator for details.';
+    } else if (application.status === 'incomplete') {
+      showCompleteForm(application);
     } else if (application.status === 'suspended') {
       icon.textContent = '⏸';
       title.textContent = 'Account Suspended';

@@ -696,6 +696,8 @@ async def _apply_input(session, receipt, body, current_user, is_new):
         invoice = await session.get(PurchaseInvoice, body.invoice_id)
         if invoice is None:
             raise _bad("Invoice not found", 404)
+        if invoice.trash_state is not None:  # TRASH1
+            raise _bad("That invoice is in the Trash. Restore it first.")
         if invoice.source == "branch_transfer":
             raise _bad("This invoice was made by a branch transfer. The goods are already in stock, so it cannot be received.")
         if invoice.branch_id is not None and invoice.branch_id != body.branch_id:
@@ -1134,6 +1136,8 @@ async def outstanding_for_invoice(
     invoice = await session.get(PurchaseInvoice, invoice_id)
     if invoice is None:
         raise _bad("Invoice not found", 404)
+    if invoice.trash_state is not None:  # TRASH1
+        raise _bad("That invoice is in the Trash. Restore it first.")
     if invoice.source == "branch_transfer":
         raise _bad("This invoice was made by a branch transfer. The goods are already in stock, so it cannot be received.")
     if invoice.branch_id is not None:
@@ -1371,6 +1375,8 @@ async def link_invoice(
     invoice = await session.get(PurchaseInvoice, body.invoice_id)
     if invoice is None:
         raise _bad("Invoice not found", 404)
+    if invoice.trash_state is not None:  # TRASH1
+        raise _bad("That invoice is in the Trash. Restore it first.")
     if invoice.source == "branch_transfer":
         raise _bad("This invoice was made by a branch transfer. The goods are already in stock, so it cannot be received.")
     if invoice.branch_id is not None and invoice.branch_id != receipt.branch_id:

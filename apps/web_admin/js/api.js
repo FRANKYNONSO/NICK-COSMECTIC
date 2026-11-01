@@ -660,6 +660,61 @@ const Api = {
     const qs = params.toString();
     return apiRequest(`/reports/product-performance${qs ? `?${qs}` : ''}`);
   },
+  profitSummary({ branchId, dateFrom, dateTo } = {}) {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branch_id', branchId);
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo) params.set('date_to', dateTo);
+    const qs = params.toString();
+    return apiRequest(`/reports/profit-summary${qs ? `?${qs}` : ''}`);
+  },
+  bookingsReport(branchId) {
+    const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
+    return apiRequest(`/reports/bookings-report${qs}`);
+  },
+  salesBreakdown({ branchId, dateFrom, dateTo } = {}) {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branch_id', branchId);
+    params.set('date_from', dateFrom);
+    params.set('date_to', dateTo);
+    return apiRequest(`/reports/sales-breakdown?${params.toString()}`);
+  },
+  returnsReport({ branchId, dateFrom, dateTo } = {}) {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branch_id', branchId);
+    params.set('date_from', dateFrom);
+    params.set('date_to', dateTo);
+    return apiRequest(`/reports/returns-report?${params.toString()}`);
+  },
+  purchasesReport({ branchId, dateFrom, dateTo } = {}) {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branch_id', branchId);
+    params.set('date_from', dateFrom);
+    params.set('date_to', dateTo);
+    return apiRequest(`/reports/purchases-report?${params.toString()}`);
+  },
+  stockMovements({ productId, branchId, dateFrom, dateTo } = {}) {
+    const params = new URLSearchParams();
+    params.set('product_id', productId);
+    if (branchId) params.set('branch_id', branchId);
+    params.set('date_from', dateFrom);
+    params.set('date_to', dateTo);
+    return apiRequest(`/reports/stock-movements?${params.toString()}`);
+  },
+  transfersReport({ branchId, dateFrom, dateTo } = {}) {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branch_id', branchId);
+    params.set('date_from', dateFrom);
+    params.set('date_to', dateTo);
+    return apiRequest(`/reports/transfers-report?${params.toString()}`);
+  },
+  countVariance({ branchId, dateFrom, dateTo } = {}) {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branch_id', branchId);
+    params.set('date_from', dateFrom);
+    params.set('date_to', dateTo);
+    return apiRequest(`/reports/stock-count-variance?${params.toString()}`);
+  },
 
   // ------------------------------------------------------------ Categories
   listBrands() {
@@ -1275,6 +1330,31 @@ const Api = {
   },
   updatePurchaseInvoice(invoiceId, payload) {
     return apiRequest(`/purchase-invoices/${invoiceId}`, { method: 'PATCH', body: payload });
+  },
+  // TRASH2: invoice Trash (delete / restore / permanent delete)
+  trashPurchaseInvoice(invoiceId, reason) {
+    return apiRequest(`/purchase-invoices/${invoiceId}/trash`, { method: 'POST', body: { reason } });
+  },
+  restorePurchaseInvoice(invoiceId, reason) {
+    return apiRequest(`/purchase-invoices/${invoiceId}/restore`, { method: 'POST', body: reason ? { reason } : {} });
+  },
+  deletePurchaseInvoicePermanently(invoiceId, reason) {
+    return apiRequest(`/purchase-invoices/${invoiceId}/delete-permanently`, { method: 'POST', body: { reason } });
+  },
+  listTrashedInvoices(branchId) {
+    return apiRequest(`/purchase-invoices/trash${branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ''}`);
+  },
+  listInvoicesForReview(branchId) {
+    return apiRequest(`/purchase-invoices/trash/review${branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ''}`);
+  },
+  listInvoiceTrashActivity(branchId) {
+    return apiRequest(`/purchase-invoices/trash/activity${branchId ? `?branch_id=${encodeURIComponent(branchId)}` : ''}`);
+  },
+  listFinalDeletions() {
+    return apiRequest('/purchase-invoices/final-deletions');
+  },
+  getInvoiceTrashHistory(invoiceId) {
+    return apiRequest(`/purchase-invoices/${invoiceId}/history`);
   },
   uploadPurchaseInvoiceImage(file) {
     const formData = new FormData();

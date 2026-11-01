@@ -2,7 +2,7 @@
 to their OWN account (spec Sections 13-21). Deliberately under /me,
 not nested inside /users/{id}, so there's no path-ordering risk of
 "/users/me" ever being mistaken for a user_id, and so these routes
-never need require_role -- get_current_user is enough, since every
+never need require_role -- get_current_user_allow_pending is enough, since every
 handler only ever touches current_user's own row.
 
 Protected vs editable (spec Section 15/16) is enforced by what
@@ -15,9 +15,10 @@ import os
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_current_user, get_db_session
+from api.dependencies import get_current_user_allow_pending, get_db_session
 from api.v1.routers.staff_applications import (
     _PHOTO_DIR,
     _ALLOWED_PHOTO_EXTENSIONS,
@@ -94,7 +95,7 @@ def _to_profile_out(user: User, application) -> MyProfileOut:
 
 @router.get("/profile", response_model=MyProfileOut)
 async def get_my_profile(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_pending),
     session: AsyncSession = Depends(get_db_session),
 ) -> MyProfileOut:
     app_repo = StaffApplicationRepository(session)
@@ -104,7 +105,7 @@ async def get_my_profile(
 
 @router.get("/id-document")
 async def get_my_id_document(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_pending),
     session: AsyncSession = Depends(get_db_session),
 ) -> FileResponse:
     """Streams the caller's OWN ID document from private storage. Same
@@ -125,7 +126,7 @@ async def get_my_id_document(
 @router.patch("/profile", response_model=MyProfileOut)
 async def update_my_profile(
     body: MyProfileUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_pending),
     session: AsyncSession = Depends(get_db_session),
 ) -> MyProfileOut:
     user_repo = UserRepository(session)
@@ -141,6 +142,25 @@ async def update_my_profile(
             application.phone_number = body.phone_number or None
 
     if body.preferred_name is not None:
+        # The name doubles as the login username, so two people can never share one.
+        _wanted = body.preferred_name.strip()
+        if _wanted:
+            _taken_by = (
+                await session.execute(
+                    select(User.id)
+                    .where(
+                        User.id != current_user.id,
+                        (func.lower(func.trim(User.preferred_name)) == _wanted.lower())
+                        | (func.lower(User.username) == _wanted.lower()),
+                    )
+                    .limit(1)
+                )
+            ).first()
+            if _taken_by is not None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail="That username is already taken by another staff member. Please choose a different one.",
+                )
         # Written to the User row directly so this works for every
         # account, not only ones that went through the staff-application
         # flow. Also mirrored onto the application (when one exists) so
@@ -161,7 +181,7 @@ async def update_my_profile(
 @router.post("/photo", response_model=MyProfileOut)
 async def update_my_photo(
     profile_photo: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_pending),
     session: AsyncSession = Depends(get_db_session),
 ) -> MyProfileOut:
     # Written to the User row directly so any account can set a photo,
@@ -188,7 +208,7 @@ async def update_my_photo(
 @router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
 async def change_my_password(
     body: ChangePasswordRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_pending),
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
     if not verify_password(body.current_password, current_user.password_hash):
@@ -205,7 +225,7 @@ async def change_my_password(
 @router.post("/email/request-change", status_code=status.HTTP_204_NO_CONTENT)
 async def request_email_change(
     body: RequestEmailChange,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_pending),
     session: AsyncSession = Depends(get_db_session),
 ) -> None:
     """Spec Section 17. The verified `email` column is left alone until
@@ -239,7 +259,7 @@ async def verify_email_change(
     body: VerifyEmailChange,
     session: AsyncSession = Depends(get_db_session),
 ) -> MyProfileOut:
-    """Deliberately not behind get_current_user -- the verification
+    """Deliberately not behind get_current_user_allow_pending -- the verification
     link is opened from an email client, which may not be signed in
     to the admin portal at all; the token itself is the credential
     here, same as password-reset.

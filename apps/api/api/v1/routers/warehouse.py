@@ -267,6 +267,8 @@ async def log_waybill_complaint(
         invoice = await session.get(PurchaseInvoice, invoice_id)
         if invoice is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Selected invoice was not found")
+        if invoice.trash_state is not None:  # TRASH1
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="That invoice is in the Trash. Restore it first.")
         # The invoice is the source of truth for who made the supply --
         # spec: "select the person that made that supply, referencing
         # the information that is on the invoice." Whatever the client
@@ -1127,6 +1129,7 @@ async def list_pushable_invoice_items(
         .join(PurchaseInvoice, PurchaseInvoiceLineItem.invoice_id == PurchaseInvoice.id)
         .where((PurchaseInvoice.branch_id == branch_id) | (PurchaseInvoice.branch_id.is_(None)))
         .where(PurchaseInvoice.source.is_distinct_from("branch_transfer"))
+        .where(PurchaseInvoice.trash_state.is_(None))  # TRASH1
         .order_by(PurchaseInvoice.invoice_date.desc())
     )
     rows = result.all()
@@ -1231,6 +1234,8 @@ async def link_invoice_line_item_product(
     if line_item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Invoice line item not found")
     invoice = await session.get(PurchaseInvoice, line_item.invoice_id)
+    if invoice is not None and invoice.trash_state is not None:  # TRASH1
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="That invoice is in the Trash. Restore it first.")
     if invoice is not None and invoice.source == "branch_transfer":
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
@@ -1367,6 +1372,8 @@ async def push_to_warehouse(
                     detail="That invoice line item is for a different product/variant.",
                 )
         invoice = await session.get(PurchaseInvoice, line_item.invoice_id)
+        if invoice is not None and invoice.trash_state is not None:  # TRASH1
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="That invoice is in the Trash. Restore it first.")
         if invoice is not None and invoice.source == "branch_transfer":
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,

@@ -237,7 +237,7 @@ class StaffApplication(Base):
     __tablename__ = "staff_applications"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('under_review','accepted','rejected','suspended')",
+            "status IN ('incomplete','under_review','accepted','rejected','suspended')",
             name="ck_staff_application_status",
         ),
     )
@@ -1702,6 +1702,10 @@ class PurchaseInvoice(Base):
             "status IN ('draft', 'completed')",
             name="ck_purchase_invoice_status",
         ),
+        CheckConstraint(
+            "trash_state IS NULL OR trash_state IN ('trashed', 'pending_final')",
+            name="ck_purchase_invoice_trash_state",
+        ),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -1776,17 +1780,65 @@ class PurchaseInvoice(Base):
     adjustment_amount_kobo: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     adjustment_status: Mapped[str | None] = mapped_column(String, nullable=True)
     adjustment_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # TRASH1: invoice Trash. NULL = a normal active invoice. 'trashed' = deleted,
+    # can be restored. 'pending_final' = a branch manager deleted it permanently
+    # and a super admin must decide. Kept apart from `status` on purpose:
+    # status only allows draft/completed and a restore must give the invoice
+    # back exactly as it was.
+    trash_state: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
+    trashed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    trashed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    trash_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    review_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_sent_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    review_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     branch: Mapped["Branch | None"] = relationship()
     supplier: Mapped["Supplier | None"] = relationship()
-    creator: Mapped["User"] = relationship()
+    creator: Mapped["User"] = relationship(foreign_keys=[created_by])  # TRASH1
     line_items: Mapped[list["PurchaseInvoiceLineItem"]] = relationship(
         back_populates="invoice",
         order_by="PurchaseInvoiceLineItem.position",
         cascade="all, delete-orphan",
     )
+
+
+class PurchaseInvoiceFinalDeletion(Base):
+    """TRASH1: the private ledger of invoices a SUPER ADMIN deleted for good.
+
+    Super admins only (every endpoint that reads it checks the role). The
+    invoice row itself is gone by the time this row exists, so this holds a full
+    snapshot, and the people's names are copied in as text. The ids of the
+    people and of the invoice are plain columns, not foreign keys, so nothing
+    here can ever block a later user or branch clean-up. The final delete is
+    NOT written to audit_logs; this table is its only record.
+    """
+
+    __tablename__ = "purchase_invoice_final_deletions"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
+    deleted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    deleted_by_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    deleted_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    invoice_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    branch_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    branch_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    supplier_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    invoice_number: Mapped[str | None] = mapped_column(String, nullable=True)
+    invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    landed_cost_kobo: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    trashed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    trashed_by_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    trashed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    trash_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    review_sent_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    review_sent_by_name: Mapped[str | None] = mapped_column(String, nullable=True)
+    review_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
 
 class StoreSetting(Base):

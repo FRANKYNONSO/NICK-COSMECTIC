@@ -29,6 +29,18 @@ from infrastructure.db.audit import log_audit_event
 from infrastructure.db.models import Branch as ORMBranch
 from infrastructure.db.models import PurchaseInvoice, PurchaseInvoiceLineItem, Product, StockAdjustment, Supplier, User
 from nickcosmetics_core.domain.money import Money
+from datetime import timezone  # TRASH1
+from pydantic import BaseModel, Field, field_validator  # TRASH1
+from sqlalchemy import or_  # TRASH1
+from infrastructure.db.models import (  # TRASH1
+    AuditLog,
+    GoodsReceipt,
+    GoodsReceiptLine,
+    IntakeReceipt,
+    PurchaseInvoiceFinalDeletion,
+    StockTransfer,
+)
+from tasks.metric_snapshots import refresh_inventory_investment  # TRASH1
 
 router = APIRouter(prefix="/purchase-invoices", tags=["purchase-invoices"])
 
@@ -250,6 +262,7 @@ async def total_invested(
         landed_cost_stmt = landed_cost_stmt.where(PurchaseInvoice.source.is_distinct_from("branch_transfer"))
     if date_from is not None:
         landed_cost_stmt = landed_cost_stmt.where(PurchaseInvoice.invoice_date >= date_from)
+    landed_cost_stmt = landed_cost_stmt.where(PurchaseInvoice.trash_state.is_(None))  # TRASH1
     landed_cost_kobo = (await session.execute(landed_cost_stmt)).scalar_one()
 
     adjustment_loss_stmt = select(func.coalesce(func.sum(StockAdjustment.value_kobo), 0)).where(
@@ -291,7 +304,7 @@ async def list_purchase_invoices(
     # still gated on manage_suppliers).
     current_user: User = Depends(require_permission(_VIEW_PERMISSION)),
 ) -> list[PurchaseInvoiceOut]:
-    conditions = []
+    conditions = [PurchaseInvoice.trash_state.is_(None)]  # TRASH1
     # A cashier/branch manager tied to a single branch only ever sees
     # that branch's invoices, enforced server-side regardless of the
     # branch_id query param (spec section 20: "view invoice history
@@ -521,6 +534,11 @@ async def update_purchase_invoice(
     inv = result.scalar_one_or_none()
     if inv is None:
         raise HTTPException(fastapi_status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    if inv.trash_state is not None:  # TRASH1
+        raise HTTPException(
+            fastapi_status.HTTP_400_BAD_REQUEST,
+            detail="This invoice is in the Trash. Restore it before editing.",
+        )
 
     if inv.source == "branch_transfer":
         raise HTTPException(
@@ -678,3 +696,598 @@ async def update_purchase_invoice(
         .where(PurchaseInvoice.id == inv.id)
     )
     return _serialize(result.scalar_one())
+
+
+# =====================================================================
+# TRASH1 -- invoice Trash: delete, restore, permanent delete (Oct 2026)
+#
+# Life of an invoice:
+#   active (trash_state NULL) -> 'trashed' -> restored (back to active)
+#                                          -> 'pending_final' (a branch manager's
+#                                             "delete permanently": a super admin
+#                                             must still decide)
+#   A super admin's "delete permanently" is final: the invoice and its lines are
+#   removed and ONE row is written to purchase_invoice_final_deletions (super
+#   admin eyes only). That final step writes NO audit_logs row.
+#
+# Amounts: nothing is added or subtracted anywhere. Every total simply ignores
+# invoices whose trash_state is not NULL, so delete/restore move the numbers at
+# once and they can never drift. The one stored figure (the nightly
+# inventory_investment snapshot) is refreshed for that invoice's day.
+# =====================================================================
+_TRASHED = "trashed"
+_PENDING_FINAL = "pending_final"
+_TRASH_ACTIONS = (
+    "purchase_invoice.trash",
+    "purchase_invoice.restore",
+    "purchase_invoice.send_for_review",
+)
+_TRASH_ACTION_LABELS = {
+    "purchase_invoice.trash": "Deleted",
+    "purchase_invoice.restore": "Restored",
+    "purchase_invoice.send_for_review": "Sent for permanent deletion",
+}
+_SUPER_ONLY = "Only a super admin can do this."
+
+_INVOICE_SNAPSHOT_FIELDS = (
+    "id", "status", "source", "branch_id", "supplier_id", "supplier_name",
+    "supplier_address", "supplier_phone", "invoice_number", "invoice_date",
+    "description", "image_url", "payment_method", "amount_kobo",
+    "amount_paid_kobo", "waybill_cost_kobo", "transit_cost_kobo",
+    "handling_cost_kobo", "adjustment_amount_kobo", "adjustment_status",
+    "adjustment_note", "created_by", "created_at",
+)
+_ITEM_SNAPSHOT_FIELDS = (
+    "id", "position", "item_name", "product_id", "quantity", "unit_label",
+    "cost_price_kobo", "rate_kobo", "line_total_kobo", "pieces_per_carton",
+    "remainder_quantity", "remainder_unit_label", "total_pieces",
+    "cost_price_per_piece_kobo",
+)
+
+
+class TrashReasonIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+    @field_validator("reason")
+    @classmethod
+    def _reason_not_blank(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A reason is required.")
+        return value
+
+
+class RestoreIn(BaseModel):
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class TrashActionOut(BaseModel):
+    id: uuid.UUID
+    trash_state: str | None = None
+    message: str
+
+
+class TrashInvoiceOut(BaseModel):
+    id: uuid.UUID
+    trash_state: str
+    invoice_date: date
+    supplier_name: str | None = None
+    invoice_number: str | None = None
+    description: str | None = None
+    branch_id: uuid.UUID | None = None
+    branch_name: str | None = None
+    amount_naira: float
+    item_count: int
+    created_by_name: str
+    trashed_at: datetime | None = None
+    trashed_by_name: str | None = None
+    trash_reason: str | None = None
+    review_sent_at: datetime | None = None
+    review_sent_by_name: str | None = None
+    review_reason: str | None = None
+    # TRASH3: the whole invoice (items, totals, photo) so a deleted invoice can still be viewed.
+    invoice: PurchaseInvoiceOut | None = None
+
+
+class FinalDeletionOut(BaseModel):
+    id: uuid.UUID
+    deleted_at: datetime
+    deleted_by_name: str | None = None
+    deleted_reason: str | None = None
+    invoice_id: uuid.UUID
+    invoice_date: date | None = None
+    invoice_number: str | None = None
+    supplier_name: str | None = None
+    branch_id: uuid.UUID | None = None
+    branch_name: str | None = None
+    amount_naira: float
+    trashed_by_name: str | None = None
+    trashed_at: datetime | None = None
+    trash_reason: str | None = None
+    review_sent_by_name: str | None = None
+    review_sent_at: datetime | None = None
+    review_reason: str | None = None
+    snapshot: dict | None = None
+
+
+class TrashEventOut(BaseModel):
+    id: uuid.UUID
+    invoice_id: uuid.UUID | None = None
+    action: str
+    label: str
+    user_name: str | None = None
+    created_at: datetime
+    reason: str | None = None
+    from_state: str | None = None
+    to_state: str | None = None
+    supplier_name: str | None = None
+    branch_name: str | None = None
+    invoice_date: str | None = None
+    amount_naira: float | None = None
+
+
+def _landed_kobo(inv: PurchaseInvoice) -> int:
+    """Goods amount + the three logistics legs: the same figure the dashboard
+    card, the nightly rollup and the invoice list already add up."""
+    return int(
+        (inv.amount_kobo or 0)
+        + (inv.waybill_cost_kobo or 0)
+        + (inv.transit_cost_kobo or 0)
+        + (inv.handling_cost_kobo or 0)
+    )
+
+
+def _jsonable(value):
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+    return value
+
+
+def _audit_meta(inv: PurchaseInvoice, **extra) -> dict:
+    """Saved inside every audit row so the record still makes sense after the
+    invoice is gone, and so a branch manager can be shown only their branch."""
+    meta = {
+        "branch_id": str(inv.branch_id) if inv.branch_id else None,
+        "branch_name": inv.branch.name if inv.branch else None,
+        "supplier_name": inv.supplier_name,
+        "invoice_number": inv.invoice_number,
+        "invoice_date": inv.invoice_date.isoformat() if inv.invoice_date else None,
+        "amount_naira": Money(_landed_kobo(inv)).naira,
+    }
+    meta.update(extra)
+    return meta
+
+
+def _require_super_admin(current_user: User) -> None:
+    if current_user.role != "super_admin":
+        raise HTTPException(fastapi_status.HTTP_403_FORBIDDEN, detail=_SUPER_ONLY)
+
+
+def _check_branch(current_user: User, inv: PurchaseInvoice, verb: str) -> None:
+    # Same rule as the invoice list: anyone tied to one branch only touches that branch.
+    if current_user.branch_id is not None and inv.branch_id != current_user.branch_id:
+        raise HTTPException(
+            fastapi_status.HTTP_403_FORBIDDEN,
+            detail=f"You can only {verb} invoices for your own branch.",
+        )
+
+
+async def _load_for_trash(session: AsyncSession, invoice_id: uuid.UUID) -> PurchaseInvoice:
+    result = await session.execute(
+        select(PurchaseInvoice)
+        .options(
+            selectinload(PurchaseInvoice.branch),
+            selectinload(PurchaseInvoice.creator),
+            selectinload(PurchaseInvoice.line_items),
+        )
+        .where(PurchaseInvoice.id == invoice_id)
+        .with_for_update(of=PurchaseInvoice)
+    )
+    inv = result.scalar_one_or_none()
+    if inv is None:
+        raise HTTPException(fastapi_status.HTTP_404_NOT_FOUND, detail="Invoice not found")
+    return inv
+
+
+async def _used_reasons(session: AsyncSession, inv: PurchaseInvoice) -> list[str]:
+    """Why this invoice can't be deleted: anything else in the system points at it."""
+    reasons: list[str] = []
+    if inv.source == "branch_transfer":
+        reasons.append("it was made by a branch transfer")
+    line_ids = [li.id for li in inv.line_items]
+
+    receipts = (
+        await session.execute(
+            select(func.count()).select_from(GoodsReceipt).where(GoodsReceipt.invoice_id == inv.id)
+        )
+    ).scalar_one()
+    if not receipts and line_ids:
+        receipts = (
+            await session.execute(
+                select(func.count())
+                .select_from(GoodsReceiptLine)
+                .where(GoodsReceiptLine.invoice_line_item_id.in_(line_ids))
+            )
+        ).scalar_one()
+    if receipts:
+        reasons.append("it is linked to a Receive Goods receipt")
+
+    if line_ids:
+        pushed = (
+            await session.execute(
+                select(func.count())
+                .select_from(StockTransfer)
+                .where(StockTransfer.invoice_line_item_id.in_(line_ids))
+            )
+        ).scalar_one()
+        if pushed:
+            reasons.append("stock was pushed from it to the warehouse")
+
+    complaint_filter = IntakeReceipt.invoice_id == inv.id
+    if line_ids:
+        complaint_filter = or_(complaint_filter, IntakeReceipt.invoice_line_item_id.in_(line_ids))
+    complaints = (
+        await session.execute(select(func.count()).select_from(IntakeReceipt).where(complaint_filter))
+    ).scalar_one()
+    if complaints:
+        reasons.append("a waybill complaint was filed on it")
+    return reasons
+
+
+async def _refuse_if_used(session: AsyncSession, inv: PurchaseInvoice) -> None:
+    reasons = await _used_reasons(session, inv)
+    if reasons:
+        raise HTTPException(
+            fastapi_status.HTTP_400_BAD_REQUEST,
+            detail=f"This invoice cannot be deleted because it is already used: {'; '.join(reasons)}.",
+        )
+
+
+async def _names(session: AsyncSession, ids) -> dict:
+    wanted = {i for i in ids if i}
+    if not wanted:
+        return {}
+    rows = (await session.execute(select(User.id, User.full_name).where(User.id.in_(wanted)))).all()
+    return {row[0]: row[1] for row in rows}
+
+
+def _to_trash_out(inv: PurchaseInvoice, names: dict) -> TrashInvoiceOut:
+    return TrashInvoiceOut(
+        id=inv.id,
+        trash_state=inv.trash_state,
+        invoice_date=inv.invoice_date,
+        supplier_name=inv.supplier_name,
+        invoice_number=inv.invoice_number,
+        description=inv.description,
+        branch_id=inv.branch_id,
+        branch_name=inv.branch.name if inv.branch else None,
+        amount_naira=Money(_landed_kobo(inv)).naira,
+        item_count=len(inv.line_items),
+        created_by_name=inv.creator.full_name,
+        trashed_at=inv.trashed_at,
+        trashed_by_name=names.get(inv.trashed_by),
+        trash_reason=inv.trash_reason,
+        review_sent_at=inv.review_sent_at,
+        review_sent_by_name=names.get(inv.review_sent_by),
+        review_reason=inv.review_reason,
+        invoice=_serialize(inv),
+    )
+
+
+async def _trash_list(session: AsyncSession, conditions: list, order_column) -> list[TrashInvoiceOut]:
+    result = await session.execute(
+        select(PurchaseInvoice)
+        .options(
+            selectinload(PurchaseInvoice.branch),
+            selectinload(PurchaseInvoice.creator),
+            selectinload(PurchaseInvoice.line_items),
+        )
+        .where(*conditions)
+        .order_by(order_column.desc())
+    )
+    invoices = list(result.scalars().all())
+    names = await _names(
+        session,
+        [i.trashed_by for i in invoices] + [i.review_sent_by for i in invoices],
+    )
+    return [_to_trash_out(inv, names) for inv in invoices]
+
+
+def _event_out(entry: AuditLog) -> TrashEventOut:
+    meta = entry.log_metadata or {}
+    return TrashEventOut(
+        id=entry.id,
+        invoice_id=entry.entity_id,
+        action=entry.action,
+        label=_TRASH_ACTION_LABELS.get(entry.action, entry.action),
+        user_name=entry.user.full_name if entry.user else None,
+        created_at=entry.created_at,
+        reason=meta.get("reason"),
+        from_state=meta.get("from_state"),
+        to_state=meta.get("to_state"),
+        supplier_name=meta.get("supplier_name"),
+        branch_name=meta.get("branch_name"),
+        invoice_date=meta.get("invoice_date"),
+        amount_naira=meta.get("amount_naira"),
+    )
+
+
+def _event_branch_conditions(current_user: User, branch_id: uuid.UUID | None) -> list:
+    if current_user.branch_id is not None:
+        return [AuditLog.log_metadata["branch_id"].astext == str(current_user.branch_id)]
+    if branch_id:
+        return [AuditLog.log_metadata["branch_id"].astext == str(branch_id)]
+    return []
+
+
+async def _trash_events(session: AsyncSession, conditions: list, limit: int) -> list[TrashEventOut]:
+    result = await session.execute(
+        select(AuditLog)
+        .options(selectinload(AuditLog.user))
+        .where(
+            AuditLog.entity_type == "purchase_invoice",
+            AuditLog.action.in_(_TRASH_ACTIONS),
+            *conditions,
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(min(max(limit, 1), 500))
+    )
+    return [_event_out(e) for e in result.scalars().all()]
+
+
+# ------------------------------------------------------------------ lists
+
+@router.get("/trash", response_model=list[TrashInvoiceOut])
+async def list_trashed_invoices(
+    branch_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission(_PERMISSION)),
+) -> list[TrashInvoiceOut]:
+    """The Trash tab: invoices deleted but not yet permanently deleted.
+    A branch manager sees only their own branch."""
+    conditions = [PurchaseInvoice.trash_state == _TRASHED]
+    if current_user.branch_id is not None:
+        conditions.append(PurchaseInvoice.branch_id == current_user.branch_id)
+    elif branch_id:
+        conditions.append(PurchaseInvoice.branch_id == branch_id)
+    return await _trash_list(session, conditions, PurchaseInvoice.trashed_at)
+
+
+@router.get("/trash/review", response_model=list[TrashInvoiceOut])
+async def list_invoices_awaiting_review(
+    branch_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission(_PERMISSION)),
+) -> list[TrashInvoiceOut]:
+    """Super admin only: invoices a branch manager deleted permanently, waiting for the final decision."""
+    _require_super_admin(current_user)
+    conditions = [PurchaseInvoice.trash_state == _PENDING_FINAL]
+    if branch_id:
+        conditions.append(PurchaseInvoice.branch_id == branch_id)
+    return await _trash_list(session, conditions, PurchaseInvoice.review_sent_at)
+
+
+@router.get("/trash/activity", response_model=list[TrashEventOut])
+async def trash_activity(
+    branch_id: uuid.UUID | None = None,
+    limit: int = 200,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission(_PERMISSION)),
+) -> list[TrashEventOut]:
+    """Every recorded delete / restore / send-for-review step, newest first, branch-scoped.
+    It still lists the earlier steps of an invoice that was later deleted for good;
+    the final deletion itself is never in here. Super admin only (TRASH3)."""
+    _require_super_admin(current_user)
+    return await _trash_events(session, _event_branch_conditions(current_user, branch_id), limit)
+
+
+@router.get("/final-deletions", response_model=list[FinalDeletionOut])
+async def list_final_deletions(
+    limit: int = 200,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission(_PERMISSION)),
+) -> list[FinalDeletionOut]:
+    """Super admin only: the private record of every invoice a super admin deleted for good."""
+    _require_super_admin(current_user)
+    rows = (
+        await session.execute(
+            select(PurchaseInvoiceFinalDeletion)
+            .order_by(PurchaseInvoiceFinalDeletion.deleted_at.desc())
+            .limit(min(max(limit, 1), 500))
+        )
+    ).scalars().all()
+    return [
+        FinalDeletionOut(
+            id=r.id,
+            deleted_at=r.deleted_at,
+            deleted_by_name=r.deleted_by_name,
+            deleted_reason=r.deleted_reason,
+            invoice_id=r.invoice_id,
+            invoice_date=r.invoice_date,
+            invoice_number=r.invoice_number,
+            supplier_name=r.supplier_name,
+            branch_id=r.branch_id,
+            branch_name=r.branch_name,
+            amount_naira=Money(int(r.landed_cost_kobo or 0)).naira,
+            trashed_by_name=r.trashed_by_name,
+            trashed_at=r.trashed_at,
+            trash_reason=r.trash_reason,
+            review_sent_by_name=r.review_sent_by_name,
+            review_sent_at=r.review_sent_at,
+            review_reason=r.review_reason,
+            snapshot=r.snapshot,
+        )
+        for r in rows
+    ]
+
+
+@router.get("/{invoice_id}/history", response_model=list[TrashEventOut])
+async def invoice_trash_history(
+    invoice_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission(_PERMISSION)),
+) -> list[TrashEventOut]:
+    # Super admin only: branch managers can no longer read an invoice's history.
+    _require_super_admin(current_user)
+    conditions = _event_branch_conditions(current_user, None)
+    conditions.append(AuditLog.entity_id == invoice_id)
+    return await _trash_events(session, conditions, 100)
+
+
+# ---------------------------------------------------------------- actions
+
+@router.post("/{invoice_id}/trash", response_model=TrashActionOut)
+async def trash_purchase_invoice(
+    invoice_id: uuid.UUID,
+    body: TrashReasonIn,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission(_PERMISSION)),
+) -> TrashActionOut:
+    """Delete: move the invoice to the Trash. Its amount leaves every total at once."""
+    inv = await _load_for_trash(session, invoice_id)
+    _check_branch(current_user, inv, "delete")
+    if inv.trash_state is not None:
+        raise HTTPException(fastapi_status.HTTP_400_BAD_REQUEST, detail="This invoice is already in the Trash.")
+    await _refuse_if_used(session, inv)
+
+    inv.trash_state = _TRASHED
+    inv.trashed_at = datetime.now(timezone.utc)
+    inv.trashed_by = current_user.id
+    inv.trash_reason = body.reason
+    await session.flush()
+    await refresh_inventory_investment(session, inv.branch_id, inv.invoice_date)
+    log_audit_event(
+        session,
+        user_id=current_user.id,
+        action="purchase_invoice.trash",
+        entity_type="purchase_invoice",
+        entity_id=inv.id,
+        metadata=_audit_meta(inv, reason=body.reason, from_state=None, to_state=_TRASHED),
+    )
+    await session.commit()
+    return TrashActionOut(id=inv.id, trash_state=_TRASHED, message="Invoice moved to the Trash.")
+
+
+@router.post("/{invoice_id}/restore", response_model=TrashActionOut)
+async def restore_purchase_invoice(
+    invoice_id: uuid.UUID,
+    body: RestoreIn | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission(_PERMISSION)),
+) -> TrashActionOut:
+    """Restore: back to the Invoices list exactly as it was. Its amount is in every total again."""
+    inv = await _load_for_trash(session, invoice_id)
+    _check_branch(current_user, inv, "restore")
+    if inv.trash_state is None:
+        raise HTTPException(fastapi_status.HTTP_400_BAD_REQUEST, detail="This invoice is not in the Trash.")
+    if inv.trash_state == _PENDING_FINAL and current_user.role != "super_admin":
+        raise HTTPException(
+            fastapi_status.HTTP_403_FORBIDDEN,
+            detail="This invoice is waiting for a super admin. Only a super admin can restore it.",
+        )
+    from_state = inv.trash_state
+    inv.trash_state = None
+    inv.trashed_at = None
+    inv.trashed_by = None
+    inv.trash_reason = None
+    inv.review_sent_at = None
+    inv.review_sent_by = None
+    inv.review_reason = None
+    await session.flush()
+    await refresh_inventory_investment(session, inv.branch_id, inv.invoice_date)
+    log_audit_event(
+        session,
+        user_id=current_user.id,
+        action="purchase_invoice.restore",
+        entity_type="purchase_invoice",
+        entity_id=inv.id,
+        metadata=_audit_meta(
+            inv,
+            reason=body.reason if body else None,
+            from_state=from_state,
+            to_state=None,
+        ),
+    )
+    await session.commit()
+    return TrashActionOut(id=inv.id, trash_state=None, message="Invoice restored.")
+
+
+@router.post("/{invoice_id}/delete-permanently", response_model=TrashActionOut)
+async def delete_purchase_invoice_permanently(
+    invoice_id: uuid.UUID,
+    body: TrashReasonIn,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission(_PERMISSION)),
+) -> TrashActionOut:
+    """A branch manager's permanent delete only SENDS the invoice to a super admin.
+    A super admin's permanent delete is final and is recorded only in the
+    super-admin ledger (no audit_logs row)."""
+    inv = await _load_for_trash(session, invoice_id)
+    is_super = current_user.role == "super_admin"
+    _check_branch(current_user, inv, "delete")
+    if inv.trash_state is None:
+        raise HTTPException(
+            fastapi_status.HTTP_400_BAD_REQUEST,
+            detail="Delete the invoice first. Only an invoice in the Trash can be deleted permanently.",
+        )
+    if inv.trash_state == _PENDING_FINAL and not is_super:
+        raise HTTPException(
+            fastapi_status.HTTP_400_BAD_REQUEST,
+            detail="This invoice is already waiting for a super admin to decide.",
+        )
+    await _refuse_if_used(session, inv)
+
+    now = datetime.now(timezone.utc)
+    if not is_super:
+        inv.trash_state = _PENDING_FINAL
+        inv.review_sent_at = now
+        inv.review_sent_by = current_user.id
+        inv.review_reason = body.reason
+        log_audit_event(
+            session,
+            user_id=current_user.id,
+            action="purchase_invoice.send_for_review",
+            entity_type="purchase_invoice",
+            entity_id=inv.id,
+            metadata=_audit_meta(inv, reason=body.reason, from_state=_TRASHED, to_state=_PENDING_FINAL),
+        )
+        await session.commit()
+        return TrashActionOut(id=inv.id, trash_state=_PENDING_FINAL, message="Sent to a super admin for review.")
+
+    # ---- final delete (super admin): ledger row only, no audit_logs row ----
+    names = await _names(session, [inv.trashed_by, inv.review_sent_by])
+    snapshot = {name: _jsonable(getattr(inv, name, None)) for name in _INVOICE_SNAPSHOT_FIELDS}
+    snapshot["items"] = [
+        {name: _jsonable(getattr(li, name, None)) for name in _ITEM_SNAPSHOT_FIELDS}
+        for li in sorted(inv.line_items, key=lambda i: i.position)
+    ]
+    deleted_id = inv.id
+    session.add(
+        PurchaseInvoiceFinalDeletion(
+            deleted_at=now,
+            deleted_by=current_user.id,
+            deleted_by_name=current_user.full_name,
+            deleted_reason=body.reason,
+            invoice_id=inv.id,
+            branch_id=inv.branch_id,
+            branch_name=inv.branch.name if inv.branch else None,
+            supplier_name=inv.supplier_name,
+            invoice_number=inv.invoice_number,
+            invoice_date=inv.invoice_date,
+            landed_cost_kobo=_landed_kobo(inv),
+            trashed_by=inv.trashed_by,
+            trashed_by_name=names.get(inv.trashed_by),
+            trashed_at=inv.trashed_at,
+            trash_reason=inv.trash_reason,
+            review_sent_by=inv.review_sent_by,
+            review_sent_by_name=names.get(inv.review_sent_by),
+            review_sent_at=inv.review_sent_at,
+            review_reason=inv.review_reason,
+            snapshot=snapshot,
+        )
+    )
+    await session.delete(inv)
+    await session.commit()
+    return TrashActionOut(id=deleted_id, trash_state=None, message="Invoice deleted permanently.")

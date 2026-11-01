@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_current_user, get_db_session, require_role
+from api.dependencies import get_current_user_allow_pending, get_db_session, require_role
 from api.v1.schemas.staff_applications import (
     StaffApplicationAccept,
     StaffApplicationOut,
@@ -350,9 +350,144 @@ async def register(
     return _to_out(application)
 
 
+# PENDSTAFF-COMPLETE-PROFILE
+@router.post("/complete-profile", response_model=StaffApplicationOut)
+async def complete_profile(
+    full_legal_name: Annotated[str, Form()],
+    preferred_name: Annotated[str, Form()],
+    phone_number: Annotated[str, Form()],
+    date_of_birth: Annotated[date, Form()],
+    residential_address: Annotated[str, Form()],
+    emergency_contact_name: Annotated[str, Form()],
+    emergency_contact_phone: Annotated[str, Form()],
+    id_type: Annotated[str, Form()],
+    id_number: Annotated[str, Form()],
+    gender: Annotated[str | None, Form()] = None,
+    emergency_contact_relationship: Annotated[str | None, Form()] = None,
+    state_of_origin: Annotated[str | None, Form()] = None,
+    lga_of_origin: Annotated[str | None, Form()] = None,
+    hometown: Annotated[str | None, Form()] = None,
+    home_address_of_origin: Annotated[str | None, Form()] = None,
+    profile_photo: UploadFile | None = File(default=None),
+    id_document: UploadFile | None = File(default=None),
+    current_user: User = Depends(get_current_user_allow_pending),
+    session: AsyncSession = Depends(get_db_session),
+) -> StaffApplicationOut:
+    """Second step for accounts created from the Staff page's "New staff"
+    button: the person logs in, lands on the status page, and submits the
+    details the admin did not collect. Only valid while the application is
+    'incomplete'. On success it becomes 'under_review' -- still no access to
+    anything until a super admin or branch manager accepts it.
+    """
+    from api.v1.schemas.validators import validate_digits_only
+
+    app_repo = StaffApplicationRepository(session)
+    application = await app_repo.get_by_user_id(current_user.id)
+    if application is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No staff application on this account")
+    if application.status != "incomplete":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Your details were already submitted (status: '{application.status}').",
+        )
+
+    def _clean(value: str | None) -> str | None:
+        value = (value or "").strip()
+        return value or None
+
+    full_legal_name = _clean(full_legal_name)
+    preferred_name = _clean(preferred_name)
+    phone_number = _clean(phone_number)
+    residential_address = _clean(residential_address)
+    emergency_contact_name = _clean(emergency_contact_name)
+    emergency_contact_phone = _clean(emergency_contact_phone)
+    id_type = _clean(id_type)
+    id_number = _clean(id_number)
+
+    required = {
+        "Full name": full_legal_name,
+        "Preferred name / username": preferred_name,
+        "Phone number": phone_number,
+        "Residential address": residential_address,
+        "Emergency contact name": emergency_contact_name,
+        "Emergency contact phone": emergency_contact_phone,
+        "ID type": id_type,
+        "ID number": id_number,
+    }
+    missing = [label for label, value in required.items() if not value]
+    if missing:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Please fill in: " + ", ".join(missing))
+    if date_of_birth > date.today():
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Date of birth cannot be in the future")
+    if id_type not in ("national_id", "passport", "drivers_license"):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Choose a valid ID type")
+    gender = _clean(gender)
+    if gender is not None:
+        gender = gender.lower()
+        if gender not in ("male", "female"):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Choose a valid gender")
+    try:
+        phone_number = validate_digits_only(phone_number, "Phone number")
+        emergency_contact_phone = validate_digits_only(emergency_contact_phone, "Emergency contact phone")
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+
+    user_repo = UserRepository(session)
+    other = await user_repo.get_by_phone(phone_number)
+    if other is not None and other.id != current_user.id:
+        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Phone '{phone_number}' is already in use")
+    other = await user_repo.get_by_preferred_name(preferred_name)
+    if other is not None and other.id != current_user.id:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"'{preferred_name}' is already taken by another staff member -- please choose a different preferred name.",
+        )
+
+    if profile_photo is not None and profile_photo.filename:
+        contents = await profile_photo.read()
+        filename = _save_upload(_PHOTO_DIR, _ALLOWED_PHOTO_EXTENSIONS, _MAX_PHOTO_BYTES, profile_photo, contents)
+        application.profile_photo_url = f"{_PUBLIC_BASE_URL}/static/uploads/staff_photos/{filename}"
+    if id_document is not None and id_document.filename:
+        contents = await id_document.read()
+        filename = _save_upload(
+            _ID_DOCUMENT_DIR, _ALLOWED_ID_DOCUMENT_EXTENSIONS, _MAX_ID_DOCUMENT_BYTES, id_document, contents
+        )
+        application.id_document_path = str(_ID_DOCUMENT_DIR / filename)
+
+    current_user.full_name = full_legal_name
+    current_user.phone = phone_number
+    current_user.preferred_name = preferred_name
+    await user_repo.save(current_user)
+
+    application.full_legal_name = full_legal_name
+    application.preferred_name = preferred_name
+    application.phone_number = phone_number
+    application.date_of_birth = date_of_birth
+    application.gender = gender
+    application.residential_address = residential_address
+    application.state_of_origin = _clean(state_of_origin)
+    application.lga_of_origin = _clean(lga_of_origin)
+    application.hometown = _clean(hometown)
+    application.home_address_of_origin = _clean(home_address_of_origin)
+    application.emergency_contact_name = emergency_contact_name
+    application.emergency_contact_phone = emergency_contact_phone
+    application.emergency_contact_relationship = _clean(emergency_contact_relationship)
+    application.id_type = id_type
+    application.id_number = id_number
+    application.status = "under_review"
+    application.submitted_at = datetime.now(timezone.utc)
+    application = await app_repo.save(application)
+    log_audit_event(
+        session, user_id=current_user.id, action="profile_completed",
+        entity_type="staff_application", entity_id=application.id,
+    )
+    await session.commit()
+    return _to_out(application)
+
+
 @router.get("/me", response_model=StaffApplicationStatusOut)
 async def my_status(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_pending),
     session: AsyncSession = Depends(get_db_session),
 ) -> StaffApplication:
     """Powers the "Application Status: Under Review" limited page
@@ -372,10 +507,14 @@ async def my_status(
 async def list_applications(
     status_filter: str | None = None,
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(require_role(*_REVIEW_ROLES)),
+    current_user: User = Depends(require_role(*_REVIEW_ROLES)),
 ) -> list[StaffApplication]:
     repo = StaffApplicationRepository(session)
-    return await repo.list_all(status=status_filter)
+    rows = await repo.list_all(status=status_filter)
+    # PENDSTAFF-LIST-SCOPE: a branch manager only sees their own branch
+    if current_user.role == "branch_manager":
+        rows = [r for r in rows if r.branch_id is None or r.branch_id == current_user.branch_id]
+    return rows
 
 
 # PATCH26A-STAFF-FORM-PDF
@@ -528,7 +667,7 @@ async def get_application(
 async def download_id_document(
     application_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_allow_pending),
 ) -> FileResponse:
     """Streams the private ID document -- never exposed via a public
     static URL. Only the applicant themselves or an authorized
@@ -568,16 +707,26 @@ async def accept_application(
     application = await app_repo.get_by_id(application_id)
     if application is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Application not found")
+    if application.status == "incomplete":  # PENDSTAFF-ACCEPT-INCOMPLETE
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="This person has not completed their profile yet, so they cannot be approved.",
+        )
     if application.status not in ("under_review", "rejected"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"Cannot accept an application in '{application.status}' status")
 
-    try:
-        DomainRole(body.role)
-    except ValueError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(InvalidRoleError(body.role))) from exc
+    # PENDSTAFF-ACCEPT-ROLE
+    # No role sent -> keep the user's current role: 'staff' for self-registered
+    # applicants (same as before), or the role an admin picked on "New staff".
+    linked_user = await UserRepository(session).get_by_id(application.user_id)
+    if "role" in body.model_fields_set:
+        role = body.role
+    else:
+        role = (linked_user.role if linked_user is not None else None) or body.role
+    if (await session.execute(select(RoleModel.id).where(RoleModel.name == role))).first() is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Unknown role '{role}'")
 
-    branch_id = body.branch_id or application.branch_id
-    role = body.role
+    branch_id = body.branch_id or application.branch_id  # PENDSTAFF-ACCEPT-BRANCH
     if current_user.role == "branch_manager":
         # Same restriction as create_user in users.py -- a branch
         # manager can only bring someone on as 'staff', into their own
@@ -586,6 +735,8 @@ async def accept_application(
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Branch managers may only accept applicants as staff")
         if current_user.branch_id is None:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Branch manager has no assigned branch")
+        if application.branch_id is not None and application.branch_id != current_user.branch_id:  # PENDSTAFF-ACCEPT-SCOPE
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This applicant belongs to another branch")
         branch_id = current_user.branch_id
     elif branch_id is None:
         raise HTTPException(
@@ -633,6 +784,12 @@ async def reject_application(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Application not found")
     if application.status != "under_review":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"Cannot reject an application in '{application.status}' status")
+    if (  # PENDSTAFF-REJECT-SCOPE
+        current_user.role == "branch_manager"
+        and application.branch_id is not None
+        and application.branch_id != current_user.branch_id
+    ):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This applicant belongs to another branch")
 
     application.status = "rejected"
     application.reviewed_by = current_user.id

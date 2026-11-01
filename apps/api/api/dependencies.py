@@ -19,7 +19,7 @@ async def get_db_session() -> AsyncSession:
         yield session
 
 
-async def get_current_user(
+async def get_current_user_allow_pending(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
     session: AsyncSession = Depends(get_db_session),
 ) -> User:
@@ -66,6 +66,23 @@ async def get_current_user(
             )
 
     return user
+
+
+# PENDING-STAFF-GATE
+async def get_current_user(
+    current_user: User = Depends(get_current_user_allow_pending),
+    session: AsyncSession = Depends(get_db_session),
+) -> User:
+    """The normal login dependency. Identical to get_current_user_allow_pending
+    PLUS the employment gate: anyone whose staff application is not 'accepted'
+    (incomplete, under_review, rejected, suspended) is refused with 403 on every
+    route that depends on this -- including plain "logged in" routes such as the
+    inventory reads, which used to skip the gate. Only the few routes a pending
+    person genuinely needs (/auth/me, /staff-applications/me, complete-profile,
+    their own profile) use get_current_user_allow_pending instead.
+    """
+    await _ensure_active_employment(current_user, session)
+    return current_user
 
 
 _bearer_scheme_optional = HTTPBearer(auto_error=False)

@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 
-from api.dependencies import get_current_user, get_db_session
+from api.dependencies import get_current_user_allow_pending, get_db_session
 from api.v1.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
@@ -134,6 +134,16 @@ async def _find_user_by_identifier(session: AsyncSession, identifier: str):
         if user is not None:
             return user
 
+    # 2b) Preferred name. The "Preferred name / username" typed on the staff
+    #     signup form and on My Profile is stored in preferred_name, so it
+    #     works as a username too (capital letters and outer spaces ignored).
+    user = await _one_or_none(
+        session,
+        select(User).where(func.lower(func.trim(User.preferred_name)) == ident.lower()),
+    )
+    if user is not None:
+        return user
+
     # 3) Phone number, matched on the last 10 digits so every common format
     #    (0803..., +234803..., 234803..., with spaces or dashes) finds the
     #    same account.
@@ -226,7 +236,7 @@ async def refresh(body: RefreshRequest, session: AsyncSession = Depends(get_db_s
 
 
 @router.get("/me", response_model=UserOut)
-async def me(current_user: User = Depends(get_current_user)) -> User:
+async def me(current_user: User = Depends(get_current_user_allow_pending)) -> User:
     return current_user
 
 

@@ -17,7 +17,7 @@ this off of instead.
 import logging
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update  # TRASH1
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from infrastructure.db.models import Branch, MetricSnapshot, PurchaseInvoice, Sale, StockAdjustment
@@ -86,7 +86,7 @@ async def run_daily_metric_rollup(target_day: date | None = None) -> None:
                                 ),
                                 0,
                             )
-                        ).where(PurchaseInvoice.branch_id == branch_id, PurchaseInvoice.invoice_date == day)
+                        ).where(PurchaseInvoice.branch_id == branch_id, PurchaseInvoice.invoice_date == day, PurchaseInvoice.trash_state.is_(None))
                     )
                 ).scalar_one()
                 or 0
@@ -135,3 +135,48 @@ async def run_daily_metric_rollup(target_day: date | None = None) -> None:
 
         await session.commit()
         logger.info("Metric snapshot rollup complete for %s (%d branches)", day, len(branch_ids))
+
+
+async def refresh_inventory_investment(session, branch_id, day: date) -> None:
+    """TRASH1: re-work the stored inventory_investment figure for ONE branch and
+    ONE day, after an invoice dated that day was deleted or restored.
+
+    Only touches a row that already exists (a day the nightly job has already
+    rolled up). A day not rolled up yet is left alone: the nightly job will
+    compute it correctly because it now skips trashed invoices. Revenue, sales
+    and losses are never touched. Runs inside the caller's session, so it
+    commits or rolls back together with the delete/restore.
+    """
+    if branch_id is None:
+        return
+    invested_kobo = int(
+        (
+            await session.execute(
+                select(
+                    func.coalesce(
+                        func.sum(
+                            func.coalesce(PurchaseInvoice.amount_kobo, 0)
+                            + func.coalesce(PurchaseInvoice.waybill_cost_kobo, 0)
+                            + func.coalesce(PurchaseInvoice.transit_cost_kobo, 0)
+                            + func.coalesce(PurchaseInvoice.handling_cost_kobo, 0)
+                        ),
+                        0,
+                    )
+                ).where(
+                    PurchaseInvoice.branch_id == branch_id,
+                    PurchaseInvoice.invoice_date == day,
+                    PurchaseInvoice.trash_state.is_(None),
+                )
+            )
+        ).scalar_one()
+        or 0
+    )
+    await session.execute(
+        update(MetricSnapshot)
+        .where(
+            MetricSnapshot.branch_id == branch_id,
+            MetricSnapshot.metric_type == "inventory_investment",
+            MetricSnapshot.period_start == day,
+        )
+        .values(value=invested_kobo / 100)
+    )

@@ -253,7 +253,7 @@ function openCreateModal() {
   userForm.reset();
   document.getElementById('user-id').value = '';
   document.getElementById('user-modal-title').textContent = 'New staff';
-  document.getElementById('user-modal-sub').textContent = 'Create a staff account.';
+  document.getElementById('user-modal-sub').textContent = 'Create a staff account. They must complete their profile and be approved before they can use the system.';
   document.getElementById('role-field').style.display = '';
   document.getElementById('password-field').style.display = '';
   document.getElementById('branch-field').style.display = isBranchManager ? 'none' : '';
@@ -329,7 +329,7 @@ userForm.addEventListener('submit', async (e) => {
         password: document.getElementById('password').value,
         branch_id: branchId,
       });
-      showToast('Staff account created.');
+      showToast('Staff account created. It stays pending until they complete their profile and are approved.');
     }
     closeUserModal();
     loadStaff();
