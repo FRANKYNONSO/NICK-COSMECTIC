@@ -15,14 +15,32 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"
         onerror="window.__chartLoadFailed = true"></script>
   <script src="ui-dialog.js"></script>
+<style id="sb-logo-css">
+  .sb-logo { display: flex; align-items: center; gap: 12px; color: var(--ink, #e9ecf2); }
+  .sb-logo .sb-mark { height: 38px; width: auto; flex: none; }
+  .sb-logo .sb-text { display: flex; flex-direction: column; line-height: 1; }
+  .sb-logo .sb-text b { font-size: 19px; font-weight: 800; letter-spacing: .14em; }
+  .sb-logo .sb-text small { margin-top: 6px; font-size: 9.5px; font-weight: 600; letter-spacing: .3em; opacity: .65; }
+</style>
+<style media="print">
+  /* patch 26d: print / save-as-PDF layout */
+  .sidebar, .theme-toggle, .top-actions, .toolbar, .page-top-filters, button, select, input { display: none !important; }
+  .app-shell { display: block !important; }
+  .main { margin: 0 !important; max-width: none !important; width: 100% !important; padding: 0 12px !important; }
+  body, .app-shell, .main, .table-card, .kpi-card { background: #fff !important; }
+  * { color: #111 !important; box-shadow: none !important; }
+  .table-card, .kpi-card, tr { break-inside: avoid; }
+  .table-card { border: 1px solid #ccc !important; }
+</style>
 </head>
 <body>
 
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="login-brand">
-      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
-      <h1 class="display">Nick Cosmetics</h1>
+    <div class="login-brand sb-logo">
+      <svg class="sb-mark" viewBox="-6 -6 721 924" aria-hidden="true" fill="currentColor"><rect x="0" y="95" width="185" height="774"/><polygon points="267,130 451,0 451,554 267,554"/><rect x="285" y="601" width="148" height="44"/><rect x="267" y="692" width="184" height="220"/><rect x="524" y="95" width="185" height="770"/></svg>
+      <span class="sb-text"><b>PRESTIGE</b><small>NICK COSMETICS</small></span>
+      <h1 class="display" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Nick Cosmetics</h1>
     </div>
     <nav class="nav-gate-pending">
       <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>
@@ -56,6 +74,7 @@
           </div>
         </div>
         <div class="top-actions">
+          <a href="#" class="pill-btn link" id="print-report-btn" title="Print this page or save it as a PDF">Print / PDF</a>
           <span class="pill-btn" id="generated-at" style="cursor:default;">—</span>
           <a href="dashboard.html" class="pill-btn link">← Live dashboard</a>
         </div>
@@ -248,8 +267,18 @@
     <div class="table-card admin-only-section" id="expiry-card" style="margin-top:24px;">
       <h3 class="wh-card-title">Expiry watch</h3>
       <p class="wh-card-sub" id="expiry-sub">Stock that has expired or expires within 90 days.</p>
+      <div class="toolbar" style="margin:0 0 10px;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label for="expiry-window" style="font-size:12px;color:var(--ink-muted);">Look ahead</label>
+        <select id="expiry-window" style="width:auto;">
+          <option value="30">30 days</option>
+          <option value="60">60 days</option>
+          <option value="90" selected>90 days</option>
+          <option value="180">180 days</option>
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm" id="export-expiry-btn" style="width:auto;">Export CSV</button>
+      </div>
       <table class="wh-table">
-        <thead><tr><th>Product</th><th>Category</th><th>On hand</th><th>Expiry date</th><th>Status</th></tr></thead>
+        <thead><tr><th>Product</th><th>Category</th><th>On hand</th><th>Expiry date</th><th>Status</th><th>Value</th></tr></thead>
         <tbody id="expiry-tbody"></tbody>
       </table>
       <div class="empty-state" id="expiry-empty" style="display:none;"><div class="display" id="expiry-empty-text">Nothing expiring soon</div></div>
@@ -332,6 +361,7 @@
     <div class="table-card admin-only-section" id="branch-compare-card" style="display:none;margin-top:24px;">
       <h3 class="wh-card-title">Branch comparison</h3>
       <p class="wh-card-sub">Stock position by branch (carried products only).</p>
+      <div style="margin:0 0 10px;"><button type="button" class="btn btn-ghost btn-sm" id="export-branch-btn" style="width:auto;">Export CSV</button></div>
       <table class="wh-table">
         <thead><tr><th>Branch</th><th>Products</th><th>Units</th><th>Retail value</th><th>Low stock</th><th>Out of stock</th></tr></thead>
         <tbody id="branch-compare-tbody"></tbody>
@@ -360,6 +390,7 @@
     <div class="table-card" style="margin-top:24px;">
       <h3 class="wh-card-title">Top selling products</h3>
       <p class="wh-card-sub">Ranked by revenue with share of top performers</p>
+      <div style="margin:0 0 10px;"><button type="button" class="btn btn-ghost btn-sm" id="export-top-btn" style="width:auto;">Export CSV</button></div>
       <table class="wh-table">
         <thead><tr><th>#</th><th>Product</th><th>Category</th><th>Units sold</th><th>Revenue</th><th>Profit</th><th>Margin</th></tr></thead>
         <tbody id="top-products-tbody"></tbody>
@@ -775,6 +806,179 @@
       </div>
     </div>
 
+    <!-- Turnover & ABC ranking (patch 26d) -- see js/reports.js renderAbc() -->
+    <div class="admin-only-section" id="abc-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Stock turnover &amp; ABC ranking</div>
+      <p class="wh-card-sub" style="margin:4px 0 10px;">Products are ranked by profit over the selected window. A = the products that together make the first 80% of profit, B = the next 15%, C = the last 5%. Days of stock = what is on hand &divide; average daily sales.</p>
+      <div class="toolbar" style="margin:0 0 12px;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label for="abc-filter" style="font-size:12px;color:var(--ink-muted);">Show class</label>
+        <select id="abc-filter" style="width:auto;">
+          <option value="all">All classes</option>
+          <option value="A">A &mdash; top profit makers</option>
+          <option value="B">B &mdash; middle</option>
+          <option value="C">C &mdash; the long tail</option>
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm" id="abc-export-btn" style="width:auto;">Export CSV</button>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Stock turnover</div>
+          <div class="value" id="ab-turnover">&mdash;</div>
+          <div class="sub" id="ab-turnover-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Days of stock on hand</div>
+          <div class="value" id="ab-days">&mdash;</div>
+          <div class="sub" id="ab-days-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Sell-through</div>
+          <div class="value" id="ab-sell">&mdash;</div>
+          <div class="sub" id="ab-sell-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Class A products</div>
+          <div class="value" id="ab-a">&mdash;</div>
+          <div class="sub" id="ab-a-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Class summary</h3>
+        <p class="wh-card-sub">How much of your profit each class of product brings in.</p>
+        <table class="wh-table">
+          <thead><tr><th>Class</th><th>Products</th><th>Share of products</th><th>Profit</th><th>Share of profit</th><th>Revenue</th></tr></thead>
+          <tbody id="abc-sum-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="abc-sum-empty" style="display:none;"><div class="display">No sales in this window</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Product ranking</h3>
+        <p class="wh-card-sub">Top 50 of the chosen class, best profit first.</p>
+        <table class="wh-table">
+          <thead><tr><th>#</th><th>Class</th><th>Product</th><th>Category</th><th>Units sold</th><th>Revenue</th><th>Profit</th><th>Margin</th><th>On hand</th><th>Days of stock</th><th>Sell-through</th></tr></thead>
+          <tbody id="abc-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="abc-empty" style="display:none;"><div class="display">No sales in this window</div></div>
+      </div>
+    </div>
+
+    <!-- Loss trend (patch 26d) -- see js/reports.js loadLossTrend() -->
+    <div class="admin-only-section" id="losstrend-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Loss trend</div>
+      <div class="toolbar" style="margin:8px 0 12px;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label for="lt-months" style="font-size:12px;color:var(--ink-muted);">Look back</label>
+        <select id="lt-months" style="width:auto;">
+          <option value="3">3 months</option>
+          <option value="6" selected>6 months</option>
+          <option value="12">12 months</option>
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm" id="lt-export-btn" style="width:auto;">Export CSV</button>
+      </div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Written off</div>
+          <div class="value" id="lt-total">&mdash;</div>
+          <div class="sub" id="lt-total-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Loss as % of sales</div>
+          <div class="value" id="lt-percent">&mdash;</div>
+          <div class="sub" id="lt-percent-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Worst month</div>
+          <div class="value" id="lt-worst">&mdash;</div>
+          <div class="sub" id="lt-worst-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">Losses by month</h3>
+        <p class="wh-card-sub">Damaged, expired, stolen and other approved write-offs against what you sold that month.</p>
+        <table class="wh-table">
+          <thead><tr><th>Month</th><th>Losses</th><th>Sales</th><th>Loss % of sales</th><th>Relative</th></tr></thead>
+          <tbody id="lt-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="lt-empty" style="display:none;"><div class="display">No data for this period</div></div>
+      </div>
+    </div>
+
+    <!-- Stock valuation (patch 26e) -- see js/reports.js loadStockValuation() -->
+    <div class="admin-only-section" id="valuation-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Stock valuation</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Stock at batch cost</div>
+          <div class="value" id="val-batch">&mdash;</div>
+          <div class="sub" id="val-batch-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">At today's cost prices</div>
+          <div class="value" id="val-current">&mdash;</div>
+          <div class="sub" id="val-current-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">At selling price</div>
+          <div class="value" id="val-retail">&mdash;</div>
+          <div class="sub" id="val-retail-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Units with no cost</div>
+          <div class="value" id="val-uncosted">&mdash;</div>
+          <div class="sub" id="val-uncosted-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By category</h3>
+        <p class="wh-card-sub">Batch cost is what each delivery actually cost. Selling price is today's price list.</p>
+        <table class="wh-table">
+          <thead><tr><th>Category</th><th>Units</th><th>At batch cost</th><th>At selling price</th><th>Potential margin</th></tr></thead>
+          <tbody id="val-cat-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="val-cat-empty" style="display:none;"><div class="display">No stock on hand</div></div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">By branch</h3>
+        <p class="wh-card-sub">Where the stock is sitting (warehouses included).</p>
+        <table class="wh-table">
+          <thead><tr><th>Branch</th><th>Units</th><th>At batch cost</th></tr></thead>
+          <tbody id="val-branch-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="val-branch-empty" style="display:none;"><div class="display">No stock on hand</div></div>
+      </div>
+    </div>
+
+    <!-- Data health (patch 26e) -- see js/reports.js loadDataHealth() -->
+    <div class="admin-only-section" id="health-section" style="margin-top:24px;">
+      <div class="section-eyebrow">Data health</div>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="label">Checks needing attention</div>
+          <div class="value" id="hl-attn">&mdash;</div>
+          <div class="sub" id="hl-attn-sub">&nbsp;</div>
+        </div>
+        <div class="kpi-card revenue">
+          <div class="label">Checks passing</div>
+          <div class="value" id="hl-ok">&mdash;</div>
+          <div class="sub" id="hl-ok-sub">&nbsp;</div>
+        </div>
+      </div>
+
+      <div class="table-card" style="margin-top:16px;">
+        <h3 class="wh-card-title">What was checked</h3>
+        <p class="wh-card-sub">Problems here do not stop anything working, but they make some report figures less reliable. Ones needing attention are listed first.</p>
+        <table class="wh-table">
+          <thead><tr><th>Status</th><th>Check</th><th>Found</th><th>Amount</th><th>Why it matters / what to do</th></tr></thead>
+          <tbody id="hl-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="hl-empty" style="display:none;"><div class="display">No checks ran</div></div>
+      </div>
+    </div>
+
     <!-- Sales by worker -- admin/manager only, see js/reports.js loadTeamSales() -->
     <div class="table-card admin-only-section" style="margin-top:24px;">
       <h3 class="wh-card-title">Sales by worker</h3>
@@ -809,6 +1013,7 @@
     <div class="table-card admin-only-section" style="margin-top:24px;">
       <h3 class="wh-card-title" id="price-changes">Price changes</h3>
       <p class="wh-card-sub">Global price changes and branch-level price overrides, newest first.</p>
+      <div style="margin:0 0 10px;"><button type="button" class="btn btn-ghost btn-sm" id="export-price-btn" style="width:auto;">Export CSV</button></div>
       <table class="wh-table">
         <thead><tr><th>Product</th><th>Type</th><th>Branch</th><th>Changed by</th><th>Old price</th><th>New price</th><th>When</th></tr></thead>
         <tbody id="price-change-history-tbody"></tbody>

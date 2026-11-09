@@ -442,7 +442,7 @@ async function woSave(orderId, row) {
 
 (function initWebsiteOrders() {
   // Same gate as the Losses tab: managers/admins only.
-  if (typeof Perms !== 'undefined' && !Perms.can('view_all_reports')) {
+  if (typeof Perms !== 'undefined' && !Perms.can('manage_website_orders') /* PATCHP3Q-ORDERS */) {
     document.querySelector('#main-tabs .tab-btn[data-tab="website-orders"]')?.remove();
     return;
   }

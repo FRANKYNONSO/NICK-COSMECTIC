@@ -246,3 +246,57 @@ def require_permission(action: str):
         return current_user
 
     return _check
+
+
+# PATCHA1-ANY-PERMISSION
+def require_any_permission(*actions: str):
+    """Like require_permission, but passes when the account holds ANY of
+    the listed permissions (role grants plus per-account grants, minus
+    per-account denials; super_admin is never denied). Same rules as
+    require_permission, only the "any of" part is new.
+
+    Usage: `Depends(require_any_permission("manage_inventory", "restock_shelf"))`
+    """
+
+    async def _check(
+        current_user: User = Depends(get_current_user),
+        session: AsyncSession = Depends(get_db_session),
+    ) -> User:
+        await _ensure_active_employment(current_user, session)
+
+        role_row = await session.execute(select(RoleModel.permissions).where(RoleModel.name == current_user.role))
+        role_granted = set(role_row.scalar_one_or_none() or [])
+        granted = role_granted | set(current_user.granted_permissions or [])
+        denied = set(current_user.denied_permissions or [])
+        allowed = any(
+            a in granted and (current_user.role == "super_admin" or a not in denied)
+            for a in actions
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Role '%s' is not permitted to '%s'" % (current_user.role, "' or '".join(actions)),
+            )
+        return current_user
+
+    return _check
+
+
+# PATCHP2C-COST-VISIBLE
+async def can_view_costs(current_user, session: AsyncSession) -> bool:
+    """True when the caller may see cost prices (permission view_financials).
+
+    Same rule as require_permission: role row permissions, plus the
+    account's granted_permissions, minus its denied_permissions
+    (super_admin is never denied). Never raises. Anonymous (None) is False.
+    Used by every route that would otherwise send a cost to the wrong role.
+    """
+    if current_user is None:
+        return False
+    role_row = await session.execute(select(RoleModel.permissions).where(RoleModel.name == current_user.role))
+    granted = set(role_row.scalar_one_or_none() or []) | set(current_user.granted_permissions or [])
+    if "view_financials" not in granted:
+        return False
+    if current_user.role == "super_admin":
+        return True
+    return "view_financials" not in set(current_user.denied_permissions or [])

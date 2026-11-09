@@ -148,7 +148,7 @@ async def test_s_list_needs_manage_inventory(client, db_session):
         headers=h,
     )
     assert made.status_code == 201, made.text
-    staff = await _user(db_session, "staff", tb.id)
+    staff = await _user(db_session, "cashier", tb.id)
     manager = await _user(db_session, "branch_manager", tb.id)
     await db_session.commit()
     denied = await client.get(WH + "/transfer-returns", headers=_headers(staff))

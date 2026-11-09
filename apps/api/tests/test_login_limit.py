@@ -15,7 +15,7 @@ BAD = "WrongPass999!"
 LOCK_TEXT = "Too many failed attempts. Please wait 15 minutes and try again."
 
 
-async def _user(db, role="staff"):
+async def _user(db, role="cashier"):
     tag = uuid.uuid4().hex[:10]
     email = "p19e" + tag + "@example.com"
     db.add(User(full_name="P19E " + role, role=role, email=email,

@@ -27,7 +27,7 @@ OLD_PASSWORD = "Password123!"
 NEW_PASSWORD = "BrandNewPassword9!"
 
 
-async def _make_user(db_session, role="staff"):
+async def _make_user(db_session, role="cashier"):
     user = User(
         full_name="Test User",
         role=role,
@@ -112,7 +112,7 @@ def test_mark_password_changed_sets_an_aware_recent_time():
 
 def test_real_tokens_carry_iat_as_whole_seconds():
     for kind, make in (("access", create_access_token), ("refresh", create_refresh_token)):
-        token = make(str(uuid.uuid4()), "staff", None)
+        token = make(str(uuid.uuid4()), "cashier", None)
         payload = decode_token(token, expected_type=kind)
         assert isinstance(payload["iat"], int)
         assert abs(payload["iat"] - int(time.time())) <= 5

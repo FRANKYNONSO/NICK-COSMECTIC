@@ -24,7 +24,7 @@ function updateAddInvoiceVisibility() {
 }
 updateAddInvoiceVisibility();
 window.addEventListener('branch-context-changed', updateAddInvoiceVisibility);
-const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier' };
+const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier', store_assistant: 'Store assistant' }; // PATCHP3C-ROLE-LABEL
 document.getElementById('current-user-name').textContent = currentUser?.full_name || 'Signed in';
 document.getElementById('current-user-role').textContent = roleLabels[currentUser?.role] || currentUser?.role || '';
 document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); Auth.logout(); });

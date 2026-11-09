@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_db_session, require_role
+from api.dependencies import get_db_session, require_permission  # PATCHP3-NOTIF
 from api.v1.schemas.reports import NotificationItem, NotificationsSummary
 from infrastructure.db.models import (
     ExpiryAlertDismissal,
@@ -36,9 +36,9 @@ async def notifications_summary(
     # same super_admin/branch_manager tier as the pending-refund and
     # pending-change badges it replaces, since those are the two
     # counts here that only that tier could ever act on anyway.
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("view_dashboard_notifications")),
 ) -> NotificationsSummary:
-    effective_branch_id = current_user.branch_id if current_user.role == "branch_manager" else branch_id
+    effective_branch_id = current_user.branch_id if current_user.role != "super_admin" else branch_id
 
     # Low stock / Out of stock -- same query shape as
     # reports.py::low_stock_report(), reused here as a plain count
@@ -113,7 +113,7 @@ async def notifications_summary(
         AuditLog.action == "branch_price_override_changed",
         AuditLog.created_at >= price_change_window_start,
     ]
-    if current_user.role == "branch_manager":
+    if current_user.role != "super_admin":
         price_change_conditions.append(
             AuditLog.log_metadata["branch_id"].astext == str(current_user.branch_id)
         )

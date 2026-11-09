@@ -64,16 +64,16 @@ async def _validate_role(role: str, session: AsyncSession) -> None:
 async def create_user(
     body: UserCreate,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_MANAGE_USERS_ROLES)),
+    current_user: User = Depends(require_permission("create_staff")),  # PATCHP3H-GUARDS
 ) -> User:
     await _validate_role(body.role, session)
 
     branch_id = body.branch_id
-    if current_user.role == "branch_manager":
+    if current_user.role != "super_admin":  # PATCHP3H-BRANCH
         # Branch managers may only create staff, and only within their
         # own branch -- they can't create peers/admins or reach into
         # another branch.
-        if body.role != "staff":
+        if body.role != "cashier":
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
                 detail="Branch managers may only create staff accounts",
@@ -137,12 +137,17 @@ async def list_users(
     role: str | None = None,
     include_inactive: bool = False,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_MANAGE_USERS_ROLES)),
+    current_user: User = Depends(require_permission("view_staff")),  # PATCHP3H-GUARDS
 ) -> list[User]:
     scoped_branch_id = branch_id
-    if current_user.role == "branch_manager":
-        # Branch managers only ever see their own branch's roster,
+    if current_user.role != "super_admin":  # PATCHP3H-BRANCH
+        # Everyone except super_admin only sees their own branch's roster,
         # regardless of what branch_id they pass in.
+        if current_user.branch_id is None:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                detail="Your account has no assigned branch",
+            )
         scoped_branch_id = current_user.branch_id
 
     repo = UserRepository(session)
@@ -153,13 +158,15 @@ async def list_users(
 async def get_user(
     user_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_MANAGE_USERS_ROLES)),
+    current_user: User = Depends(require_permission("view_staff")),  # PATCHP3H-GUARDS
 ) -> User:
     repo = UserRepository(session)
     user = await repo.get_by_id(user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
-    if current_user.role == "branch_manager" and user.branch_id != current_user.branch_id:
+    if current_user.role != "super_admin" and (  # PATCHP3H-BRANCH
+        current_user.branch_id is None or user.branch_id != current_user.branch_id
+    ):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to view this user")
     return user
 

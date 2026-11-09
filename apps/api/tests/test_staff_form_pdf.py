@@ -39,7 +39,7 @@ async def test_super_admin_can_download_blank_staff_form(client, db_session):
 
 
 async def test_staff_cannot_download_blank_staff_form(client, db_session):
-    staff = await _make_user(db_session, "staff")
+    staff = await _make_user(db_session, "cashier")
     await db_session.commit()
 
     resp = await client.get("/api/v1/staff-applications/form.pdf", headers=_auth_headers(staff))

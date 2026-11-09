@@ -6,10 +6,24 @@ from sqlalchemy import case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.dependencies import get_db_session, require_permission
+from api.dependencies import can_view_costs, get_db_session, require_permission
+from api.v1.net_sales import (  # PATCH26F
+    cost_sale_conds,
+    fetch_returns,
+    not_spoiled_return_writeoff,
+    refunds_by_period,
+    revenue_sale_conds,
+)
 from api.v1.schemas.reports import (
     BookingsReportResponse,
     CancelledBookingRow,
+    DataHealthResponse,
+    HealthCheckRow,
+    StockValuationResponse,
+    ValuationBranchRow,
+    ValuationCategoryRow,
+    LossMonthRow,
+    LossTrendResponse,
     CountVarianceEventRow,
     CountVarianceGroupRow,
     CountVarianceProductRow,
@@ -121,7 +135,7 @@ async def sales_summary(
             func.sum(Sale.discount_kobo).label("discount_kobo"),
             func.sum(Sale.total_kobo).label("total_kobo"),
         )
-        .where(Sale.status == "completed")
+        .where(*revenue_sale_conds())  # PATCH26F: customer sales only, partly refunded included
         .group_by(period_col)
         .order_by(period_col)
     )
@@ -144,6 +158,10 @@ async def sales_summary(
 
     result = await session.execute(stmt)
     rows = result.all()
+    # PATCH26F: money handed back on partly refunded sales, placed in the period of the sale
+    _scope_id = current_user.branch_id if current_user.role != "super_admin" else branch_id
+    _returns = await fetch_returns(session, _scope_id, date_from, date_to)
+    _refunds_by_period = await refunds_by_period(session, _returns, group_by)
 
     # Section 18.7: "losses... must be automatically deducted from
     # total revenue... sales add to revenue, losses subtract from it."
@@ -157,7 +175,11 @@ async def sales_summary(
     loss_period_col = func.date_trunc(group_by, loss_when)
     loss_stmt = (
         select(loss_period_col.label("period"), func.sum(StockAdjustment.value_kobo).label("value_kobo"))
-        .where(StockAdjustment.value_kobo.is_not(None), StockAdjustment.status == "completed")
+        .where(
+            StockAdjustment.value_kobo.is_not(None),
+            StockAdjustment.status == "completed",
+            not_spoiled_return_writeoff(),  # PATCH26F: a refunded spoiled item is not also a loss
+        )
         .group_by(loss_period_col)
     )
     if current_user.role != "super_admin":
@@ -197,11 +219,16 @@ async def sales_summary(
                 )
             )
     summary_rows.sort(key=lambda r: r.period)
+    for _row in summary_rows:  # PATCH26F
+        _row.refunds_naira = _refunds_by_period.get(_row.period, 0) / 100
+        _row.net_total_naira = round(_row.total_naira - _row.refunds_naira, 2)
 
     return SalesSummaryResponse(
         rows=summary_rows,
         grand_total_naira=sum(r.total_naira for r in summary_rows),
         grand_sales_count=sum(r.sales_count for r in summary_rows),
+        grand_refunds_naira=round(sum(r.refunds_naira for r in summary_rows), 2),
+        grand_net_naira=round(sum(r.net_total_naira for r in summary_rows), 2),
     )
 
 
@@ -243,7 +270,7 @@ async def low_stock_report(
     # spec 2) -- a staff caller's Low Stock page must not surface a
     # product a super admin has deliberately hidden from staff, restock
     # button and all.
-    if current_user.role == "staff":
+    if current_user.role in ("cashier", "store_assistant"):  # PATCHP2E-HIDDEN-ROLES
         product_conditions.append(Product.hidden_from_staff.is_(False))
 
     products_result = await session.execute(
@@ -255,6 +282,7 @@ async def low_stock_report(
         .where(*product_conditions)
     )
 
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C2-COST-VISIBLE
     rows: list[LowStockRow] = []
     any_auto_unmuted = False
     for product in products_result.scalars().all():
@@ -283,7 +311,7 @@ async def low_stock_report(
                     image_url=image_url,
                     quantity_available=available,
                     reorder_level=product.reorder_level,
-                    cost_price_naira=Money(product.cost_price_kobo).naira,
+                    cost_price_naira=Money(product.cost_price_kobo).naira if show_cost else 0.0,
                     selling_price_naira=Money(product.selling_price_kobo).naira,
                     out_of_stock_alert_muted=product.out_of_stock_alert_muted,
                 )
@@ -491,10 +519,12 @@ async def product_performance_report(
     branch_id: uuid.UUID | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
-    limit: int = Query(default=20, ge=1, le=200),
+    limit: int = Query(default=20, ge=1, le=2000),
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(_REQUIRE_REPORTS_ACCESS),
+    current_user: User = Depends(_REQUIRE_REPORTS_ACCESS),
 ) -> list[ProductPerformanceRow]:
+    # PATCH26F: a branch manager only ever sees their own branch, like the other reports
+    branch_id = _scope_branch(current_user, branch_id)
     stmt = (
         select(
             SaleItem.product_id,
@@ -508,7 +538,7 @@ async def product_performance_report(
         .join(Sale, SaleItem.sale_id == Sale.id)
         .join(Product, SaleItem.product_id == Product.id)
         .outerjoin(StockBatch, SaleItem.stock_batch_id == StockBatch.id)
-        .where(Sale.status == "completed")
+        .where(*cost_sale_conds())  # PATCH26F: partly/fully refunded stay in; returns taken off below
         .group_by(SaleItem.product_id)
         .order_by(func.sum(SaleItem.line_total_kobo).desc())
         .limit(limit)
@@ -522,6 +552,7 @@ async def product_performance_report(
 
     result = await session.execute(stmt)
     performance_rows = result.all()
+    _ret = await fetch_returns(session, branch_id, date_from, date_to)  # PATCH26F
     if not performance_rows:
         return []
 
@@ -534,7 +565,18 @@ async def product_performance_report(
     product_info = {p.id: p for p in products_result.scalars().all()}
 
     rows = []
+    performance_rows = sorted(  # PATCH26F: rank by what is left after returns
+        performance_rows,
+        key=lambda r: int(r.revenue_kobo or 0) - int((_ret.by_product.get(r.product_id) or {}).get("value", 0)),
+        reverse=True,
+    )
     for row in performance_rows:
+        _pr = _ret.by_product.get(row.product_id) or {}
+        net_qty = int(row.quantity_sold or 0) - int(_pr.get("qty", 0))
+        net_rev = int(row.revenue_kobo or 0) - int(_pr.get("value", 0))
+        net_cost = int(row.cost_kobo or 0) - int(_pr.get("cost_back", 0))
+        if net_qty <= 0 and net_rev <= 0:
+            continue
         product = product_info.get(row.product_id)
         if product is None:
             continue
@@ -545,13 +587,13 @@ async def product_performance_report(
                 name=product.name,
                 sku=product.sku,
                 category_name=product.category.name if product.category else None,
-                quantity_sold=row.quantity_sold,
-                revenue_naira=Money(int(row.revenue_kobo)).naira,
-                cost_naira=int(row.cost_kobo or 0) / 100,
-                profit_naira=(int(row.revenue_kobo or 0) - int(row.cost_kobo or 0)) / 100,
+                quantity_sold=net_qty,
+                revenue_naira=max(net_rev, 0) / 100,
+                cost_naira=net_cost / 100,
+                profit_naira=(net_rev - net_cost) / 100,
                 margin_percent=(
-                    round((int(row.revenue_kobo) - int(row.cost_kobo or 0)) * 100 / int(row.revenue_kobo), 1)
-                    if int(row.revenue_kobo or 0)
+                    round((net_rev - net_cost) * 100 / net_rev, 1)
+                    if net_rev > 0
                     else None
                 ),
             )
@@ -580,7 +622,7 @@ async def profit_summary(
 ) -> ProfitSummaryResponse:
     branch_id = _scope_branch(current_user, branch_id)
 
-    sale_conds = [Sale.status == "completed"]
+    sale_conds = cost_sale_conds()  # PATCH26F: partly/fully refunded count for cost; transfers never
     if branch_id:
         sale_conds.append(Sale.branch_id == branch_id)
     if date_from:
@@ -594,11 +636,17 @@ async def profit_summary(
     # sale-level discount.
     totals = (
         await session.execute(
-            select(func.count(Sale.id), func.coalesce(func.sum(Sale.total_kobo), 0)).where(*sale_conds)
+            select(func.count(Sale.id), func.coalesce(func.sum(Sale.total_kobo), 0)).where(
+                *sale_conds, Sale.status != "refunded"
+            )
         )
     ).one()
     sales_count = int(totals[0] or 0)
     revenue_kobo = int(totals[1] or 0)
+    # PATCH26F: take off what customers got back, at what they actually paid
+    _ret = await fetch_returns(session, branch_id, date_from, date_to)
+    refunds_kobo = _ret.total_sale_value
+    revenue_kobo -= refunds_kobo
 
     # Cost is what the stock actually cost: the unit cost of the batch each
     # line was sold from, falling back to the product's current cost price
@@ -624,13 +672,18 @@ async def profit_summary(
         )
     ).one()
     cost_kobo = int(cost_row[0] or 0)
+    cost_kobo -= _ret.cost_back_total  # PATCH26F: returned goods that went back on the shelf
     total_lines = int(cost_row[1] or 0)
     estimated_lines = int(cost_row[2] or 0)
 
     # Approved losses (damaged / expired / stolen) in the same period, same
     # rule the sales summary uses.
     loss_when = func.coalesce(StockAdjustment.reviewed_at, StockAdjustment.created_at)
-    loss_conds = [StockAdjustment.value_kobo.is_not(None), StockAdjustment.status == "completed"]
+    loss_conds = [
+        StockAdjustment.value_kobo.is_not(None),
+        StockAdjustment.status == "completed",
+        not_spoiled_return_writeoff(),  # PATCH26F
+    ]
     if branch_id:
         loss_conds.append(StockAdjustment.branch_id == branch_id)
     if date_from:
@@ -653,6 +706,7 @@ async def profit_summary(
         sales_count=sales_count,
         revenue_naira=revenue_kobo / 100,
         cost_naira=cost_kobo / 100,
+        refunds_naira=refunds_kobo / 100,
         gross_profit_naira=gross_kobo / 100,
         margin_percent=round(gross_kobo * 100 / revenue_kobo, 1) if revenue_kobo else None,
         losses_naira=losses_kobo / 100,
@@ -936,7 +990,7 @@ def _summarise_cost_trends(entries, names):
 
 
 async def _sales_period_totals(session, branch_id, d_from, d_to) -> SalesPeriodTotals:
-    conds = [Sale.status == "completed", *_period_conds(Sale.created_at, d_from, d_to)]
+    conds = [*revenue_sale_conds(), *_period_conds(Sale.created_at, d_from, d_to)]  # PATCH26F
     if branch_id:
         conds.append(Sale.branch_id == branch_id)
     row = (
@@ -958,9 +1012,11 @@ async def _sales_period_totals(session, branch_id, d_from, d_to) -> SalesPeriodT
     ).scalar_one()
     count = int(row[0] or 0)
     revenue_kobo = int(row[1] or 0)
+    _ret = await fetch_returns(session, branch_id, d_from, d_to)  # PATCH26F
+    revenue_kobo -= _ret.total_sale_value
     return SalesPeriodTotals(
         sales_count=count,
-        units=int(units or 0),
+        units=max(int(units or 0) - _ret.revenue_units, 0),
         revenue_naira=revenue_kobo / 100,
         avg_sale_naira=(revenue_kobo / count / 100) if count else 0,
         discounts_naira=int(row[2] or 0) / 100,
@@ -985,7 +1041,12 @@ async def sales_breakdown(
     current = await _sales_period_totals(session, branch_id, date_from, date_to)
     previous = await _sales_period_totals(session, branch_id, previous_from, previous_to)
 
-    conds = [Sale.status == "completed", *_period_conds(Sale.created_at, date_from, date_to)]
+    # PATCH26F: payment, hour and weekday tables stay "money taken at the till" (partly refunded
+    # sales included, fully refunded left out as before); the category table is netted.
+    conds = [*revenue_sale_conds(), *_period_conds(Sale.created_at, date_from, date_to)]
+    cat_conds = [*cost_sale_conds(), *_period_conds(Sale.created_at, date_from, date_to)]
+    if branch_id:
+        cat_conds.append(Sale.branch_id == branch_id)
     if branch_id:
         conds.append(Sale.branch_id == branch_id)
 
@@ -1041,12 +1102,19 @@ async def sales_breakdown(
         .join(Product, SaleItem.product_id == Product.id)
         .outerjoin(Category, Product.category_id == Category.id)
         .outerjoin(StockBatch, SaleItem.stock_batch_id == StockBatch.id)
-        .where(*conds)
+        .where(*cat_conds)
         .group_by(Category.name)
         .order_by(func.sum(SaleItem.line_total_kobo).desc())
     )
     category_rows = []
+    cat_returns = await fetch_returns(session, branch_id, date_from, date_to)  # PATCH26F
     for name, units, revenue, cost in cat_rows.all():
+        _cr = cat_returns.by_category.get(name) or {}
+        units = int(units or 0) - int(_cr.get("qty", 0))
+        revenue = int(revenue or 0) - int(_cr.get("value", 0))
+        cost = int(cost or 0) - int(_cr.get("cost_back", 0))
+        if units <= 0 and revenue <= 0:
+            continue
         revenue = int(revenue or 0)
         cost = int(cost or 0)
         category_rows.append(
@@ -1112,6 +1180,7 @@ async def returns_report(
 
     # Base for the refund rate: every sale in the same period.
     base_conds = [
+        Sale.channel != "transfer",  # PATCH26F
         Sale.status.in_(["completed", "partially_refunded", "refunded"]),
         *_period_conds(Sale.created_at, date_from, date_to),
     ]
@@ -2105,6 +2174,433 @@ async def stock_count_variance(
         by_branch=groups(by_branch, 15),
         by_staff=groups(by_staff, 15),
         recent=recent,
+    )
+
+
+# ---------------------------------------------------------------- Patch 26d
+# Loss trend: write-offs against sales, month by month.
+
+
+def _month_keys(today, months):
+    keys = []
+    for back in range(months - 1, -1, -1):
+        year, month = today.year, today.month - back
+        while month <= 0:
+            month += 12
+            year -= 1
+        keys.append(f"{year:04d}-{month:02d}")
+    return keys
+
+
+def _bucket_by_month(rows):
+    # rows: (timestamp, kobo) -> {"YYYY-MM": kobo}, in Lagos time.
+    out = {}
+    for stamp, kobo in rows:
+        if stamp is None:
+            continue
+        if stamp.tzinfo is None:
+            stamp = stamp.replace(tzinfo=timezone.utc)
+        key = stamp.astimezone(_LAGOS).strftime("%Y-%m")
+        out[key] = out.get(key, 0) + int(kobo or 0)
+    return out
+
+
+@router.get("/loss-trend", response_model=LossTrendResponse)
+async def loss_trend(
+    months: int = Query(default=6, ge=2, le=12),
+    branch_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(_REQUIRE_REPORTS_ACCESS),
+) -> LossTrendResponse:
+    branch_id = _scope_branch(current_user, branch_id)
+    keys = _month_keys(datetime.now(_LAGOS).date(), months)
+    start = date(int(keys[0][:4]), int(keys[0][5:7]), 1)
+
+    # Approved write-offs, same rule as the profit summary and losses page.
+    loss_when = func.coalesce(StockAdjustment.reviewed_at, StockAdjustment.created_at)
+    loss_stmt = select(loss_when, StockAdjustment.value_kobo).where(
+        StockAdjustment.value_kobo.is_not(None),
+        StockAdjustment.status == "completed",
+        not_spoiled_return_writeoff(),  # PATCH26F
+        *_period_conds(loss_when, start, None),
+    )
+    sale_stmt = select(Sale.id, Sale.created_at, Sale.total_kobo).where(  # PATCH26F
+        *revenue_sale_conds(), *_period_conds(Sale.created_at, start, None)
+    )
+    if branch_id:
+        loss_stmt = loss_stmt.where(StockAdjustment.branch_id == branch_id)
+        sale_stmt = sale_stmt.where(Sale.branch_id == branch_id)
+    losses = _bucket_by_month((await session.execute(loss_stmt)).all())
+    _sale_rows = (await session.execute(sale_stmt)).all()  # PATCH26F: revenue after refunds
+    _ret = await fetch_returns(session, branch_id, start, None)
+    revenue = _bucket_by_month(
+        [(created, int(total or 0) - _ret.sale_value.get(sid, 0)) for sid, created, total in _sale_rows]
+    )
+
+    rows = [
+        LossMonthRow(
+            month=k,
+            losses_naira=losses.get(k, 0) / 100,
+            revenue_naira=revenue.get(k, 0) / 100,
+            loss_percent=_pct(losses.get(k, 0), revenue.get(k, 0)),
+        )
+        for k in keys
+    ]
+    total_losses = sum(losses.get(k, 0) for k in keys)
+    total_revenue = sum(revenue.get(k, 0) for k in keys)
+    return LossTrendResponse(
+        months=rows,
+        total_losses_naira=total_losses / 100,
+        total_revenue_naira=total_revenue / 100,
+        overall_loss_percent=_pct(total_losses, total_revenue),
+        worst_month=max(keys, key=lambda k: losses.get(k, 0)) if total_losses else None,
+    )
+
+
+# ---------------------------------------------------------------- Patch 26e
+# Stock valuation at batch cost, and data-health checks.
+
+
+@router.get("/stock-valuation", response_model=StockValuationResponse)
+async def stock_valuation(
+    branch_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(_REQUIRE_REPORTS_ACCESS),
+) -> StockValuationResponse:
+    branch_id = _scope_branch(current_user, branch_id)
+    conds = [StockBatch.quantity_remaining > 0]
+    if branch_id:
+        conds.append(StockBatch.branch_id == branch_id)
+
+    qty = StockBatch.quantity_remaining
+    batch_cost = qty * StockBatch.unit_cost_kobo
+    # Today's price list, for comparison: custom items have no product, so
+    # they fall back to what the batch cost.
+    current_cost = qty * func.coalesce(Product.cost_price_kobo, StockBatch.unit_cost_kobo)
+    retail = qty * func.coalesce(Product.selling_price_kobo, 0)
+
+    totals = (
+        await session.execute(
+            select(
+                func.coalesce(func.sum(qty), 0),
+                func.coalesce(func.sum(batch_cost), 0),
+                func.coalesce(func.sum(current_cost), 0),
+                func.coalesce(func.sum(retail), 0),
+                func.coalesce(func.sum(case((StockBatch.unit_cost_kobo <= 0, qty), else_=0)), 0),
+                func.coalesce(func.sum(case((StockBatch.unit_cost_kobo <= 0, 1), else_=0)), 0),
+            )
+            .select_from(StockBatch)
+            .outerjoin(Product, StockBatch.product_id == Product.id)
+            .where(*conds)
+        )
+    ).one()
+
+    cat_rows = (
+        await session.execute(
+            select(
+                Category.name,
+                func.coalesce(func.sum(qty), 0),
+                func.coalesce(func.sum(batch_cost), 0),
+                func.coalesce(func.sum(retail), 0),
+            )
+            .select_from(StockBatch)
+            .outerjoin(Product, StockBatch.product_id == Product.id)
+            .outerjoin(Category, Product.category_id == Category.id)
+            .where(*conds)
+            .group_by(Category.name)
+            .order_by(func.sum(batch_cost).desc())
+            .limit(40)
+        )
+    ).all()
+
+    branch_rows = (
+        await session.execute(
+            select(StockBatch.branch_id, func.coalesce(func.sum(qty), 0), func.coalesce(func.sum(batch_cost), 0))
+            .where(*conds)
+            .group_by(StockBatch.branch_id)
+            .order_by(func.sum(batch_cost).desc())
+        )
+    ).all()
+    branch_names = await _branch_names(session)
+
+    batch_cost_kobo = int(totals[1] or 0)
+    return StockValuationResponse(
+        units=int(totals[0] or 0),
+        batch_cost_naira=batch_cost_kobo / 100,
+        current_cost_naira=int(totals[2] or 0) / 100,
+        retail_naira=int(totals[3] or 0) / 100,
+        cost_difference_naira=(int(totals[2] or 0) - batch_cost_kobo) / 100,
+        uncosted_units=int(totals[4] or 0),
+        uncosted_batches=int(totals[5] or 0),
+        by_category=[
+            ValuationCategoryRow(
+                category_name=name or "Uncategorised / custom items",
+                units=int(units or 0),
+                batch_cost_naira=int(cost or 0) / 100,
+                retail_naira=int(value or 0) / 100,
+                margin_percent=_pct(int(value or 0) - int(cost or 0), int(value or 0)),
+            )
+            for name, units, cost, value in cat_rows
+        ],
+        by_branch=[
+            ValuationBranchRow(
+                branch_name=branch_names.get(b_id, "Unknown branch"), units=int(units or 0), batch_cost_naira=int(cost or 0) / 100
+            )
+            for b_id, units, cost in branch_rows
+        ],
+    )
+
+
+def _health_row(key, title, count, why, fix, amount_kobo=None):
+    count = int(count or 0)
+    return HealthCheckRow(
+        key=key,
+        title=title,
+        count=count,
+        amount_naira=(int(amount_kobo or 0) / 100) if amount_kobo is not None else None,
+        status="warn" if count else "ok",
+        why=why,
+        fix=fix,
+    )
+
+
+@router.get("/data-health", response_model=DataHealthResponse)
+async def data_health(
+    branch_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(_REQUIRE_REPORTS_ACCESS),
+) -> DataHealthResponse:
+    branch_id = _scope_branch(current_user, branch_id)
+    now = datetime.now(timezone.utc)
+    today = datetime.now(_LAGOS).date()
+    since_90 = now - timedelta(days=90)
+    since_30 = now - timedelta(days=30)
+
+    def at(column):
+        return [column == branch_id] if branch_id else []
+
+    async def one(stmt):
+        return (await session.execute(stmt)).one()
+
+    checks = []
+
+    # 1. Products with stock but no cost price
+    stocked = exists().where(
+        StockBatch.product_id == Product.id, StockBatch.quantity_remaining > 0, *at(StockBatch.branch_id)
+    )
+    row = await one(
+        select(func.count(Product.id)).where(
+            Product.cost_price_kobo <= 0, Product.status != "discontinued", stocked
+        )
+    )
+    checks.append(_health_row(
+        "products_no_cost", "Products in stock with no cost price", row[0],
+        "Profit, margin and the ABC ranking treat these as pure profit, so they look better than they are.",
+        "Set the cost price on each of these products.",
+    ))
+
+    # 2. Stock batches with no cost
+    row = await one(
+        select(func.count(StockBatch.id)).where(
+            StockBatch.quantity_remaining > 0, StockBatch.unit_cost_kobo <= 0, *at(StockBatch.branch_id)
+        )
+    )
+    checks.append(_health_row(
+        "batches_no_cost", "Stock batches with no cost", row[0],
+        "Stock value is understated and sales from these batches show no cost.",
+        "Edit the batch or the delivery and enter what it cost.",
+    ))
+
+    # 3. Negative stock
+    row = await one(
+        select(func.count(StockBatch.id)).where(StockBatch.quantity_remaining < 0, *at(StockBatch.branch_id))
+    )
+    checks.append(_health_row(
+        "negative_stock", "Stock batches below zero", row[0],
+        "Something was sold or moved that was never received into the system, so counts and values are off.",
+        "Find the missing delivery or correct the count for these batches.",
+    ))
+
+    # 4. Expired stock still on the shelf
+    row = await one(
+        select(
+            func.count(StockBatch.id),
+            func.coalesce(func.sum(StockBatch.quantity_remaining * StockBatch.unit_cost_kobo), 0),
+        ).where(
+            StockBatch.quantity_remaining > 0,
+            StockBatch.expiry_date.is_not(None),
+            StockBatch.expiry_date < today,
+            *at(StockBatch.branch_id),
+        )
+    )
+    checks.append(_health_row(
+        "expired_stock", "Expired stock still counted as on hand", row[0],
+        "Your stock value includes goods you cannot sell.",
+        "Write the expired batches off as losses.",
+        amount_kobo=row[1],
+    ))
+
+    # 5. Priced below cost
+    row = await one(
+        select(func.count(Product.id)).where(
+            Product.status == "active",
+            Product.cost_price_kobo > 0,
+            Product.selling_price_kobo < Product.cost_price_kobo,
+        )
+    )
+    checks.append(_health_row(
+        "below_cost", "Products priced below their cost", row[0],
+        "Every sale of these loses money.",
+        "Check the selling price (or the cost price, if it was typed wrongly).",
+    ))
+
+    # 6. Sales lines with no batch (cost is an estimate)
+    row = await one(
+        select(func.count(SaleItem.id))
+        .select_from(SaleItem)
+        .join(Sale, SaleItem.sale_id == Sale.id)
+        .where(
+            Sale.status == "completed",
+            SaleItem.stock_batch_id.is_(None),
+            Sale.created_at >= since_90,
+            *at(Sale.branch_id),
+        )
+    )
+    checks.append(_health_row(
+        "estimated_cost_lines", "Sale lines from the last 90 days with no batch recorded", row[0],
+        "Their cost comes from today's cost price, so profit on them is an estimate.",
+        "Nothing to fix for past sales; make sure new sales always pick a stock batch.",
+    ))
+
+    # 7. Payments that do not add up to the sale total
+    paid = (
+        select(SalePayment.sale_id.label("sid"), func.sum(SalePayment.amount_kobo).label("paid"))
+        .group_by(SalePayment.sale_id)
+        .subquery()
+    )
+    row = await one(
+        select(func.count(Sale.id), func.coalesce(func.sum(paid.c.paid - Sale.total_kobo), 0))
+        .select_from(Sale)
+        .join(paid, paid.c.sid == Sale.id)
+        .where(
+            Sale.status == "completed",
+            Sale.created_at >= since_90,
+            paid.c.paid != Sale.total_kobo,
+            *at(Sale.branch_id),
+        )
+    )
+    checks.append(_health_row(
+        "payment_mismatch", "Sales (last 90 days) where recorded payments differ from the total", row[0],
+        "The payment-method figures in the sales breakdown will not match sales for these.",
+        "Open a few of them: if the difference is only change given, it can be ignored.",
+        amount_kobo=row[1],
+    ))
+
+    # 8. Recent sales with no payment record at all
+    row = await one(
+        select(func.count(Sale.id)).where(
+            Sale.status == "completed",
+            Sale.created_at >= since_30,
+            ~exists().where(SalePayment.sale_id == Sale.id),
+            *at(Sale.branch_id),
+        )
+    )
+    checks.append(_health_row(
+        "no_payment_record", "Sales from the last 30 days with no payment recorded", row[0],
+        "They are missing from the payment-method breakdown.",
+        "Check how these sales were rung up at the till.",
+    ))
+
+    # 9. Transfer refunds not paid out after a day
+    row = await one(
+        select(func.count(Refund.id), func.coalesce(func.sum(Refund.amount_kobo), 0))
+        .select_from(Refund)
+        .join(Sale, Refund.sale_id == Sale.id)
+        .where(
+            Refund.status == "pending",
+            Sale.status != "cancelled",
+            Refund.created_at < now - timedelta(days=1),
+            *at(Sale.branch_id),
+        )
+    )
+    checks.append(_health_row(
+        "refunds_overdue", "Refunds still waiting to be paid out after 24 hours", row[0],
+        "Customers are waiting for their money.",
+        "Send the transfers and mark the refunds as processed.",
+        amount_kobo=row[1],
+    ))
+
+    # 10. Old unpaid supplier invoices
+    owed = func.coalesce(PurchaseInvoice.amount_kobo, 0) - func.coalesce(PurchaseInvoice.amount_paid_kobo, 0)
+    row = await one(
+        select(func.count(PurchaseInvoice.id), func.coalesce(func.sum(owed), 0)).where(
+            PurchaseInvoice.status == "completed",
+            or_(PurchaseInvoice.source.is_(None), PurchaseInvoice.source != "branch_transfer"),
+            owed > 0,
+            PurchaseInvoice.invoice_date < today - timedelta(days=30),
+            *at(PurchaseInvoice.branch_id),
+        )
+    )
+    checks.append(_health_row(
+        "suppliers_overdue", "Supplier invoices unpaid for more than 30 days", row[0],
+        "Money you owe, and a risk to your supplier relationships.",
+        "Pay them or record the payments already made.",
+        amount_kobo=row[1],
+    ))
+
+    # 11. Stock adjustments waiting for a decision
+    row = await one(
+        select(
+            func.count(StockAdjustment.id), func.coalesce(func.sum(func.coalesce(StockAdjustment.value_kobo, 0)), 0)
+        ).where(
+            StockAdjustment.status.in_(["pending_review", "pending_confirmation"]),
+            StockAdjustment.created_at < now - timedelta(days=3),
+            *at(StockAdjustment.branch_id),
+        )
+    )
+    checks.append(_health_row(
+        "adjustments_waiting", "Stock adjustments waiting for approval for over 3 days", row[0],
+        "Until they are approved, losses and stock counts do not include them.",
+        "Review and approve or reject them.",
+        amount_kobo=row[1],
+    ))
+
+    # 12. Bookings left open for a long time
+    row = await one(
+        select(func.count(Sale.id)).where(
+            Sale.status == "booking", Sale.created_at < since_30, *at(Sale.branch_id)
+        )
+    )
+    checks.append(_health_row(
+        "old_bookings", "Bookings open for more than 30 days", row[0],
+        "The stock is held back from sale the whole time.",
+        "Contact the customers, then complete or cancel the bookings.",
+    ))
+
+    # 13. Items refunded more times than they were sold (PATCH26F)
+    over_rows = (
+        await session.execute(
+            select(SaleItem.id)
+            .select_from(RefundItem)
+            .join(SaleItem, RefundItem.sale_item_id == SaleItem.id)
+            .join(Sale, SaleItem.sale_id == Sale.id)
+            .where(*at(Sale.branch_id))
+            .group_by(SaleItem.id, SaleItem.quantity)
+            .having(func.sum(RefundItem.quantity) > SaleItem.quantity)
+        )
+    ).all()
+    checks.append(_health_row(
+        "over_refunded", "Sale items refunded more times than they were sold", len(over_rows),
+        "The refund screen paid back more than was sold. Reports only count the units that were sold, "
+        "but the extra money really left the till.",
+        "Look the sales up in Refund History. The refund screen does not yet stop a second refund of the same item.",
+    ))
+
+    checks.sort(key=lambda c: (c.status != "warn", -c.count))
+    return DataHealthResponse(
+        checks=checks,
+        attention_count=sum(1 for c in checks if c.status == "warn"),
+        total_checks=len(checks),
     )
 
 

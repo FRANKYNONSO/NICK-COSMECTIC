@@ -105,8 +105,8 @@ async def test_c_credit_line_only_when_stock_was_taken(client, db_session):
 async def test_d_branch_scope_and_unknown_product(client, db_session):
     x = await _base(client, db_session)
     await _refund(db_session, x, 2, "changed mind", True, False)
-    own = SimpleNamespace(role="staff", branch_id=x.branch_id)
-    other = SimpleNamespace(role="staff", branch_id=uuid.uuid4())
+    own = SimpleNamespace(role="cashier", branch_id=x.branch_id)
+    other = SimpleNamespace(role="cashier", branch_id=uuid.uuid4())
     mine = await _rows(db_session, x.pid, own)
     theirs = await _rows(db_session, x.pid, other)
     nothing = await _rows(db_session, uuid.uuid4())

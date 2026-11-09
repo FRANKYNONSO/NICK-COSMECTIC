@@ -144,7 +144,7 @@ async def list_credit(
     # branch_manager may freely pick any branch via the query param
     # (branch_manager's own branch_id still wins if set, same as
     # POST /credit above).
-    if current_user.role == "staff":
+    if current_user.role == "cashier":
         conditions.append(CreditEntry.branch_id == current_user.branch_id)
     elif current_user.branch_id:
         conditions.append(CreditEntry.branch_id == current_user.branch_id)

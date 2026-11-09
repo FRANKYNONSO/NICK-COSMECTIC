@@ -139,7 +139,7 @@ async def test_k_refund_sale_refuses_a_transfer_sale(client, db_session):
 async def test_l_staff_is_refused(client, db_session):
     fb, tb, product, h = await _two_branches(client, db_session)
     transfer, _, _ = await _made(client, db_session, h, fb, tb, product, pieces=10)
-    staff = await _user(db_session, "staff", fb.id)
+    staff = await _user(db_session, "cashier", fb.id)
     await db_session.commit()
     resp = await _ask(client, _headers(staff), transfer, 1, "sender")
     assert resp.status_code == 403, resp.text

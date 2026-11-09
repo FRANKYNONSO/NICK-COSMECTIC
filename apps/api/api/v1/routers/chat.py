@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import _ensure_active_employment, get_current_user, get_db_session, require_role
+from api.dependencies import _ensure_active_employment, get_current_user, get_db_session, require_permission
 from api.v1.routers.catalog import _PUBLIC_BASE_URL
 from api.v1.schemas.chat import (
     AnnouncementCreate,
@@ -266,7 +266,7 @@ async def list_announcements(
 async def create_announcement(
     body: AnnouncementCreate,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin")),
+    current_user: User = Depends(require_permission("post_announcements")),  # PATCHP3D-ANNOUNCEMENTS
 ) -> AnnouncementOut:
     repo = ChatRepository(session)
     message = await repo.create_message(

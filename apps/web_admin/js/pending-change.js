@@ -22,7 +22,7 @@ if (BranchContext && typeof BranchContext.renderBadge === 'function') {
 // settles directly (money never left the till); a transfer/airtime
 // request routes through Super Admin/Branch Manager approval first
 // (section 2.4), same tier as a refund.
-const canApproveChanges = Perms.can('view_all_reports'); // super_admin/branch_manager tier, mirrors refund mark-processed gating
+const canApproveChanges = Perms.can('process_pending_changes'); /* PATCHP3Q-PENDING */ // super_admin/branch_manager tier, mirrors refund mark-processed gating
 
 const methodLabels = { cash: 'Cash', transfer: 'Bank transfer', airtime: 'Airtime', coupon: 'Discount code' }; // PATCH3D-COUPON-LABEL
 

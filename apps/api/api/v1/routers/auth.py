@@ -6,7 +6,7 @@ import os
 import time
 import uuid
 
-from api.dependencies import get_current_user_allow_pending, get_db_session
+from api.dependencies import get_current_user, get_current_user_allow_pending, get_db_session
 from api.v1.schemas.auth import (
     ForgotPasswordRequest,
     LoginRequest,
@@ -15,7 +15,7 @@ from api.v1.schemas.auth import (
     TokenResponse,
     UserOut,
 )
-from infrastructure.db.models import StaffApplication, User
+from infrastructure.db.models import Role as RoleModel, StaffApplication, User
 from infrastructure.db.repositories import UserRepository
 from infrastructure.email import send_email
 from infrastructure.security.jwt import (
@@ -238,6 +238,22 @@ async def refresh(body: RefreshRequest, session: AsyncSession = Depends(get_db_s
 @router.get("/me", response_model=UserOut)
 async def me(current_user: User = Depends(get_current_user_allow_pending)) -> User:
     return current_user
+
+
+# PATCHP1-MATRIX
+@router.get("/me/permissions")
+async def my_permissions(
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """The caller's effective permissions: role row plus per-account grants,
+    minus per-account denials (never applied to super_admin). Same rules as
+    require_permission in api/dependencies.py."""
+    row = await session.execute(select(RoleModel.permissions).where(RoleModel.name == current_user.role))
+    granted = set(row.scalar_one_or_none() or []) | set(current_user.granted_permissions or [])
+    if current_user.role != "super_admin":
+        granted -= set(current_user.denied_permissions or [])
+    return {"role": current_user.role, "permissions": sorted(granted)}
 
 
 @router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT)

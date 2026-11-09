@@ -47,8 +47,8 @@ async def test_j_other_unit_without_total_is_refused(client, db_session):
     resp = await _post(client, db_session, quantity=2, unit_label=unit)
     _say("unit", unit, "status", resp.status_code, "body", resp.text[:200])
     assert resp.status_code == 422
-    assert "total pieces" in resp.text.lower()
-    print("PASS j: a unit that is not pieces/dozens needs the total pieces")
+    assert "how many pieces the customer needs" in resp.text.lower()  # PATCHT2-STALE-TESTS
+    print("PASS j: a unit that is not pieces/dozens needs the pieces the customer needs")
 
 
 async def test_k_pieces_need_defaults_to_total(client, db_session):

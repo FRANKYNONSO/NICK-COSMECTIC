@@ -45,7 +45,7 @@ from infrastructure.db.models import (
 router = APIRouter(prefix="/customer-requests", tags=["customer-requests"])
 
 _VIEW = require_permission("view_restock_list")
-_MANAGE = require_permission("manage_restock_list")
+_MANAGE = require_permission("manage_inventory")  # PATCHP2A-RESTOCK-MANAGE
 
 # Units whose size in pieces is fixed. Cartons/bags/half cartons vary by
 # product, so for those the staff member says how many pieces to hold.
@@ -741,7 +741,7 @@ async def list_customer_requests(
 ) -> list[CustomerRequestOut]:
     """status: pending | arrived | collected | cancelled | open
     (open = pending + arrived). Omit for everything."""
-    if current_user.role in ("branch_manager", "staff") and current_user.branch_id:
+    if current_user.role in ("branch_manager", "cashier") and current_user.branch_id:
         branch_id = current_user.branch_id
     await sync_arrivals(session, branch_id)
 

@@ -48,7 +48,7 @@ from infrastructure.db.models import (
 router = APIRouter(prefix="/restock-list", tags=["restock-list"])
 
 _VIEW = require_permission("view_restock_list")
-_MANAGE = require_permission("manage_restock_list")
+_MANAGE = require_permission("manage_inventory")  # PATCHP2A-RESTOCK-MANAGE
 _ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 _IMAGE_DIR = Path("static/uploads/restock_list")
 
@@ -166,7 +166,7 @@ async def get_restock_list(
     # Same hidden_from_staff exclusion as GET /catalog/products and the
     # Low Stock report -- a staff caller's Restock List must never
     # surface a product a super admin deliberately hid from staff.
-    if current_user.role == "staff":
+    if current_user.role in ("cashier", "store_assistant"):  # PATCHP2E-HIDDEN-ROLES
         low_stock_conditions.append(Product.hidden_from_staff.is_(False))
     products_result = await session.execute(
         select(Product)
@@ -618,7 +618,8 @@ def _render_restock_pdf(
     top = 12.0
     logo_box = 22.0
     right_w = 62.0
-    logo_path = business.get("logo_path")
+    import pdf_branding as _brand  # Prestige / Nick Cosmetics logo
+    logo_path = _brand.mark_path() or business.get("logo_path")
     logo_size = _fit_image(logo_path, logo_box)
     logo_drawn = False
     if logo_size:
@@ -633,10 +634,15 @@ def _render_restock_pdf(
 
     ly = top
     pdf.set_font("Helvetica", "B", 15)
-    for ln in _wrap_lines(pdf, _pdf_text(business.get("name") or "Nick Cosmetics"), left_w):
-        pdf.set_xy(text_x, ly)
-        pdf.cell(left_w, 7, ln)
-        ly += 7
+    pdf.set_xy(text_x, ly)
+    pdf.cell(left_w, 7, "PRESTIGE")
+    ly += 7
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.set_text_color(110, 110, 110)
+    pdf.set_xy(text_x, ly)
+    pdf.cell(left_w, 5, "NICK COSMETICS")
+    pdf.set_text_color(0, 0, 0)
+    ly += 6
     info = []
     if business.get("branch_name"):
         info.append("Branch: " + _pdf_text(business["branch_name"]))

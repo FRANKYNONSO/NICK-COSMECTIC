@@ -1,7 +1,7 @@
 Auth.requireAuth();
 Perms.applyNav();
 const currentUser = Auth.getUser();
-const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier' };
+const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier', store_assistant: 'Store assistant' }; // PATCHP3C-ROLE-LABEL
 document.getElementById('current-user-name').textContent = currentUser?.full_name || 'Signed in';
 document.getElementById('current-user-role').textContent = roleLabels[currentUser?.role] || currentUser?.role || '';
 document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); Auth.logout(); });
@@ -213,10 +213,23 @@ function openRestockModal(productId) {
   document.getElementById('restock-readout').textContent =
     `${row.product_name} · SKU ${row.sku}`;
   document.getElementById('restock-quantity').value = 1;
-  document.getElementById('restock-cost').value = '';
-  document.getElementById('restock-cost').placeholder = `Keep current (${formatNaira(row.cost_price_naira)})`;
-  document.getElementById('restock-price').value = '';
-  document.getElementById('restock-price').placeholder = `Keep current (${formatNaira(row.selling_price_naira)})`;
+  // PATCHP2C2B-RESTOCK-BOXES: a role without manage_products cannot save a cost or
+  // a price (the server returns 403), so the two boxes are removed.
+  const costBox = document.getElementById('restock-cost');
+  const priceBox = document.getElementById('restock-price');
+  if (!Perms.can('manage_products')) {
+    if (costBox) costBox.closest('.field')?.remove();
+    if (priceBox) priceBox.closest('.field')?.remove();
+  } else {
+    if (costBox) {
+      costBox.value = '';
+      costBox.placeholder = `Keep current (${formatNaira(row.cost_price_naira)})`;
+    }
+    if (priceBox) {
+      priceBox.value = '';
+      priceBox.placeholder = `Keep current (${formatNaira(row.selling_price_naira)})`;
+    }
+  }
   const branchSelect = document.getElementById('restock-branch');
   const filterBranchId = BranchContext.get();
   if (filterBranchId) branchSelect.value = filterBranchId;
@@ -289,8 +302,8 @@ document.getElementById('restock-form').addEventListener('submit', async (e) => 
   if (!activeRestockRow) return;
   const branchId = document.getElementById('restock-branch').value;
   const quantity = Number(document.getElementById('restock-quantity').value || 0);
-  const costInputValue = document.getElementById('restock-cost').value;
-  const priceInputValue = document.getElementById('restock-price').value;
+  const costInputValue = document.getElementById('restock-cost')?.value ?? '';
+  const priceInputValue = document.getElementById('restock-price')?.value ?? '';
 
   if (quantity > restockAvailablePieces) {
     restockError.textContent = `Only ${restockAvailablePieces} piece(s) available in the warehouse.`;

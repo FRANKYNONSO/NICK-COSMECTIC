@@ -74,6 +74,11 @@ def _render_pdf(rows: list[list[str]], title: str) -> bytes:
     pdf = FPDF(orientation="L", unit="mm", format="A4")
     pdf.set_auto_page_break(auto=True, margin=12)
     pdf.add_page()
+    import pdf_branding as _brand  # Prestige / Nick Cosmetics logo
+    _logo = _brand.lockup_path()
+    if _logo:
+        pdf.image(_logo, x=10, y=8, h=12)
+        pdf.set_y(24)
     pdf.set_font("Helvetica", "B", 14)
     pdf.cell(0, 10, title, ln=1)
     pdf.set_font("Helvetica", "", 9)

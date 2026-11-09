@@ -28,6 +28,7 @@ from tests.test_goods_receiving import (
 
 pytestmark = pytest.mark.asyncio
 
+# PATCHT1-RESTOCK-TESTS: fix45 rule - the shelf limit is only the default amount; restock may go over it.
 WH = "/api/v1/warehouse"
 
 
@@ -77,24 +78,20 @@ async def test_d_restock_moves_stock_and_keeps_total(client, db_session):
 
 
 # ---------------------------------------------------------------- Test B (restock path)
-async def test_b_restock_limit_allows_4_rejects_5(client, db_session):
+async def test_b_restock_may_exceed_the_shelf_limit(client, db_session):
+    # fix45: the limit is only the default amount, so restock is not refused above it.
     branch, admin, product, h = await _setup(db_session)
     assert (await _receive(client, h, branch.id, product.id, 100, 20)).status_code == 201
     await _set_limit(client, h, branch.id, product.id, 24, 5)
 
-    too_many = await _pull(client, h, branch.id, product.id, 5)
-    assert too_many.status_code == 400, too_many.text
-    assert "Only 4" in too_many.json()["detail"]
-    assert _figures(await _summary(client, h, branch.id, product.id)) == (100, 80, 20)
+    over = await _pull(client, h, branch.id, product.id, 5)
+    assert over.status_code == 201, over.text
+    assert over.json()["quantity_pieces"] == 5
+    assert _figures(await _summary(client, h, branch.id, product.id)) == (100, 75, 25)
 
-    ok = await _pull(client, h, branch.id, product.id, 4)
-    assert ok.status_code == 201, ok.text
-    assert _figures(await _summary(client, h, branch.id, product.id)) == (100, 76, 24)
-
-    full = await _pull(client, h, branch.id, product.id, 1)
-    assert full.status_code == 400
-    assert "already at or over" in full.json()["detail"]
-    assert _figures(await _summary(client, h, branch.id, product.id)) == (100, 76, 24)
+    more = await _pull(client, h, branch.id, product.id, 1)
+    assert more.status_code == 201, more.text
+    assert _figures(await _summary(client, h, branch.id, product.id)) == (100, 74, 26)
 
 
 async def test_restock_without_limit_row_is_not_blocked(client, db_session):
@@ -116,7 +113,7 @@ async def test_restock_more_than_warehouse_holds_is_rejected(client, db_session)
     assert _figures(await _summary(client, h, branch.id, product.id)) == (10, 10, 0)
 
 
-async def test_lowered_limit_blocks_further_shelf_additions(client, db_session):
+async def test_lowered_limit_does_not_block_restock(client, db_session):
     branch, admin, product, h = await _setup(db_session)
     assert (await _receive(client, h, branch.id, product.id, 30, 30)).status_code == 201
     flagged = await _set_limit(client, h, branch.id, product.id, 24, 5)
@@ -124,9 +121,8 @@ async def test_lowered_limit_blocks_further_shelf_additions(client, db_session):
     assert (await _receive(client, h, branch.id, product.id, 10, 0)).status_code == 201
 
     resp = await _pull(client, h, branch.id, product.id, 1)
-    assert resp.status_code == 400
-    assert "already at or over" in resp.json()["detail"]
-    assert _figures(await _summary(client, h, branch.id, product.id)) == (40, 10, 30)
+    assert resp.status_code == 201, resp.text
+    assert _figures(await _summary(client, h, branch.id, product.id)) == (40, 9, 31)
 
 
 # ---------------------------------------------------------------- Test C (restock side)
@@ -194,7 +190,8 @@ async def _cleanup(branch_id, admin_id, product_id):
         print("CLEANUP INCOMPLETE (shelf_test is disposable): %r" % (exc,))
 
 
-async def test_k_two_simultaneous_restocks_cannot_exceed_limit():
+async def test_k_two_simultaneous_restocks_both_succeed():
+    # fix45: restock may exceed the limit, so both succeed and no stock is lost or doubled.
     branch_id, admin_id, product_id, h = await _seed_committed()
     try:
         app.dependency_overrides.pop(get_db_session, None)
@@ -206,8 +203,8 @@ async def test_k_two_simultaneous_restocks_cannot_exceed_limit():
                 _pull(c, h, branch_id, product_id, 3),
             )
             codes = sorted(r.status_code for r in results)
-            assert codes == [201, 400], [r.text for r in results]
-            assert _figures(await _summary(c, h, branch_id, product_id)) == (100, 77, 23)
+            assert codes == [201, 201], [r.text for r in results]
+            assert _figures(await _summary(c, h, branch_id, product_id)) == (100, 74, 26)
     finally:
         await _cleanup(branch_id, admin_id, product_id)
 

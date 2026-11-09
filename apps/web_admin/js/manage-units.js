@@ -4,7 +4,7 @@ Perms.applyNav();
 Perms.guardPage('manage_products');
 
 const currentUser = Auth.getUser();
-const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier' };
+const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier', store_assistant: 'Store assistant' }; // PATCHP3C-ROLE-LABEL
 document.getElementById('current-user-name').textContent = (currentUser && currentUser.full_name) || 'Signed in';
 document.getElementById('current-user-role').textContent =
   roleLabels[currentUser && currentUser.role] || (currentUser && currentUser.role) || '';

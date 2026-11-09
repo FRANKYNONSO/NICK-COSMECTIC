@@ -47,9 +47,69 @@ const ALL_PERMISSIONS = [
   'process_sale', 'view_own_sales', 'search_products', 'view_stock',
   'register_customer', 'change_own_password', 'remove_super_admin', 'transfer_ownership',
   'download_statements',
+  // PATCHW1C-ROLES-UI: permissions added after the first version of this list.
+  'view_purchase_invoices', 'view_restock_list', 'manage_restock_list', 'restock_shelf',
+  'set_shelf_limit', 'reduce_shelf_stock', 'view_received_goods', 'view_catalog',
+  'manage_units', 'view_inventory_history', 'view_customer_orders', 'view_revenue_totals',
+  'view_inventory_overview', 'view_stock_alerts', 'generate_pos_code', 'view_website_code',
+  'view_transactions', 'use_warehouse',
 ];
 
+// PATCHR2-ROLES-UI: the four system roles can be edited (display name on all
+// four, permissions on all except super_admin) but can never be deleted. The
+// server enforces the same rules (PATCH 403 for super_admin permissions,
+// DELETE 400/403 for all four).
+const SYSTEM_ROLE_NAMES = new Set(['super_admin', 'branch_manager', 'cashier', 'store_assistant']);
+const FIXED_PERMISSIONS_ROLE = 'super_admin';
+
 let rolesCache = [];
+// PATCHP3O-ROLES: permission registry (groups and tabs) from GET /roles/registry.
+// Empty means not loaded, or the call failed: the old flat list is used then.
+let registryCache = [];
+async function loadRegistry() {
+  try {
+    const data = await Api.getPermissionRegistry();
+    registryCache = Array.isArray(data) ? data : [];
+  } catch (err) {
+    registryCache = [];
+  }
+}
+
+// Draws the boxes under group and tab headings. Returns false (and draws
+// nothing) when the registry has no usable permission, so the caller falls
+// back to the flat list. A permission the role holds that the registry does
+// not list goes in an Other section, so saving never strips it.
+function renderGroupedPermissionCheckboxes(checkedPermissions, checked) {
+  const known = new Set();
+  const box = (key, label) => `
+    <label class="checkbox" style="display:flex;align-items:center;gap:8px;font-size:13px;">
+      <input type="checkbox" value="${escapeHtml(key)}" ${checked.has(key) ? 'checked' : ''} />
+      ${escapeHtml(label)}
+    </label>`;
+  const groupStyle = 'grid-column:1 / -1;font-size:14px;font-weight:700;margin-top:10px;';
+  const tabStyle = 'grid-column:1 / -1;font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;';
+  let html = '';
+  registryCache.forEach((g) => {
+    let groupHtml = '';
+    (g.tabs || []).forEach((t) => {
+      const items = [];
+      (t.permissions || []).forEach((p) => {
+        if (p && p.key && !known.has(p.key)) { known.add(p.key); items.push(p); }
+      });
+      if (!items.length) return;
+      groupHtml += `<div style="${tabStyle}">${escapeHtml(t.tab)}</div>` + items.map((p) => box(p.key, p.label || p.key)).join('');
+    });
+    if (groupHtml) html += `<div style="${groupStyle}">${escapeHtml(g.group)}</div>` + groupHtml;
+  });
+  if (!known.size) return false;
+  const other = checkedPermissions.filter((p) => !known.has(p))
+    .sort((a, b) => permissionLabel(a).localeCompare(permissionLabel(b), 'en', { sensitivity: 'base' }));
+  if (other.length) {
+    html += `<div style="${groupStyle}">Other</div>` + other.map((p) => box(p, permissionLabel(p))).join('');
+  }
+  document.getElementById('role-permissions-list').innerHTML = html;
+  return true;
+}
 let editingRoleName = null; // null = creating a new role
 
 async function loadRoles() {
@@ -72,7 +132,7 @@ async function loadRoles() {
         <td>${r.user_count} account${r.user_count === 1 ? '' : 's'}</td>
         <td style="text-align:right;">
           <button type="button" class="btn-ghost btn-sm" data-edit="${r.name}">Edit</button>
-          ${r.name !== 'super_admin' ? `<button type="button" class="btn-ghost btn-sm" data-delete="${r.name}" ${r.user_count ? 'disabled title="Reassign accounts off this role first"' : ''}>Delete</button>` : ''}
+          ${SYSTEM_ROLE_NAMES.has(r.name) ? '' : `<button type="button" class="btn-ghost btn-sm" data-delete="${r.name}" ${r.user_count ? 'disabled title="Reassign accounts off this role first"' : ''}>Delete</button>`}
         </td>
       </tr>`).join('');
 
@@ -92,7 +152,15 @@ const roleBackdrop = document.getElementById('role-modal-backdrop');
 
 function renderPermissionCheckboxes(checkedPermissions) {
   const checked = new Set(checkedPermissions);
-  document.getElementById('role-permissions-list').innerHTML = ALL_PERMISSIONS.map((p) => `
+  // PATCHP3O-ROLES: grouped list when the registry is loaded. Otherwise the
+  // old flat list below runs unchanged.
+  if (registryCache.length && renderGroupedPermissionCheckboxes(checkedPermissions, checked)) return;
+  // Show every known permission plus any permission this role already
+  // holds that is not in the fixed list, so saving never strips it.
+  // PATCHR3A-ALPHA: A-Z order of the name the admin reads.
+  const shown = ALL_PERMISSIONS.concat(checkedPermissions.filter((p) => !ALL_PERMISSIONS.includes(p)))
+    .sort((a, b) => permissionLabel(a).localeCompare(permissionLabel(b), 'en', { sensitivity: 'base' }));
+  document.getElementById('role-permissions-list').innerHTML = shown.map((p) => `
     <label class="checkbox" style="display:flex;align-items:center;gap:8px;font-size:13px;">
       <input type="checkbox" value="${p}" ${checked.has(p) ? 'checked' : ''} />
       ${escapeHtml(permissionLabel(p))}
@@ -117,6 +185,12 @@ function openRoleModal(name) {
   document.getElementById('role-name-field').style.display = role ? 'none' : '';
 
   renderPermissionCheckboxes(role ? role.permissions : []);
+  // PATCHR2-ROLES-UI: the Super Admin permissions are fixed -- show them read-only.
+  const permissionsFixed = !!role && role.name === FIXED_PERMISSIONS_ROLE;
+  document.querySelectorAll('#role-permissions-list input').forEach((cb) => { cb.disabled = permissionsFixed; });
+  if (permissionsFixed) {
+    document.getElementById('role-modal-hint').textContent = 'The Super Admin permissions are fixed. You can only change the display name.';
+  }
   roleBackdrop.classList.add('visible');
 }
 
@@ -151,7 +225,9 @@ document.getElementById('role-modal-save').addEventListener('click', async () =>
   btn.disabled = true;
   try {
     if (editingRoleName) {
-      await Api.updateRole(editingRoleName, { display_name: displayName, permissions });
+      const updateBody = { display_name: displayName };
+      if (editingRoleName !== FIXED_PERMISSIONS_ROLE) updateBody.permissions = permissions;
+      await Api.updateRole(editingRoleName, updateBody);
       showToast('Role updated.');
     } else {
       const name = document.getElementById('role-name').value.trim() || slugifyRoleId(displayName);
@@ -179,6 +255,7 @@ document.getElementById('role-modal-save').addEventListener('click', async () =>
 });
 
 async function deleteRole(name) {
+  if (SYSTEM_ROLE_NAMES.has(name)) return; // PATCHR2-ROLES-UI: system roles can never be deleted
   const role = rolesCache.find((r) => r.name === name);
   if (!(await showConfirmModal(`This can't be undone.`, { title: `Delete the "${role?.display_name || name}" role?`, confirmLabel: 'Delete' }))) return;
   try {
@@ -190,4 +267,20 @@ async function deleteRole(name) {
   }
 }
 
+// PATCHR2-ROLES-UI: short note under the roles table. Some pages and actions
+// check the role NAME, so ticking a box here does not change them.
+function addRoleNameNote() {
+  const tbody = document.getElementById('roles-tbody');
+  const table = tbody && tbody.closest('table');
+  if (!table || !table.parentNode || document.getElementById('roles-name-note')) return;
+  const note = document.createElement('p');
+  note.id = 'roles-name-note';
+  note.style.cssText = 'font-size:12.5px;color:var(--ink-faint);margin:10px 0 0;';
+  note.textContent = 'Note: staff applications, website orders, user accounts, password reset requests, some sales actions and the Staff page tabs check the role itself, so the tick boxes here do not change them.';
+  table.parentNode.insertBefore(note, table.nextSibling);
+}
+addRoleNameNote();
 loadRoles();
+// PATCHP3O-ROLES: the registry route is super_admin only, so ask only when
+// this account can configure the system. Any failure keeps the flat list.
+if (Perms.can('configure_system')) loadRegistry();

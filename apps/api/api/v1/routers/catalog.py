@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.dependencies import (
+    can_view_costs,
     get_current_user,
     get_current_user_optional,
     get_db_session,
@@ -289,7 +290,12 @@ async def _load_stocked_product_ids(
     return {row[0] for row in result.all()}
 
 
-def _product_to_out(product: Product, quantity_available: int | None = 0, override_price_kobo: int | None = None) -> ProductOut:
+def _product_to_out(
+    product: Product,
+    quantity_available: int | None = 0,
+    override_price_kobo: int | None = None,
+    show_cost: bool = True,
+) -> ProductOut:
     primary = next((img for img in product.images if img.is_primary), None)
     if primary is None and product.images:
         primary = product.images[0]
@@ -315,7 +321,7 @@ def _product_to_out(product: Product, quantity_available: int | None = 0, overri
     price_naira = Money(effective_price_kobo).naira
     data.price = price_naira
     data.price_naira = price_naira
-    data.cost_price_naira = Money(product.cost_price_kobo).naira
+    data.cost_price_naira = Money(product.cost_price_kobo).naira if show_cost else 0.0
     data.selling_price_naira = price_naira
     # September 2026 change spec section 22 -- wholesale_min_quantity
     # already flows through model_validate() above (name matches the
@@ -692,7 +698,7 @@ async def list_products(
     # screen re-implementing it. Only bites for an authenticated
     # staff-role caller; anonymous/customer/manager/admin callers are
     # unaffected.
-    if current_user is not None and current_user.role == "staff":
+    if current_user is not None and current_user.role in ("cashier", "store_assistant"):
         stmt = stmt.where(Product.hidden_from_staff.is_(False))
     if search:
         stmt = stmt.where(Product.name.ilike(f"%{search}%"))
@@ -730,7 +736,11 @@ async def list_products(
 
     price_overrides = await _load_price_overrides(session, [p.id for p in products], effective_branch_id)
 
-    out = [_product_to_out(p, _resolve_quantity_available(p.id), price_overrides.get(p.id)) for p in products]
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C-COST-VISIBLE
+    out = [
+        _product_to_out(p, _resolve_quantity_available(p.id), price_overrides.get(p.id), show_cost=show_cost)
+        for p in products
+    ]
     if low_stock:
         # "Low stock only" must show only items that still have stock
         # but are at/under the reorder threshold -- NOT items that are
@@ -832,7 +842,7 @@ async def get_product(
     # either (e.g. via a stale link or an id guessed from another
     # screen). 404, not 403: existence of a hidden product shouldn't be
     # revealed to staff at all.
-    if current_user is not None and current_user.role == "staff" and product.hidden_from_staff:
+    if current_user is not None and current_user.role in ("cashier", "store_assistant") and product.hidden_from_staff:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
 
     effective_branch_id = branch_id
@@ -841,7 +851,10 @@ async def get_product(
 
     stock_by_product = await _load_stock_for_products(session, [product.id], effective_branch_id)
     price_override_row = await _load_price_overrides(session, [product.id], effective_branch_id)
-    return _product_to_out(product, stock_by_product.get(product.id, 0), price_override_row.get(product.id))
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C-COST-VISIBLE
+    return _product_to_out(
+        product, stock_by_product.get(product.id, 0), price_override_row.get(product.id), show_cost=show_cost
+    )
 
 
 # PATCH10B-SAME-PRICE-NOOP: a save that sends the price the product (or this
@@ -989,7 +1002,7 @@ async def mute_out_of_stock_alert(
     # Same permission as seeing the alert in the first place
     # (view_low_stock, granted to staff too) -- whoever can see the
     # dashboard nag should be able to dismiss it, not just managers.
-    _: User = Depends(require_permission("view_low_stock")),
+    current_user: User = Depends(require_permission("view_low_stock")),
 ) -> ProductOut:
     """Dismisses this product from the dashboard's out-of-stock alert
     count/dropdown -- doesn't touch the Low Stock or Inventory pages,
@@ -1004,14 +1017,15 @@ async def mute_out_of_stock_alert(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
     product.out_of_stock_alert_muted = True
     await session.commit()
-    return _product_to_out(product)
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C-COST-VISIBLE
+    return _product_to_out(product, show_cost=show_cost)
 
 
 @router.post("/products/{product_id}/unmute-out-of-stock-alert", response_model=ProductOut)
 async def unmute_out_of_stock_alert(
     product_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(require_permission("view_low_stock")),
+    current_user: User = Depends(require_permission("view_low_stock")),
 ) -> ProductOut:
     result = await session.execute(
         select(Product).where(Product.id == product_id).options(*_PRODUCT_LOAD_OPTIONS)
@@ -1021,7 +1035,8 @@ async def unmute_out_of_stock_alert(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
     product.out_of_stock_alert_muted = False
     await session.commit()
-    return _product_to_out(product)
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C-COST-VISIBLE
+    return _product_to_out(product, show_cost=show_cost)
 
 
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)

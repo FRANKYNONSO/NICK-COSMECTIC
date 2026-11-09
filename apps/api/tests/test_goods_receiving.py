@@ -371,7 +371,7 @@ async def test_i_other_branch_is_unaffected_and_isolated(client, db_session):
 
 async def test_staff_cannot_receive_goods(client, db_session):
     branch = await _branch(db_session)
-    staff = await _user(db_session, "staff", branch.id)
+    staff = await _user(db_session, "cashier", branch.id)
     product = await _product(db_session)
     await db_session.commit()
     resp = await _receive(client, _headers(staff), branch.id, product.id, 5, 0)

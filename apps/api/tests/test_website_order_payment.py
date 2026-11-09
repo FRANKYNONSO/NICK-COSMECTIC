@@ -266,7 +266,7 @@ async def test_l_old_patch_route_leaves_payment_alone(client, db_session):
 async def test_m_cashier_cannot_record_a_payment(client, db_session):
     product_id, headers, batch_ids = await _prepare(db_session, [10])
     order, phone = await _place(client, headers, product_id, 2)
-    cashier = await _make_user(db_session, "staff", None)
+    cashier = await _make_user(db_session, "cashier", None)
     resp = await _pay(client, cashier, order["id"], _standard(order["payable_naira"]))
     assert resp.status_code == 403, resp.text
     row = await _order_row(db_session, order["id"])

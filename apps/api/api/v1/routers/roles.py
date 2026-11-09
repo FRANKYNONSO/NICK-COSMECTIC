@@ -9,6 +9,7 @@ from infrastructure.db.audit import log_audit_event
 from infrastructure.db.models import Role as RoleModel
 from infrastructure.db.models import User
 from infrastructure.db.repositories import RoleRepository
+from nickcosmetics_core.domain.users.permission_registry import grouped_registry
 from nickcosmetics_core.domain.users.user import ALL_PERMISSIONS
 
 router = APIRouter(prefix="/roles", tags=["roles"])
@@ -18,6 +19,12 @@ router = APIRouter(prefix="/roles", tags=["roles"])
 # creating, editing, or deleting a role stays super_admin-only,
 # enforced per-endpoint below rather than at the router level.
 _VIEW_ROLES = ("super_admin", "branch_manager")
+
+# PATCHP1-MATRIX / PATCHR1-ROLES: the four built-in roles can never be deleted.
+# They CAN be edited (see update_role): display name for all four, permissions
+# for all except super_admin. Locked by NAME because store_assistant was
+# seeded as a non-system row.
+_LOCKED_ROLES = ("super_admin", "branch_manager", "cashier", "store_assistant")
 
 
 def _validate_permissions(permissions: list[str]) -> None:
@@ -51,6 +58,14 @@ async def list_roles(
     repo = RoleRepository(session)
     roles = await repo.list_all()
     return [await _to_role_out(session, r) for r in roles]
+
+
+# PATCHP3N-ROUTE: GET /roles/registry, super_admin only (owner-only keys hidden).
+@router.get("/registry", response_model=list[dict])
+async def permission_registry(
+    _: User = Depends(require_role("super_admin")),
+) -> list[dict]:
+    return grouped_registry()
 
 
 @router.post("", response_model=RoleOut, status_code=status.HTTP_201_CREATED)
@@ -102,17 +117,31 @@ async def update_role(
     holding this role immediately -- api/dependencies.py's
     require_permission() reads the roles table fresh on every request,
     there's no per-user copy that needs a separate propagation step.
-    Works for the three system roles too (a super admin can retune
-    what branch_manager or staff can do), just not renaming/deleting
-    them -- see delete_role below.
+    Works for the four system roles too (PATCHR1-ROLES): the display
+    name can be changed on all four, the permissions on all except
+    super_admin, whose permissions are fixed. System roles can never be
+    deleted -- see delete_role below. The role key (name) never changes.
     """
     repo = RoleRepository(session)
     role = await repo.get_by_name(name)
     if role is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Role '{name}' not found")
 
+    # PATCHR1-ROLES: system roles are editable, except that the Super Admin
+    # permissions are fixed (any attempt to send them is refused).
+    if role.name == "super_admin" and body.permissions is not None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="The Super Admin permissions are fixed and cannot be changed.",
+        )
     if body.display_name is not None:
-        role.display_name = body.display_name
+        new_display_name = body.display_name.strip()
+        if not new_display_name:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="The display name cannot be empty.",
+            )
+        role.display_name = new_display_name
     if body.permissions is not None:
         _validate_permissions(body.permissions)
         role.permissions = body.permissions
@@ -123,7 +152,11 @@ async def update_role(
         action="role_permissions_updated",
         entity_type="role",
         entity_id=role.id,
-        metadata={"name": role.name, "permissions": role.permissions},
+        metadata={
+            "name": role.name,
+            "display_name": role.display_name,
+            "permissions": role.permissions,
+        },
     )
     await session.commit()
     await session.refresh(role)
@@ -143,6 +176,11 @@ async def delete_role(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Role '{name}' not found")
     if role.name == "super_admin":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="The super admin role can't be deleted")
+    if role.name in _LOCKED_ROLES:  # PATCHP1-MATRIX
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            detail="The built-in roles are locked and cannot be deleted.",
+        )
 
     in_use = await repo.count_users_with_role(name)
     if in_use:

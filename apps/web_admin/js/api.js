@@ -76,6 +76,24 @@ const Auth = {
   setRolePermissionsCache(map) {
     localStorage.setItem('nc_role_permissions_cache', JSON.stringify(map));
   },
+  // PATCHW1A-MYPERMS: effective permissions of the signed-in user, as
+  // returned by GET /auth/me/permissions (role list plus individual
+  // grants minus individual denials, worked out by the server).
+  // null means not loaded yet or unavailable. Nothing reads this
+  // until patch W1b.
+  getMyPermissions() {
+    try {
+      const raw = localStorage.getItem('nc_my_permissions');
+      const list = raw ? JSON.parse(raw) : null;
+      return Array.isArray(list) ? list : null;
+    } catch (err) {
+      return null;
+    }
+  },
+  setMyPermissions(list) {
+    if (Array.isArray(list)) localStorage.setItem('nc_my_permissions', JSON.stringify(list));
+    else localStorage.removeItem('nc_my_permissions');
+  },
   setSession(token, user, appStatus = null, refreshToken = null) {
     localStorage.setItem('nc_access_token', token);
     localStorage.setItem('nc_user', JSON.stringify(user));
@@ -130,6 +148,7 @@ const Auth = {
     localStorage.removeItem('nc_user');
     localStorage.removeItem('nc_app_status');
     localStorage.removeItem('nc_role_permissions_cache');
+    localStorage.removeItem('nc_my_permissions');
   },
   requireAuth() {
     if (!this.getToken()) {
@@ -311,6 +330,10 @@ const Api = {
   me() {
     return apiRequest('/auth/me');
   },
+  // PATCHW1A-MYPERMS: GET /auth/me/permissions -> { role, permissions: [...] }
+  myPermissions() {
+    return apiRequest('/auth/me/permissions');
+  },
   listUsers({ branchId, role, includeInactive } = {}) {
     const params = new URLSearchParams();
     if (branchId) params.set('branch_id', branchId);
@@ -445,6 +468,12 @@ const Api = {
     return apiRequest(`/staff-applications/${id}/accept`, {
       method: 'POST',
       body: { branch_id: branchId, role },
+    });
+  },
+  requestApplicationChanges(id, note, flaggedFields) {
+    return apiRequest(`/staff-applications/${id}/request-changes`, {
+      method: 'POST',
+      body: { note, flagged_fields: flaggedFields || [] },
     });
   },
   rejectApplication(id, reason) {
@@ -714,6 +743,20 @@ const Api = {
     params.set('date_from', dateFrom);
     params.set('date_to', dateTo);
     return apiRequest(`/reports/stock-count-variance?${params.toString()}`);
+  },
+  lossTrend({ branchId, months } = {}) {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branch_id', branchId);
+    if (months) params.set('months', months);
+    return apiRequest(`/reports/loss-trend?${params.toString()}`);
+  },
+  stockValuation(branchId) {
+    const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
+    return apiRequest(`/reports/stock-valuation${qs}`);
+  },
+  dataHealth(branchId) {
+    const qs = branchId ? `?branch_id=${encodeURIComponent(branchId)}` : '';
+    return apiRequest(`/reports/data-health${qs}`);
   },
 
   // ------------------------------------------------------------ Categories
@@ -1192,6 +1235,10 @@ const Api = {
   },
   listRoles() {
     return apiRequest('/roles');
+  },
+  // PATCHP3O-API: permission registry (groups and tabs) for the Roles screen.
+  getPermissionRegistry() {
+    return apiRequest('/roles/registry');
   },
   createRole(payload) {
     return apiRequest('/roles', { method: 'POST', body: payload });

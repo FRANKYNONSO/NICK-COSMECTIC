@@ -98,7 +98,7 @@ async def test_c_alert_above_max_is_refused(client, db_session):
 
 async def test_d_staff_cannot_save_a_limit(client, db_session):
     branch, admin, product, h = await _admin_setup(db_session)
-    staff = await _user(db_session, "staff", branch.id)
+    staff = await _user(db_session, "cashier", branch.id)
     resp = await _put(client, _headers(staff), branch.id, product.id, 24, 5)
     print("EVIDENCE status", resp.status_code, resp.text[:200])
     assert resp.status_code == 403, resp.text
@@ -149,7 +149,7 @@ async def test_h_staff_can_read_own_branch_only(client, db_session):
     branch, admin, product, h = await _admin_setup(db_session)
     other_branch = await _branch(db_session)
     await _set_limit(client, h, branch.id, product.id, 24, 5)
-    staff = await _user(db_session, "staff", branch.id)
+    staff = await _user(db_session, "cashier", branch.id)
     resp = await _get(client, _headers(staff), branch.id)
     assert resp.status_code == 200, resp.text
     items = [x for x in resp.json() if x["product_id"] == str(product.id)]

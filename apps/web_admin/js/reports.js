@@ -1,9 +1,10 @@
 
 Auth.requireAuth();
 Perms.applyNav();
+Perms.guardPage('view_all_reports'); /* PATCHP3R-REPORTS */
 if (typeof StoreBranding !== 'undefined') StoreBranding.refresh();
 
-const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier' };
+const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier', store_assistant: 'Store assistant' }; // PATCHP3C-ROLE-LABEL
 const currentUser = Auth.getUser();
 document.getElementById('current-user-name').textContent = currentUser?.full_name || 'Signed in';
 document.getElementById('current-user-role').textContent = roleLabels[currentUser?.role] || currentUser?.role || '';
@@ -188,10 +189,14 @@ async function loadSalesSummary() {
       } catch (err) {
         lossNaira = 0; // fall back to gross sales if losses can't be loaded
       }
-      document.getElementById(p.valueEl).textContent = formatNaira(summary.grand_total_naira);
+      // PATCH26F: the figure after refunds (older API without it falls back to the old total)
+      document.getElementById(p.valueEl).textContent =
+        formatNaira(summary.grand_net_naira != null ? summary.grand_net_naira : summary.grand_total_naira);
       const count = summary.grand_sales_count || 0;
+      const refundsNaira = summary.grand_refunds_naira || 0;
       document.getElementById(p.subEl).textContent =
         `${count} transaction${count === 1 ? '' : 's'}` +
+        (refundsNaira > 0 ? ` \u00B7 after ${formatNaira(refundsNaira)} refunds` : '') +
         (lossNaira > 0 ? ` \u00B7 net of ${formatNaira(lossNaira)} in losses` : '');
     } catch (err) {
       document.getElementById(p.valueEl).textContent = '—';
@@ -270,6 +275,16 @@ async function loadSalesBreakdown() {
   try {
     const r = await Api.salesBreakdown({ branchId: currentBranchId(), dateFrom: from, dateTo: to });
     const c = r.current, p = r.previous;
+    // PATCH26F: the payment, weekday and hour tables are money taken at the till, before refunds
+    const payBody = document.getElementById('bd-pay-tbody');
+    const payTable = payBody && payBody.closest ? payBody.closest('table') : null;
+    if (payTable && payTable.parentNode && !document.getElementById('bd-pay-note')) {
+      const payNote = document.createElement('p');
+      payNote.id = 'bd-pay-note';
+      payNote.style.cssText = 'color:var(--ink-faint);font-size:12px;margin:0 0 8px;';
+      payNote.textContent = 'The payment method, weekday and hour tables show money taken at the till before any refunds. The cards above and the category table are after refunds.';
+      payTable.parentNode.insertBefore(payNote, payTable);
+    }
     setText('bd-sales', formatNaira(c.revenue_naira));
     setText('bd-sales-sub', changeText(c.revenue_naira, p.revenue_naira, days));
     setText('bd-count', c.sales_count.toLocaleString());
@@ -425,6 +440,224 @@ async function loadPurchasesReport() {
     showToast(err.message, true);
   }
 }
+
+// ---- Patch 26e: stock valuation at batch cost, data health ----
+let stockValueCache = null; // filled by loadStockValuation(); the ABC turnover uses it
+
+async function loadStockValuation() {
+  if (Perms.isStaff() || !document.getElementById('valuation-section')) return;
+  try {
+    const r = await Api.stockValuation(currentBranchId());
+    stockValueCache = r;
+    setText('val-batch', formatNaira(r.batch_cost_naira));
+    setText('val-batch-sub', `${r.units.toLocaleString()} units, valued at what each batch cost`);
+    setText('val-current', formatNaira(r.current_cost_naira));
+    const diff = r.cost_difference_naira;
+    setText('val-current-sub', diff === 0 ? 'Same as the batch cost' : `${diff > 0 ? '+' : ''}${formatNaira(diff)} vs batch cost (cost prices have ${diff > 0 ? 'risen' : 'fallen'})`);
+    setText('val-retail', formatNaira(r.retail_naira));
+    const margin = r.retail_naira > 0 ? (((r.retail_naira - r.batch_cost_naira) / r.retail_naira) * 100).toFixed(0) : null;
+    setText('val-retail-sub', margin == null ? 'At today\u2019s selling prices' : `${margin}% potential margin over batch cost`);
+    setText('val-uncosted', r.uncosted_units.toLocaleString());
+    setText('val-uncosted-sub', r.uncosted_batches ? `in ${r.uncosted_batches} batch${r.uncosted_batches === 1 ? '' : 'es'} with no cost recorded` : 'Every batch has a cost');
+
+    fillTable('val-cat-tbody', 'val-cat-empty', r.by_category.map((c) => `
+      <tr>
+        <td><strong>${escapeHtml(c.category_name)}</strong></td>
+        <td>${c.units.toLocaleString()}</td>
+        <td>${formatNaira(c.batch_cost_naira)}</td>
+        <td>${formatNaira(c.retail_naira)}</td>
+        <td>${fmtPct(c.margin_percent)}</td>
+      </tr>`).join(''));
+    fillTable('val-branch-tbody', 'val-branch-empty', r.by_branch.map((b) => `
+      <tr><td><strong>${escapeHtml(b.branch_name)}</strong></td><td>${b.units.toLocaleString()}</td><td>${formatNaira(b.batch_cost_naira)}</td></tr>`).join(''));
+    renderAbc();
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+async function loadDataHealth() {
+  if (Perms.isStaff() || !document.getElementById('health-section')) return;
+  try {
+    const r = await Api.dataHealth(currentBranchId());
+    setText('hl-attn', `${r.attention_count} of ${r.total_checks}`);
+    setText('hl-attn-sub', r.attention_count ? 'Checks that found something' : 'Everything looks consistent');
+    setText('hl-ok', String(r.total_checks - r.attention_count));
+    setText('hl-ok-sub', 'Checks with nothing to report');
+    fillTable('hl-tbody', 'hl-empty', r.checks.map((c) => `
+      <tr>
+        <td><span class="category-badge">${c.status === 'warn' ? 'Needs attention' : 'OK'}</span></td>
+        <td><strong>${escapeHtml(c.title)}</strong></td>
+        <td>${c.count.toLocaleString()}</td>
+        <td>${c.amount_naira != null && c.count ? formatNaira(c.amount_naira) : dash}</td>
+        <td>${c.status === 'warn' ? `${escapeHtml(c.why)}<br><span style="color:var(--ink-faint);font-size:12px;">${escapeHtml(c.fix)}</span>` : dash}</td>
+      </tr>`).join(''));
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+// ---- Patch 26d: ABC ranking, loss trend, expiry window, CSV exports ----
+let performanceCache = null; // { days, rows } -- filled by loadSlowMovers()
+let lastAbcRows = [];
+let lastExpiryRows = [];
+let lastTopRows = [];
+let lastBranchRows = [];
+let lastPriceRows = [];
+let lastLossRows = [];
+
+function renderAbc() {
+  if (Perms.isStaff() || !document.getElementById('abc-section') || !performanceCache) return;
+  const { days, rows } = performanceCache;
+  const byId = {};
+  (productCache || []).forEach((p) => { byId[p.id] = p; });
+  // Rank by profit (falls back to revenue if the API has no profit figure).
+  const keyOf = (r) => Math.max(r.profit_naira != null ? r.profit_naira : (r.revenue_naira || 0), 0);
+  const sold = rows.filter((r) => (r.quantity_sold || 0) > 0).slice().sort((a, b) => keyOf(b) - keyOf(a));
+  const total = sold.reduce((s, r) => s + keyOf(r), 0);
+  let cum = 0;
+  const ranked = sold.map((r, i) => {
+    const before = total ? cum / total : 1;
+    const cls = !total ? 'C' : (before < 0.8 ? 'A' : (before < 0.95 ? 'B' : 'C'));
+    cum += keyOf(r);
+    const p = byId[r.product_id];
+    const qty = p ? (p.quantity_available || 0) : 0;
+    const perDay = r.quantity_sold / days;
+    return {
+      rank: i + 1, cls, name: r.product_name, category: r.category_name || '',
+      units: r.quantity_sold, revenue: r.revenue_naira, profit: r.profit_naira, margin: r.margin_percent,
+      key: keyOf(r), onHand: qty,
+      cover: qty > 0 && perDay > 0 ? Math.round(qty / perDay) : null,
+      sellThrough: (r.quantity_sold + qty) > 0 ? Math.round((r.quantity_sold * 100) / (r.quantity_sold + qty)) : null,
+    };
+  });
+  lastAbcRows = ranked;
+
+  // Overall turnover: what was sold (at cost) against what is on the shelf (at cost).
+  const carried = (productCache || []).filter(isCarried);
+  const cogs = rows.reduce((s, r) => s + (r.cost_naira || 0), 0);
+  const stockCost = (stockValueCache && stockValueCache.batch_cost_naira > 0)
+    ? stockValueCache.batch_cost_naira
+    : carried.reduce((s, p) => s + (p.quantity_available || 0) * (getCost(p) || 0), 0);
+  const unitsSold = rows.reduce((s, r) => s + (r.quantity_sold || 0), 0);
+  const unitsOnHand = carried.reduce((s, p) => s + (p.quantity_available || 0), 0);
+  const soldIds = new Set(rows.map((r) => r.product_id));
+  const idle = carried.filter((p) => (p.quantity_available || 0) > 0 && !soldIds.has(p.id)).length;
+
+  const turnover = stockCost > 0 && cogs > 0 ? (cogs / stockCost) * (365 / days) : null;
+  setText('ab-turnover', turnover == null ? dash : `${turnover.toFixed(1)}x`);
+  setText('ab-turnover-sub', turnover == null ? 'Needs sales and cost prices' : 'Times a year the stock is sold and replaced');
+  const daysOnHand = cogs > 0 ? Math.round(stockCost / (cogs / days)) : null;
+  setText('ab-days', daysOnHand == null ? dash : daysOnHand.toLocaleString());
+  setText('ab-days-sub', `Stock at cost ${formatNaira(stockCost)}${idle ? ` \u00B7 ${idle} in-stock product${idle === 1 ? '' : 's'} had no sales` : ''}`);
+  const st = unitsSold + unitsOnHand > 0 ? Math.round((unitsSold * 100) / (unitsSold + unitsOnHand)) : null;
+  setText('ab-sell', st == null ? dash : `${st}%`);
+  setText('ab-sell-sub', `${unitsSold.toLocaleString()} sold vs ${unitsOnHand.toLocaleString()} on hand`);
+
+  const classes = ['A', 'B', 'C'].map((c) => {
+    const list = ranked.filter((r) => r.cls === c);
+    return { c, count: list.length, profit: list.reduce((s, r) => s + r.key, 0), revenue: list.reduce((s, r) => s + (r.revenue || 0), 0) };
+  });
+  const a = classes[0];
+  setText('ab-a', a.count.toLocaleString());
+  setText('ab-a-sub', ranked.length && total ? `${((a.profit / total) * 100).toFixed(0)}% of profit from ${((a.count / ranked.length) * 100).toFixed(0)}% of products` : 'No profit to rank yet');
+
+  fillTable('abc-sum-tbody', 'abc-sum-empty', ranked.length ? classes.map((k) => `
+    <tr>
+      <td><span class="category-badge">${k.c}</span></td>
+      <td>${k.count.toLocaleString()}</td>
+      <td>${((k.count / ranked.length) * 100).toFixed(0)}%</td>
+      <td><strong>${formatNaira(k.profit)}</strong></td>
+      <td>${barCell(total ? (k.profit / total) * 100 : 0)}</td>
+      <td>${formatNaira(k.revenue)}</td>
+    </tr>`).join('') : '');
+
+  const filter = document.getElementById('abc-filter')?.value || 'all';
+  const shown = ranked.filter((r) => filter === 'all' || r.cls === filter);
+  fillTable('abc-tbody', 'abc-empty', shown.slice(0, 50).map((r) => `
+    <tr>
+      <td>${r.rank}</td>
+      <td><span class="category-badge">${r.cls}</span></td>
+      <td><strong>${escapeHtml(r.name)}</strong></td>
+      <td>${r.category ? escapeHtml(r.category) : dash}</td>
+      <td>${r.units.toLocaleString()}</td>
+      <td>${formatNaira(r.revenue)}</td>
+      <td><strong>${r.profit == null ? dash : formatNaira(r.profit)}</strong></td>
+      <td>${fmtPct(r.margin)}</td>
+      <td>${r.onHand.toLocaleString()}</td>
+      <td>${r.cover == null ? dash : r.cover}</td>
+      <td>${r.sellThrough == null ? dash : `${r.sellThrough}%`}</td>
+    </tr>`).join('') + (shown.length > 50
+    ? `<tr><td colspan="11" style="text-align:center;color:var(--ink-faint);">Showing 50 of ${shown.length} \u2014 export the CSV for the full list.</td></tr>` : ''));
+}
+
+function expiryWatchDays() {
+  return Number(document.getElementById('expiry-window')?.value || EXPIRY_WATCH_DAYS);
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function monthLabel(key) {
+  const [y, m] = String(key).split('-');
+  return `${MONTH_NAMES[Number(m) - 1] || m} ${y}`;
+}
+
+async function loadLossTrend() {
+  if (Perms.isStaff() || !document.getElementById('losstrend-section')) return;
+  const months = Number(document.getElementById('lt-months')?.value || 6);
+  try {
+    const r = await Api.lossTrend({ branchId: currentBranchId(), months });
+    lastLossRows = r.months;
+    setText('lt-total', formatNaira(r.total_losses_naira));
+    setText('lt-total-sub', `Written off in the last ${months} months`);
+    setText('lt-percent', fmtPct(r.overall_loss_percent));
+    setText('lt-percent-sub', `of ${formatNaira(r.total_revenue_naira)} in sales`);
+    const worst = r.months.find((m) => m.month === r.worst_month);
+    setText('lt-worst', worst ? monthLabel(worst.month) : dash);
+    setText('lt-worst-sub', worst ? `${formatNaira(worst.losses_naira)} lost` : 'No losses recorded');
+    const maxPct = Math.max(0, ...r.months.map((m) => m.loss_percent || 0));
+    fillTable('lt-tbody', 'lt-empty', r.months.map((m) => `
+      <tr>
+        <td><strong>${monthLabel(m.month)}</strong></td>
+        <td>${m.losses_naira ? formatNaira(m.losses_naira) : dash}</td>
+        <td>${formatNaira(m.revenue_naira)}</td>
+        <td>${m.loss_percent == null ? dash : `${m.loss_percent}%`}</td>
+        <td>${barCell(maxPct ? ((m.loss_percent || 0) / maxPct) * 100 : 0)}</td>
+      </tr>`).join(''));
+  } catch (err) {
+    showToast(err.message, true);
+  }
+}
+
+function exportRows(filename, header, rows) {
+  if (!rows.length) { showToast('Nothing to export.', true); return; }
+  downloadCsv(filename, header, rows);
+}
+document.getElementById('abc-filter')?.addEventListener('change', () => renderAbc());
+document.getElementById('expiry-window')?.addEventListener('change', () => renderExpiryWatch());
+document.getElementById('lt-months')?.addEventListener('change', () => loadLossTrend());
+document.getElementById('print-report-btn')?.addEventListener('click', (e) => { e.preventDefault(); window.print(); });
+document.getElementById('abc-export-btn')?.addEventListener('click', () => exportRows(`abc-ranking-${todayStr()}.csv`,
+  ['Rank', 'Class', 'Product', 'Category', 'Units sold', 'Revenue (NGN)', 'Profit (NGN)', 'Margin %', 'On hand', 'Days of stock', 'Sell-through %'],
+  lastAbcRows.map((r) => [r.rank, r.cls, r.name, r.category, r.units, r.revenue, r.profit == null ? '' : r.profit,
+    r.margin == null ? '' : r.margin, r.onHand, r.cover == null ? '' : r.cover, r.sellThrough == null ? '' : r.sellThrough])));
+document.getElementById('export-expiry-btn')?.addEventListener('click', () => exportRows(`expiry-watch-${todayStr()}.csv`,
+  ['Product', 'Category', 'On hand', 'Expiry date', 'Days to expiry', 'Value (NGN)'],
+  lastExpiryRows.map((r) => [r.name, r.category, r.qty, r.exp, r.days, r.value])));
+document.getElementById('export-top-btn')?.addEventListener('click', () => exportRows(`top-products-${todayStr()}.csv`,
+  ['#', 'Product', 'Category', 'Units sold', 'Revenue (NGN)', 'Profit (NGN)', 'Margin %'],
+  lastTopRows.map((r, i) => [i + 1, r.product_name, r.category_name || '', r.quantity_sold, r.revenue_naira,
+    r.profit_naira == null ? '' : r.profit_naira, r.margin_percent == null ? '' : r.margin_percent])));
+document.getElementById('export-branch-btn')?.addEventListener('click', () => exportRows(`branch-comparison-${todayStr()}.csv`,
+  ['Branch', 'Products', 'Units', 'Retail value (NGN)', 'Low stock', 'Out of stock'],
+  lastBranchRows.map((r) => [r.name, r.count, r.units, r.value, r.low, r.out])));
+document.getElementById('export-price-btn')?.addEventListener('click', () => exportRows(`price-changes-${todayStr()}.csv`,
+  ['Product', 'Type', 'Branch', 'Changed by', 'Old price (NGN)', 'New price (NGN)', 'When'],
+  lastPriceRows.map((r) => [r.product_name || '', r.action === 'global_price_changed' ? 'Global' : 'Branch override',
+    r.branch_name || (r.action === 'global_price_changed' ? 'All branches' : ''), r.changed_by_name || '',
+    r.old_price_naira == null ? '' : r.old_price_naira, r.new_price_naira == null ? '' : r.new_price_naira, r.created_at])));
+document.getElementById('lt-export-btn')?.addEventListener('click', () => exportRows(`loss-trend-${todayStr()}.csv`,
+  ['Month', 'Losses (NGN)', 'Sales (NGN)', 'Loss % of sales'],
+  lastLossRows.map((m) => [m.month, m.losses_naira, m.revenue_naira, m.loss_percent == null ? '' : m.loss_percent])));
 
 // ---- Patch 26c: stock movements, transfers & receiving, stock count variance ----
 let movementLabelMap = {};
@@ -639,6 +872,7 @@ async function loadProfitSummary() {
       const margin = s.margin_percent == null ? '\u2014' : `${s.margin_percent}%`;
       setText(`${p.el}-sub`,
         `Margin ${margin} \u00B7 sales ${formatNaira(s.revenue_naira)}` +
+        (s.refunds_naira > 0 ? ` (after ${formatNaira(s.refunds_naira)} refunds)` : '') +
         (s.losses_naira > 0 ? ` \u00B7 after losses ${formatNaira(s.net_profit_naira)}` : ''));
       if (p.key === 'alltime' && s.estimated_cost_lines > 0) {
         note = ` ${s.estimated_cost_lines} of ${s.total_lines} sale lines had no batch recorded, so today's cost price was used for them (an estimate).`;
@@ -649,7 +883,8 @@ async function loadProfitSummary() {
     }
   }));
   setText('profit-note',
-    'Gross profit = sales (after discounts) minus what the stock cost you. Cost comes from the batch each item was sold from.' + note);
+    'Gross profit = sales (after discounts and refunds) minus what the stock cost you. Cost comes from the batch each item was sold from. '
+    + 'Returned items that went back on the shelf are not counted as a cost. Transfers between branches are not counted as sales.' + note);
 }
 
 async function loadBookingsReport() {
@@ -957,8 +1192,10 @@ function renderExpiryWatch() {
   const emptyText = document.getElementById('expiry-empty-text');
   if (!tbody) return;
 
+  const watch = expiryWatchDays();
   const withExpiry = productCache.filter((p) => getExpiry(p));
   if (!withExpiry.length) {
+    lastExpiryRows = [];
     tbody.innerHTML = '';
     empty.style.display = 'block';
     emptyText.textContent = 'Expiry dates aren\u2019t coming through from the products API yet';
@@ -966,14 +1203,28 @@ function renderExpiryWatch() {
   }
   const today = todayStr();
   const rows = withExpiry
-    .map((p) => ({ p, exp: getExpiry(p), days: daysBetween(today, getExpiry(p)), qty: p.quantity_available || 0 }))
-    .filter((r) => r.qty > 0 && r.days <= EXPIRY_WATCH_DAYS)
+    .map((p) => {
+      const qty = p.quantity_available || 0;
+      const unitValue = getCost(p) !== null ? getCost(p) : (p.price_naira || 0);
+      return { p, name: p.name, category: categoryNameOf(p), exp: getExpiry(p), days: daysBetween(today, getExpiry(p)), qty, value: qty * unitValue };
+    })
+    .filter((r) => r.qty > 0 && r.days <= watch)
     .sort((a, b) => a.days - b.days);
+  lastExpiryRows = rows;
+
+  const expired = rows.filter((r) => r.days < 0);
+  const soon = rows.filter((r) => r.days >= 0);
+  const sum = (list, key) => list.reduce((s, r) => s + r[key], 0);
+  setText('expiry-sub', rows.length
+    ? `Expired: ${sum(expired, 'qty')} unit${sum(expired, 'qty') === 1 ? '' : 's'} (${formatNaira(sum(expired, 'value'))}). `
+      + `Expiring within ${watch} days: ${sum(soon, 'qty')} unit${sum(soon, 'qty') === 1 ? '' : 's'} (${formatNaira(sum(soon, 'value'))}). `
+      + `Value is at cost where known, otherwise at selling price.`
+    : `Stock that has expired or expires within ${watch} days.`);
 
   if (!rows.length) {
     tbody.innerHTML = '';
     empty.style.display = 'block';
-    emptyText.textContent = `Nothing expired or expiring in the next ${EXPIRY_WATCH_DAYS} days`;
+    emptyText.textContent = `Nothing expired or expiring in the next ${watch} days`;
     return;
   }
   empty.style.display = 'none';
@@ -982,13 +1233,15 @@ function renderExpiryWatch() {
       : r.days === 0 ? 'Expires today' : `Expires in ${r.days} day${r.days === 1 ? '' : 's'}`;
     return `
     <tr>
-      <td><strong>${escapeHtml(r.p.name)}</strong></td>
-      <td>${escapeHtml(categoryNameOf(r.p))}</td>
+      <td><strong>${escapeHtml(r.name)}</strong></td>
+      <td>${escapeHtml(r.category)}</td>
       <td>${r.qty}</td>
       <td>${escapeHtml(r.exp)}</td>
       <td><span class="category-badge">${status}</span></td>
+      <td>${formatNaira(r.value)}</td>
     </tr>`;
-  }).join('');
+  }).join('') + (rows.length > 50
+    ? `<tr><td colspan="6" style="text-align:center;color:var(--ink-faint);">Showing 50 of ${rows.length} \u2014 export the CSV for the full list.</td></tr>` : '');
 }
 
 // -------------------------------------------------------------- Top products
@@ -1004,6 +1257,7 @@ async function loadTopProducts() {
       return;
     }
     emptyState.style.display = 'none';
+    lastTopRows = rows;
     tbody.innerHTML = rows.map((r, i) => `
       <tr>
         <td>${i + 1}</td>
@@ -1039,6 +1293,8 @@ async function loadSlowMovers() {
 
     velocityCache = { days, soldById, soldByName };
     renderReorderList();
+    performanceCache = { days, rows: sales };
+    renderAbc();
 
     const rows = productCache
       .filter((p) => (p.quantity_available || 0) > 0)
@@ -1102,6 +1358,7 @@ async function loadBranchComparison() {
       });
       return { name: b.name, count: products.length, units, value, low, out };
     }));
+    lastBranchRows = results;
     tbody.innerHTML = results.map((r) => `
       <tr>
         <td><strong>${escapeHtml(r.name)}</strong></td>
@@ -1131,6 +1388,8 @@ async function loadAll() {
     await Promise.all([loadSalesBreakdown(), loadReturnsReport(), loadPurchasesReport()]);
     fillMovementProductList();
     await Promise.all([loadStockMovements(), loadTransfersReport(), loadCountVariance()]);
+    await loadLossTrend();
+    await Promise.all([loadStockValuation(), loadDataHealth()]);
   }
 }
 
@@ -1318,6 +1577,7 @@ async function loadPriceChangeHistory() {
       return;
     }
     if (emptyState) emptyState.style.display = 'none';
+    lastPriceRows = rows;
     tbody.innerHTML = rows.map((r) => `
       <tr>
         <td>${escapeHtml(r.product_name || '—')}</td>

@@ -22,7 +22,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_db_session, require_permission, require_role
+from api.dependencies import get_db_session, require_permission  # PATCHP3E2-IMPORT
 from api.v1.routers._storefront_logic import allocate_across_branches, split_discount
 from api.v1.routers.sales import POINTS_PER_NAIRA_SPENT
 from infrastructure.db.audit import log_audit_event
@@ -720,7 +720,10 @@ def _scope_to_branch(stmt, user: User, branch_id: uuid.UUID | None):
     """Branch managers only see orders that include a share from their own
     branch (the whole merged order is shown so they can see who else is
     sending parts). Super admins can optionally filter by branch."""
-    effective = user.branch_id if user.role == "branch_manager" else branch_id
+    effective = user.branch_id if user.role != "super_admin" else branch_id
+    if user.role != "super_admin" and effective is None:
+        # PATCHP3E1-ORDERS: a user with no branch sees no orders at all
+        return stmt.where(StorefrontOrder.id.is_(None))
     if effective is not None:
         stmt = stmt.where(
             StorefrontOrder.id.in_(
@@ -737,7 +740,7 @@ async def list_orders(
     limit: int = Query(100, ge=1, le=300),
     offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("manage_website_orders")),  # PATCHP3E1-ORDERS
 ) -> list[StorefrontOrderOut]:
     stmt = select(StorefrontOrder)
     if status_filter:
@@ -754,7 +757,7 @@ async def list_orders(
 async def get_order(
     order_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("manage_website_orders")),  # PATCHP3E1-ORDERS
 ) -> StorefrontOrderOut:
     stmt = _scope_to_branch(select(StorefrontOrder).where(StorefrontOrder.id == order_id), current_user, None)
     order = (await session.execute(stmt)).scalar_one_or_none()
@@ -847,7 +850,7 @@ async def update_order(
     order_id: uuid.UUID,
     body: StorefrontOrderUpdate,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("manage_website_orders")),  # PATCHP3E1-ORDERS
 ) -> StorefrontOrderOut:
     stmt = _scope_to_branch(select(StorefrontOrder).where(StorefrontOrder.id == order_id), current_user, None)
     order = (await session.execute(stmt.with_for_update())).scalar_one_or_none()
@@ -888,7 +891,7 @@ async def record_order_payment(
     order_id: uuid.UUID,
     body: StorefrontOrderPaymentIn,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("manage_website_orders")),  # PATCHP3E1-ORDERS
 ) -> StorefrontOrderOut:
     # PATCH19B-PAYMENT-FIELDS
     # Records that the customer paid. It changes only the payment fields:
@@ -941,7 +944,7 @@ async def undo_order_payment(
     order_id: uuid.UUID,
     body: StorefrontOrderUndoPaymentIn,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("manage_website_orders")),  # PATCHP3E1-ORDERS
 ) -> StorefrontOrderOut:
     # PATCH19D-UNDO-PAYMENT
     # Puts the payment fields back to unpaid. No sale, stock, points or
@@ -999,7 +1002,7 @@ async def undo_order_payment(
 async def generate_coupons(
     body: CouponGenerate,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin")),
+    current_user: User = Depends(require_permission("manage_website_coupons")),  # PATCHP3E2-COUPONS
 ) -> list[CouponOut]:
     amount_kobo = round(body.discount_amount_naira * 100)
     made: list[StorefrontCoupon] = []
@@ -1036,7 +1039,7 @@ async def generate_coupons(
 async def list_coupons(
     limit: int = Query(100, ge=1, le=500),
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin")),
+    current_user: User = Depends(require_permission("manage_website_coupons")),  # PATCHP3E2-COUPONS
 ) -> list[CouponOut]:
     rows = (
         (await session.execute(select(StorefrontCoupon).order_by(StorefrontCoupon.created_at.desc()).limit(limit)))
@@ -1050,7 +1053,7 @@ async def list_coupons(
 async def void_coupon(
     coupon_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin")),
+    current_user: User = Depends(require_permission("manage_website_coupons")),  # PATCHP3E2-COUPONS
 ) -> CouponOut:
     coupon = (
         await session.execute(select(StorefrontCoupon).where(StorefrontCoupon.id == coupon_id).with_for_update())
@@ -1069,7 +1072,7 @@ async def void_coupon(
 async def reveal_coupons(
     body: CouponReveal,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin")),
+    current_user: User = Depends(require_permission("manage_website_coupons")),  # PATCHP3E2-COUPONS
 ) -> list[CouponOut]:
     """The ONLY way to see the code of a new coupon. Starts the countdown once
     (revealing again never restarts it) and returns the real code(s)."""

@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.dependencies import get_current_user, get_db_session, require_permission
+from api.dependencies import can_view_costs, get_current_user, get_db_session, require_permission
 from api.v1.routers.catalog import _PUBLIC_BASE_URL
 from api.v1.schemas.inventory import (
     LossHistoryRow,
@@ -63,7 +63,7 @@ async def upload_loss_evidence(
     return {"url": f"{_PUBLIC_BASE_URL}/static/uploads/loss-evidence/{new_filename}"}
 
 
-def _batch_to_out(batch: StockBatch) -> StockBatchOut:
+def _batch_to_out(batch: StockBatch, show_cost: bool = True) -> StockBatchOut:
     return StockBatchOut(
         id=batch.id,
         product_id=batch.product_id,
@@ -71,7 +71,7 @@ def _batch_to_out(batch: StockBatch) -> StockBatchOut:
         batch_number=batch.batch_number,
         quantity_received=batch.quantity_received,
         quantity_remaining=batch.quantity_remaining,
-        unit_cost_naira=Money(batch.unit_cost_kobo).naira,
+        unit_cost_naira=Money(batch.unit_cost_kobo).naira if show_cost else 0.0,
         expiry_date=batch.expiry_date,
         received_at=batch.received_at,
     )
@@ -164,7 +164,8 @@ async def list_stock_batches(
     stmt = stmt.order_by(StockBatch.received_at)
 
     result = await session.execute(stmt)
-    return [_batch_to_out(b) for b in result.scalars().all()]
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C2-COST-VISIBLE
+    return [_batch_to_out(b, show_cost=show_cost) for b in result.scalars().all()]
 
 
 @router.get("/stock-levels", response_model=list[StockLevelOut])
@@ -647,11 +648,19 @@ async def confirm_theft_adjustment(
     # super admin specifically for confirmation, not left to whoever
     # has ordinary manage_inventory access (that's who can *report*
     # one, same as damaged/expired).
-    current_user: User = Depends(require_permission("manage_users")),
+    current_user: User = Depends(require_permission("confirm_theft_losses")),  # PATCHP3C
 ) -> StockAdjustmentOut:
     adjustment = await session.get(StockAdjustment, adjustment_id)
     if adjustment is None or adjustment.reason != "theft":
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Theft report not found")
+    if current_user.role != "super_admin":  # PATCHP3I-BRANCH
+        theft_batch = await session.get(StockBatch, adjustment.stock_batch_id)
+        if (
+            current_user.branch_id is None
+            or theft_batch is None
+            or theft_batch.branch_id != current_user.branch_id
+        ):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Theft report not found")
     if adjustment.status != "pending_confirmation":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This report has already been confirmed.")
 

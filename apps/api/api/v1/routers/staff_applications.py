@@ -10,7 +10,7 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_current_user_allow_pending, get_db_session, require_role
+from api.dependencies import get_current_user_allow_pending, get_db_session, require_permission  # PATCHP3G-IMPORT
 from api.v1.schemas.staff_applications import (
     StaffApplicationAccept,
     StaffApplicationOut,
@@ -83,6 +83,22 @@ def resolve_id_document_path(stored: str | None) -> Path | None:
     return path if path.is_file() else None
 
 
+# PATCHP3G-HELPER
+async def _holds_review_key(session: AsyncSession, user: User) -> bool:
+    """Same rule as require_permission, checked inside a route body.
+
+    Role keys plus grants given to the account itself, minus denials on the
+    account itself (a super_admin is never denied). Used where the route must
+    stay open to the applicant (id-document), so a guard dependency cannot be
+    used. Like the old role-name check, it ignores the employment status.
+    """
+    key = "review_staff_applications"
+    role_row = await session.execute(select(RoleModel.permissions).where(RoleModel.name == user.role))
+    granted = set(role_row.scalar_one_or_none() or []) | set(user.granted_permissions or [])
+    denied = set(user.denied_permissions or [])
+    return key in granted and (user.role == "super_admin" or key not in denied)
+
+
 async def _ensure_can_view_credentials(
     session: AsyncSession, current_user: User, application: StaffApplication
 ) -> None:
@@ -97,8 +113,7 @@ async def _ensure_can_view_credentials(
     """
     if current_user.id == application.user_id or current_user.role == "super_admin":
         return
-    if current_user.role != "branch_manager":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to view these credentials")
+    # PATCHP3G-CRED: any reviewer who is not super_admin gets the branch limits below
     if application.status in ("under_review", "rejected"):
         return
     target = await UserRepository(session).get_by_id(application.user_id)
@@ -163,6 +178,8 @@ def _to_out(application: StaffApplication) -> StaffApplicationOut:
         reviewed_at=application.reviewed_at,
         rejection_reason=application.rejection_reason,
         submitted_at=application.submitted_at,
+        correction_note=application.correction_note,
+        correction_fields=[f for f in (application.correction_fields or "").split(",") if f],
     )
 
 
@@ -202,7 +219,7 @@ async def register(
     preferred_name: Annotated[str, Form()],
     password: Annotated[str, Form()],
     full_legal_name: Annotated[str, Form()],
-    role_applied_for: Annotated[str, Form()] = "staff",
+    role_applied_for: Annotated[str, Form()] = "cashier",
     branch_id: Annotated[uuid.UUID | None, Form()] = None,
     date_of_birth: Annotated[date | None, Form()] = None,
     gender: Annotated[str | None, Form()] = None,
@@ -300,7 +317,7 @@ async def register(
         id_document_path = str(_ID_DOCUMENT_DIR / filename)
 
     # Actual role is a placeholder until an admin accepts the
-    # application and assigns a real one (spec Section 10) -- 'staff'
+    # application and assigns a real one (spec Section 10) -- 'cashier'
     # is the minimal existing role, so nothing is granted by default;
     # the account is gated regardless by _ensure_active_employment
     # while under_review. role_applied_for (below) is just the
@@ -310,7 +327,7 @@ async def register(
         email=body.email,
         phone=body.phone_number,
         password_hash=hash_password(body.password),
-        role="staff",
+        role="cashier",
         is_active=True,
         preferred_name=body.preferred_name,
     )
@@ -351,41 +368,98 @@ async def register(
 
 
 # PENDSTAFF-COMPLETE-PROFILE
+# CORR-CONTEXT
+@router.get("/complete-profile/context")
+async def complete_profile_context(
+    current_user: User = Depends(get_current_user_allow_pending),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Everything the completion / correction form needs: what the admin
+    entered, what the applicant already submitted (when sent back for
+    corrections), and the reviewer's note + flagged fields."""
+    app_repo = StaffApplicationRepository(session)
+    application = await app_repo.get_by_user_id(current_user.id)
+    if application is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No staff application on this account")
+    if application.status not in {"incomplete", "needs_changes"}:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Nothing to complete (status: '{application.status}').",
+        )
+    full_name = (current_user.full_name or application.full_legal_name or "").strip()
+    preferred = (getattr(application, "preferred_name", None) or "").strip()
+    if application.status == "incomplete" and preferred == full_name:
+        preferred = ""  # placeholder copied from the full name at creation
+    return {
+        "status": application.status,
+        "full_legal_name": full_name,
+        "email": (current_user.email or "").strip(),
+        "phone_number": (current_user.phone or "").strip(),
+        "role_applied_for": application.role_applied_for or current_user.role or "",
+        "branch_id": str(application.branch_id) if application.branch_id else "",
+        "preferred_name": preferred,
+        "date_of_birth": application.date_of_birth.isoformat() if application.date_of_birth else "",
+        "gender": application.gender or "",
+        "residential_address": application.residential_address or "",
+        "state_of_origin": application.state_of_origin or "",
+        "lga_of_origin": application.lga_of_origin or "",
+        "hometown": application.hometown or "",
+        "home_address_of_origin": application.home_address_of_origin or "",
+        "emergency_contact_name": application.emergency_contact_name or "",
+        "emergency_contact_phone": application.emergency_contact_phone or "",
+        "emergency_contact_relationship": application.emergency_contact_relationship or "",
+        "id_type": application.id_type or "",
+        "id_number": application.id_number or "",
+        "has_photo": bool(application.profile_photo_url),
+        "has_id_document": bool(application.id_document_path),
+        "correction_note": application.correction_note or "",
+        "correction_fields": [f for f in (application.correction_fields or "").split(",") if f],
+    }
+
+
 @router.post("/complete-profile", response_model=StaffApplicationOut)
 async def complete_profile(
-    full_legal_name: Annotated[str, Form()],
     preferred_name: Annotated[str, Form()],
-    phone_number: Annotated[str, Form()],
-    date_of_birth: Annotated[date, Form()],
-    residential_address: Annotated[str, Form()],
-    emergency_contact_name: Annotated[str, Form()],
-    emergency_contact_phone: Annotated[str, Form()],
-    id_type: Annotated[str, Form()],
-    id_number: Annotated[str, Form()],
+    full_legal_name: Annotated[str | None, Form()] = None,
+    role_applied_for: Annotated[str | None, Form()] = None,
+    branch_id: Annotated[str | None, Form()] = None,
+    email: Annotated[str | None, Form()] = None,
+    phone_number: Annotated[str | None, Form()] = None,
+    date_of_birth: Annotated[date | None, Form()] = None,
     gender: Annotated[str | None, Form()] = None,
-    emergency_contact_relationship: Annotated[str | None, Form()] = None,
+    residential_address: Annotated[str | None, Form()] = None,
     state_of_origin: Annotated[str | None, Form()] = None,
     lga_of_origin: Annotated[str | None, Form()] = None,
     hometown: Annotated[str | None, Form()] = None,
     home_address_of_origin: Annotated[str | None, Form()] = None,
+    emergency_contact_name: Annotated[str | None, Form()] = None,
+    emergency_contact_phone: Annotated[str | None, Form()] = None,
+    emergency_contact_relationship: Annotated[str | None, Form()] = None,
+    id_type: Annotated[str | None, Form()] = None,
+    id_number: Annotated[str | None, Form()] = None,
     profile_photo: UploadFile | None = File(default=None),
     id_document: UploadFile | None = File(default=None),
     current_user: User = Depends(get_current_user_allow_pending),
     session: AsyncSession = Depends(get_db_session),
 ) -> StaffApplicationOut:
     """Second step for accounts created from the Staff page's "New staff"
-    button: the person logs in, lands on the status page, and submits the
-    details the admin did not collect. Only valid while the application is
-    'incomplete'. On success it becomes 'under_review' -- still no access to
-    anything until a super admin or branch manager accepts it.
+    button. Same fields as the Create Account form. Anything the admin
+    already entered (name, email, phone, role, branch) is pre-filled and
+    the person may change it here. Role and branch are only a request: the
+    reviewer picks the final role and branch when approving, and the role
+    'super_admin' cannot be requested. Only valid while the
+    application is 'incomplete'; afterwards it is 'under_review' and the
+    person still has no access until a super admin / branch manager accepts.
     """
+    import re
+
     from api.v1.schemas.validators import validate_digits_only
 
     app_repo = StaffApplicationRepository(session)
     application = await app_repo.get_by_user_id(current_user.id)
     if application is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No staff application on this account")
-    if application.status != "incomplete":
+    if application.status not in ("incomplete", "needs_changes"):
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,
             detail=f"Your details were already submitted (status: '{application.status}').",
@@ -395,53 +469,99 @@ async def complete_profile(
         value = (value or "").strip()
         return value or None
 
-    full_legal_name = _clean(full_legal_name)
-    preferred_name = _clean(preferred_name)
-    phone_number = _clean(phone_number)
-    residential_address = _clean(residential_address)
-    emergency_contact_name = _clean(emergency_contact_name)
-    emergency_contact_phone = _clean(emergency_contact_phone)
-    id_type = _clean(id_type)
-    id_number = _clean(id_number)
+    def _bad(message: str, code: int = status.HTTP_422_UNPROCESSABLE_ENTITY) -> HTTPException:
+        return HTTPException(code, detail=message)
 
-    required = {
-        "Full name": full_legal_name,
-        "Preferred name / username": preferred_name,
-        "Phone number": phone_number,
-        "Residential address": residential_address,
-        "Emergency contact name": emergency_contact_name,
-        "Emergency contact phone": emergency_contact_phone,
-        "ID type": id_type,
-        "ID number": id_number,
-    }
-    missing = [label for label, value in required.items() if not value]
-    if missing:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Please fill in: " + ", ".join(missing))
-    if date_of_birth > date.today():
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Date of birth cannot be in the future")
-    if id_type not in ("national_id", "passport", "drivers_license"):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Choose a valid ID type")
+    user_repo = UserRepository(session)
+
+    # ---- identity fields: pre-filled by the admin, editable here ----
+    # PENDSTAFF-V3. Role and branch are only a request here: the reviewer
+    # picks the final role and branch when approving.  # PATCHP3L-TEXT
+    cur_name = (current_user.full_name or "").strip()
+    new_name = _clean(full_legal_name) or cur_name
+    if not new_name:
+        raise _bad("Enter your first name and surname.")
+    current_user.full_name = new_name
+    application.full_legal_name = new_name
+
+    cur_email = (current_user.email or "").strip()
+    new_email = _clean(email) or cur_email
+    if not new_email:
+        raise _bad("Enter your email address.")
+    if not re.match(r"^[^\s@]+@[^\s@]+\.[^\s@]+$", new_email):
+        raise _bad("Enter a valid email address.")
+    if new_email.lower() != cur_email.lower():
+        other = await user_repo.get_by_email(new_email)
+        if other is not None and other.id != current_user.id:
+            raise _bad(f"Email '{new_email}' is already in use", status.HTTP_409_CONFLICT)
+    current_user.email = new_email
+
+    cur_phone = (current_user.phone or "").strip()
+    new_phone = _clean(phone_number)
+    if new_phone:
+        try:
+            new_phone = validate_digits_only(new_phone, "Phone number")
+        except ValueError as exc:
+            raise _bad(str(exc))
+        if new_phone != cur_phone:
+            other = await user_repo.get_by_phone(new_phone)
+            if other is not None and other.id != current_user.id:
+                raise _bad(f"Phone '{new_phone}' is already in use", status.HTTP_409_CONFLICT)
+        current_user.phone = new_phone
+
+
+    # ---- role / branch: pre-filled, editable. Only a request -- the reviewer
+    # picks the final role/branch on approval. Must exist in the lists. ----
+    from sqlalchemy import text as _sql_text
+
+    new_role = _clean(role_applied_for)
+    if new_role and "website" in new_role.lower():  # PENDSTAFF-V6
+        raise _bad("Choose a valid role.")
+    if new_role == "super_admin":  # PATCHP3L-ROLE
+        raise _bad(f"'{new_role}' is not a role you can apply for")
+    if new_role:
+        found = (await session.execute(
+            _sql_text("SELECT name FROM roles WHERE name = :n LIMIT 1"), {"n": new_role}
+        )).scalar_one_or_none()
+        if found is None:
+            raise _bad("Choose a valid role.")
+        application.role_applied_for = found
+    new_branch = _clean(branch_id)
+    if new_branch:
+        found_branch = (await session.execute(
+            _sql_text("SELECT id FROM branches WHERE CAST(id AS text) = :i LIMIT 1"), {"i": new_branch}
+        )).scalar_one_or_none()
+        if found_branch is None:
+            raise _bad("Choose a valid branch.")
+        application.branch_id = found_branch
+
+    preferred_name = _clean(preferred_name)
+    if not preferred_name:
+        raise _bad("Enter your preferred name / username.")
+    other = await user_repo.get_by_preferred_name(preferred_name)
+    if other is not None and other.id != current_user.id:
+        raise _bad(
+            f"'{preferred_name}' is already taken by another staff member -- please choose a different preferred name.",
+            status.HTTP_409_CONFLICT,
+        )
+
+    # ---- optional fields (same as the Create Account form) ----
+    if date_of_birth is not None and date_of_birth > date.today():
+        raise _bad("Date of birth cannot be in the future")
     gender = _clean(gender)
     if gender is not None:
         gender = gender.lower()
         if gender not in ("male", "female"):
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Choose a valid gender")
-    try:
-        phone_number = validate_digits_only(phone_number, "Phone number")
-        emergency_contact_phone = validate_digits_only(emergency_contact_phone, "Emergency contact phone")
-    except ValueError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
-
-    user_repo = UserRepository(session)
-    other = await user_repo.get_by_phone(phone_number)
-    if other is not None and other.id != current_user.id:
-        raise HTTPException(status.HTTP_409_CONFLICT, detail=f"Phone '{phone_number}' is already in use")
-    other = await user_repo.get_by_preferred_name(preferred_name)
-    if other is not None and other.id != current_user.id:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            detail=f"'{preferred_name}' is already taken by another staff member -- please choose a different preferred name.",
-        )
+            raise _bad("Choose a valid gender")
+    id_type = _clean(id_type)
+    if id_type is not None and id_type not in ("national_id", "passport", "drivers_license"):
+        raise _bad("Choose a valid ID type")
+    emergency_contact_phone = _clean(emergency_contact_phone)
+    if emergency_contact_phone:
+        try:
+            emergency_contact_phone = validate_digits_only(emergency_contact_phone, "Emergency contact phone")
+        except ValueError as exc:
+            raise _bad(str(exc))
 
     if profile_photo is not None and profile_photo.filename:
         contents = await profile_photo.read()
@@ -454,27 +574,30 @@ async def complete_profile(
         )
         application.id_document_path = str(_ID_DOCUMENT_DIR / filename)
 
-    current_user.full_name = full_legal_name
-    current_user.phone = phone_number
     current_user.preferred_name = preferred_name
     await user_repo.save(current_user)
 
-    application.full_legal_name = full_legal_name
+    # name / email / phone / role / branch on the application mirror the
+    # account (already set by the admin) -- never taken from the request.
+    # PENDSTAFF-V4
     application.preferred_name = preferred_name
-    application.phone_number = phone_number
+    application.email = (current_user.email or "").strip()
+    application.phone_number = (current_user.phone or "").strip() or application.phone_number
     application.date_of_birth = date_of_birth
     application.gender = gender
-    application.residential_address = residential_address
+    application.residential_address = _clean(residential_address)
     application.state_of_origin = _clean(state_of_origin)
     application.lga_of_origin = _clean(lga_of_origin)
     application.hometown = _clean(hometown)
     application.home_address_of_origin = _clean(home_address_of_origin)
-    application.emergency_contact_name = emergency_contact_name
+    application.emergency_contact_name = _clean(emergency_contact_name)
     application.emergency_contact_phone = emergency_contact_phone
     application.emergency_contact_relationship = _clean(emergency_contact_relationship)
     application.id_type = id_type
-    application.id_number = id_number
+    application.id_number = _clean(id_number)
     application.status = "under_review"
+    application.correction_note = None
+    application.correction_fields = None
     application.submitted_at = datetime.now(timezone.utc)
     application = await app_repo.save(application)
     log_audit_event(
@@ -483,7 +606,6 @@ async def complete_profile(
     )
     await session.commit()
     return _to_out(application)
-
 
 @router.get("/me", response_model=StaffApplicationStatusOut)
 async def my_status(
@@ -507,12 +629,12 @@ async def my_status(
 async def list_applications(
     status_filter: str | None = None,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_REVIEW_ROLES)),
+    current_user: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
 ) -> list[StaffApplication]:
     repo = StaffApplicationRepository(session)
     rows = await repo.list_all(status=status_filter)
     # PENDSTAFF-LIST-SCOPE: a branch manager only sees their own branch
-    if current_user.role == "branch_manager":
+    if current_user.role != "super_admin":  # PATCHP3G-BRANCH
         rows = [r for r in rows if r.branch_id is None or r.branch_id == current_user.branch_id]
     return rows
 
@@ -589,10 +711,21 @@ def _build_blank_staff_form_pdf() -> bytes:
         pdf.cell(0, 8, choices, new_x="LMARGIN", new_y="NEXT")
         pdf.ln(1)
 
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 9, "Nick Cosmetics", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Helvetica", "", 12)
-    pdf.cell(0, 7, "Staff application form", new_x="LMARGIN", new_y="NEXT")
+    import pdf_branding as _brand  # Prestige / Nick Cosmetics logo
+    _logo = _brand.lockup_path()
+    if _logo:
+        from PIL import Image as _PILImage
+        with _PILImage.open(_logo) as _im:
+            _lw = 14 * _im.width / _im.height  # width in mm at 14 mm tall
+        pdf.image(_logo, x=(pdf.w - _lw) / 2, y=12, h=14)  # centred on the page
+        pdf.set_y(30)
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.cell(0, 9, "Staff application form", align="C", new_x="LMARGIN", new_y="NEXT")
+    else:
+        pdf.set_font("Helvetica", "B", 16)
+        pdf.cell(0, 9, "Nick Cosmetics", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", "", 12)
+        pdf.cell(0, 7, "Staff application form", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(1)
     pdf.set_font("Helvetica", "I", 9)
     pdf.multi_cell(
@@ -636,7 +769,7 @@ def _build_blank_staff_form_pdf() -> bytes:
 
 @router.get("/form.pdf")
 async def download_blank_staff_form(
-    _: User = Depends(require_role(*_REVIEW_ROLES)),
+    _: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
 ) -> Response:
     """Blank printable staff application form. Contains no personal data."""
     return Response(
@@ -650,7 +783,7 @@ async def download_blank_staff_form(
 async def get_application(
     application_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_REVIEW_ROLES)),
+    current_user: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
 ) -> StaffApplicationOut:
     repo = StaffApplicationRepository(session)
     application = await repo.get_by_id(application_id)
@@ -679,7 +812,7 @@ async def download_id_document(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Document not found")
 
     is_owner = application.user_id == current_user.id
-    is_reviewer = current_user.role in _REVIEW_ROLES
+    is_reviewer = (not is_owner) and await _holds_review_key(session, current_user)  # PATCHP3G-IDDOC
     if not (is_owner or is_reviewer):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to view this document")
 
@@ -696,8 +829,8 @@ async def accept_application(
     application_id: uuid.UUID,
     body: StaffApplicationAccept,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_REVIEW_ROLES)),
-) -> StaffApplication:
+    current_user: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
+) -> StaffApplicationOut:  # PATCHP3G-OUT
     """Accept -> convert applicant into an active employee (spec
     Sections 8-10): auto-assign an employee ID, and set the branch and
     role the admin chose. Nothing from the application is re-entered
@@ -716,7 +849,7 @@ async def accept_application(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"Cannot accept an application in '{application.status}' status")
 
     # PENDSTAFF-ACCEPT-ROLE
-    # No role sent -> keep the user's current role: 'staff' for self-registered
+    # No role sent -> keep the user's current role: 'cashier' for self-registered
     # applicants (same as before), or the role an admin picked on "New staff".
     linked_user = await UserRepository(session).get_by_id(application.user_id)
     if "role" in body.model_fields_set:
@@ -727,11 +860,11 @@ async def accept_application(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Unknown role '{role}'")
 
     branch_id = body.branch_id or application.branch_id  # PENDSTAFF-ACCEPT-BRANCH
-    if current_user.role == "branch_manager":
+    if current_user.role != "super_admin":  # PATCHP3G-BRANCH
         # Same restriction as create_user in users.py -- a branch
-        # manager can only bring someone on as 'staff', into their own
+        # manager can only bring someone on as 'cashier', into their own
         # branch, never as a peer/admin or into another branch.
-        if role != "staff":
+        if role != "cashier":
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Branch managers may only accept applicants as staff")
         if current_user.branch_id is None:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Branch manager has no assigned branch")
@@ -768,7 +901,78 @@ async def accept_application(
         metadata={"employee_id": user.employee_id, "branch_id": str(branch_id), "role": role},
     )
     await session.commit()
-    return application
+    return _to_out(application)  # PATCHP3G-OUT
+
+
+from pydantic import BaseModel as _PydBase, Field as _PydField  # CORR-REQUEST-CHANGES
+
+
+class StaffApplicationRequestChanges(_PydBase):
+    note: str = _PydField(min_length=1, max_length=2000)
+    flagged_fields: list[str] = _PydField(default_factory=list)
+
+
+# Form field ids a reviewer may flag ("name" = first/middle/surname group).
+_CORRECTABLE_FIELDS = {
+    "name", "email", "phone_number", "preferred_name", "role_applied_for", "branch_id",
+    "profile_photo", "date_of_birth", "gender", "residential_address", "state_of_origin",
+    "lga_of_origin", "hometown", "home_address_of_origin", "emergency_contact_name",
+    "emergency_contact_phone", "emergency_contact_relationship", "id_type", "id_number",
+    "id_document",
+}
+
+
+@router.post("/{application_id}/request-changes", response_model=StaffApplicationOut)
+async def request_application_changes(
+    application_id: uuid.UUID,
+    body: StaffApplicationRequestChanges,
+    session: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
+) -> StaffApplicationOut:
+    """Send an application back to the applicant with a note and the fields
+    that need fixing. Status becomes 'needs_changes' -- still no access. The
+    applicant sees their saved data, fixes it and resubmits (-> under_review).
+    """
+    repo = StaffApplicationRepository(session)
+    application = await repo.get_by_id(application_id)
+    if application is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Application not found")
+    if application.status != "under_review":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot request changes on an application in '{application.status}' status",
+        )
+    if (
+        current_user.role != "super_admin"  # PATCHP3G-BRANCH
+        and application.branch_id is not None
+        and application.branch_id != current_user.branch_id
+    ):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="This applicant belongs to another branch")
+
+    note = body.note.strip()
+    if not note:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Write a note telling the applicant what to fix")
+    flagged: list[str] = []
+    for raw_field in body.flagged_fields:
+        field_id = raw_field.strip()
+        if field_id not in _CORRECTABLE_FIELDS:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail=f"Unknown field '{field_id}'")
+        if field_id not in flagged:
+            flagged.append(field_id)
+
+    application.status = "needs_changes"
+    application.correction_note = note
+    application.correction_fields = ",".join(flagged) or None
+    application.reviewed_by = current_user.id
+    application.reviewed_at = datetime.now(timezone.utc)
+    application = await repo.save(application)
+    log_audit_event(
+        session, user_id=current_user.id, action="application_changes_requested",
+        entity_type="staff_application", entity_id=application.id,
+        metadata={"note": note, "fields": flagged},
+    )
+    await session.commit()
+    return _to_out(application)
 
 
 @router.post("/{application_id}/reject", response_model=StaffApplicationOut)
@@ -776,8 +980,8 @@ async def reject_application(
     application_id: uuid.UUID,
     body: StaffApplicationReject,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_REVIEW_ROLES)),
-) -> StaffApplication:
+    current_user: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
+) -> StaffApplicationOut:  # PATCHP3G-OUT
     repo = StaffApplicationRepository(session)
     application = await repo.get_by_id(application_id)
     if application is None:
@@ -785,7 +989,7 @@ async def reject_application(
     if application.status != "under_review":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"Cannot reject an application in '{application.status}' status")
     if (  # PENDSTAFF-REJECT-SCOPE
-        current_user.role == "branch_manager"
+        current_user.role != "super_admin"  # PATCHP3G-BRANCH
         and application.branch_id is not None
         and application.branch_id != current_user.branch_id
     ):
@@ -802,15 +1006,15 @@ async def reject_application(
         metadata={"reason": body.reason} if body.reason else None,
     )
     await session.commit()
-    return application
+    return _to_out(application)  # PATCHP3G-OUT
 
 
 @router.post("/{application_id}/suspend", response_model=StaffApplicationOut)
 async def suspend_application(
     application_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_REVIEW_ROLES)),
-) -> StaffApplication:
+    current_user: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
+) -> StaffApplicationOut:  # PATCHP3G-OUT
     """Suspend an active employee (spec Section 24). Blocks protected
     business functions and, matching the existing deactivate_user
     behaviour in users.py, also blocks login outright -- the employee
@@ -828,7 +1032,13 @@ async def suspend_application(
     if user is not None:
         if user.id == current_user.id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Cannot suspend your own account")
-        if current_user.role == "branch_manager" and user.branch_id != current_user.branch_id:
+        if current_user.role != "super_admin" and user.branch_id != current_user.branch_id:  # PATCHP3G-BRANCH
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to modify this employee")
+        if current_user.role != "super_admin" and (  # PATCHP3K-TARGET
+            current_user.branch_id is None
+            or user.branch_id != current_user.branch_id
+            or user.role in ("super_admin", "branch_manager")
+        ):
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to modify this employee")
         user.is_active = False
         await user_repo.save(user)
@@ -842,15 +1052,15 @@ async def suspend_application(
         entity_type="staff_application", entity_id=application.id,
     )
     await session.commit()
-    return application
+    return _to_out(application)  # PATCHP3G-OUT
 
 
 @router.post("/{application_id}/reactivate", response_model=StaffApplicationOut)
 async def reactivate_application(
     application_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_REVIEW_ROLES)),
-) -> StaffApplication:
+    current_user: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
+) -> StaffApplicationOut:  # PATCHP3G-OUT
     repo = StaffApplicationRepository(session)
     application = await repo.get_by_id(application_id)
     if application is None:
@@ -861,7 +1071,13 @@ async def reactivate_application(
     user_repo = UserRepository(session)
     user = await user_repo.get_by_id(application.user_id)
     if user is not None:
-        if current_user.role == "branch_manager" and user.branch_id != current_user.branch_id:
+        if current_user.role != "super_admin" and user.branch_id != current_user.branch_id:  # PATCHP3G-BRANCH
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to modify this employee")
+        if current_user.role != "super_admin" and (  # PATCHP3K-TARGET
+            current_user.branch_id is None
+            or user.branch_id != current_user.branch_id
+            or user.role in ("super_admin", "branch_manager")
+        ):
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to modify this employee")
         user.is_active = True
         await user_repo.save(user)
@@ -875,14 +1091,14 @@ async def reactivate_application(
         entity_type="staff_application", entity_id=application.id,
     )
     await session.commit()
-    return application
+    return _to_out(application)  # PATCHP3G-OUT
 
 
 @router.delete("/{application_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_application(
     application_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role(*_REVIEW_ROLES)),
+    current_user: User = Depends(require_permission("review_staff_applications")),  # PATCHP3G-GUARDS
 ) -> None:
     """Permanently deletes the applicant's account, not just the
     application record -- same hard-delete rules as
@@ -900,10 +1116,16 @@ async def delete_application(
     user = await user_repo.get_by_id(application.user_id)
     if user is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Linked user account not found")
-    if current_user.role == "branch_manager" and user.branch_id != current_user.branch_id:
+    if current_user.role != "super_admin" and user.branch_id != current_user.branch_id:  # PATCHP3G-BRANCH
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to modify this employee")
     if user.id == current_user.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
+    if current_user.role != "super_admin" and (  # PATCHP3K-TARGET
+        current_user.branch_id is None
+        or user.branch_id != current_user.branch_id
+        or user.role in ("super_admin", "branch_manager")
+    ):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not permitted to modify this employee")
 
     blockers = await deletion_blockers(session, user.id)
     if blockers:

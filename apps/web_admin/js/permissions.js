@@ -34,6 +34,15 @@ const ROLE_PERMISSIONS = {
     'process_sale', 'view_own_sales', 'search_products', 'view_stock',
     'view_low_stock', 'register_customer', 'change_own_password',
   ],
+  // PATCHW1B-MYPERMS: fallback list for store_assistant (same names as the
+  // server matrix). Only used when the server's own list could not be
+  // loaded; the real list from GET /auth/me/permissions wins whenever it
+  // is available.
+  store_assistant: [
+    'change_own_password', 'search_products', 'view_stock', 'view_low_stock',
+    'restock_shelf', 'set_shelf_limit', 'reduce_shelf_stock', 'view_received_goods',
+    'manage_units', 'view_inventory_overview', 'view_stock_alerts', 'use_warehouse',
+  ],
 };
 
 // Every permission a branch_manager can be individually restricted from
@@ -77,6 +86,35 @@ const PERMISSION_LABELS = {
   manage_sync: 'Manage device sync',
   download_statements: 'Download account statements',
   configure_system: 'Configure system settings',
+  // PATCHR3A-ALPHA: names for the other permissions (so the Roles list reads well)
+  view_low_stock: 'View low stock',
+  manage_backups: 'Manage backups',
+  process_sale: 'Process sales',
+  view_own_sales: 'View own sales',
+  search_products: 'Search products',
+  view_stock: 'View stock',
+  register_customer: 'Register customers',
+  change_own_password: 'Change own password',
+  remove_super_admin: 'Remove super admin',
+  transfer_ownership: 'Transfer ownership',
+  view_purchase_invoices: 'View purchase invoices',
+  view_restock_list: 'View restock list',
+  manage_restock_list: 'Manage restock list',
+  restock_shelf: 'Restock shelf',
+  set_shelf_limit: 'Set shelf limit',
+  reduce_shelf_stock: 'Reduce shelf stock',
+  view_received_goods: 'View received goods',
+  view_catalog: 'View product catalog',
+  manage_units: 'Manage packaging units',
+  view_inventory_history: 'View inventory history',
+  view_customer_orders: 'View customer orders',
+  view_revenue_totals: 'View revenue totals',
+  view_inventory_overview: 'View inventory overview',
+  view_stock_alerts: 'View stock alerts',
+  generate_pos_code: 'Generate POS code',
+  view_website_code: 'View website code',
+  view_transactions: 'View transactions',
+  use_warehouse: 'Use warehouse',
 };
 
 // Which sidebar nav item requires which permission. A nav item with no
@@ -91,7 +129,7 @@ const NAV_REQUIREMENTS = {
   // Feature Spec 1, section 1) -- was two separate nav entries
   // ('categories', 'variant-types'), now one.
   'category-variants': 'manage_products',
-  // 'staff' deliberately NOT listed here -- viewing the roster is a
+  // 'cashier' deliberately NOT listed here -- viewing the roster is a
   // role-based grant (any super_admin or branch_manager), not a
   // permission one, since branch_manager no longer carries
   // 'manage_users' by default but must still see the page. See
@@ -126,13 +164,25 @@ const NAV_REQUIREMENTS = {
   // "view_purchase_invoices" gate (now revoked from the staff role by
   // migration dd11ee22ff33) on GET /purchase-invoices.
   invoice: 'view_purchase_invoices',
+  // PATCHP3R-NAV: sidebar links for POS, Transactions and Reports use the
+  // same key as the page. super_admin always passes Perms.can().
+  pos: 'process_sale',
+  sales: 'view_transactions',
+  reports: 'view_all_reports',
 };
 
 // Nav items gated on role membership rather than a permission grant --
-// see the 'staff' comment above for why viewing the roster needs this
+// see the 'cashier' comment above for why viewing the roster needs this
 // instead of NAV_REQUIREMENTS.
 const NAV_ROLE_REQUIREMENTS = {
   staff: ['super_admin', 'branch_manager'],
+};
+
+// PATCHP3A-WAREHOUSE-ACCESS
+// Nav items shown when the person has ANY of the listed permissions.
+// The Warehouse link needs use_warehouse or manage_inventory.
+const NAV_ANY_REQUIREMENTS = {
+  warehouse: ['use_warehouse', 'manage_inventory'],
 };
 
 const Perms = {
@@ -149,11 +199,20 @@ const Perms = {
     return this.role() === 'branch_manager';
   },
   isStaff() {
-    return this.role() === 'staff';
+    return this.role() === 'cashier';
   },
   can(action) {
     const user = this.user();
     if (!user) return false;
+    // PATCHW1B-MYPERMS: super_admin is never restricted in the UI. Anyone
+    // else uses the server's own list (GET /auth/me/permissions: role
+    // list plus individual grants minus individual denials) whenever it
+    // has been loaded. Only if it is missing (first page after an old
+    // login, or the server could not be reached) does the old logic
+    // below run, unchanged.
+    if (user.role === 'super_admin') return true;
+    const mine = Auth.getMyPermissions();
+    if (mine) return mine.includes(action);
     // The cache (populated below from GET /roles) wins whenever it has
     // an entry for this role -- that's what lets a custom role, or a
     // super-admin edit to any role's permissions (including the three
@@ -195,6 +254,19 @@ const Perms = {
     }
   },
 
+  // PATCHW1B-MYPERMS: refresh the saved copy of this user's real
+  // permissions (GET /auth/me/permissions). Fire-and-forget like the
+  // role cache above; on any failure the previously saved copy stays.
+  async refreshMyPermissions() {
+    if (!Auth.getToken()) return;
+    try {
+      const mine = await Api.myPermissions();
+      if (mine && Array.isArray(mine.permissions)) Auth.setMyPermissions(mine.permissions);
+    } catch (err) {
+      // Not fatal -- can() keeps using what was saved before, or the old fallback.
+    }
+  },
+
   // Hides sidebar links the current user shouldn't see. Call once per
   // page, right after Auth.requireAuth().
   applyNav() {
@@ -203,6 +275,8 @@ const Perms = {
       if (required && !this.can(required)) el.remove();
       const roleRequired = NAV_ROLE_REQUIREMENTS[el.dataset.nav];
       if (roleRequired && !roleRequired.includes(this.role())) el.remove();
+      const anyRequired = NAV_ANY_REQUIREMENTS[el.dataset.nav]; // PATCHP3A-WAREHOUSE-ACCESS
+      if (anyRequired && !anyRequired.some((p) => this.can(p))) el.remove();
     });
     // Reveal the nav now that the links that shouldn't be there are
     // gone -- see the .nav-gate-pending CSS rule in style.css for why
@@ -247,5 +321,7 @@ const Perms = {
 // file (all of them) -- see refreshRolePermissionsCache() above for why
 // this is fire-and-forget rather than blocking page render.
 Perms.refreshRolePermissionsCache();
+// PATCHW1B-MYPERMS: same for the user's own real permission list.
+Perms.refreshMyPermissions();
 
 // Chat was removed from the sidebar (no unread-count badge any more).

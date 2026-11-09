@@ -13,7 +13,7 @@
 // v2: categories.html + variant-types.html merged into
 // category-variants.html (variant-category-system-spec.md) -- bumped so
 // clients with the old shell cached don't keep serving the removed page.
-const CACHE_NAME = 'nc-admin-shell-v15';
+const CACHE_NAME = 'nc-admin-shell-v21';
 const SHELL_ASSETS = [
   'dashboard.html',
   'pos.html',

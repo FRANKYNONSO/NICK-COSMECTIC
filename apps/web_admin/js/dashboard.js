@@ -2,7 +2,7 @@
 Auth.requireAuth();
 Perms.applyNav();
 
-const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier' };
+const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier', store_assistant: 'Store assistant' }; // PATCHP3C-ROLE-LABEL
 const currentUser = Auth.getUser();
 document.getElementById('current-user-name').textContent = currentUser?.full_name || 'Signed in';
 document.getElementById('current-user-role').textContent = roleLabels[currentUser?.role] || currentUser?.role || '';
@@ -905,7 +905,9 @@ async function loadMyKpis() {
     return d >= cutoff;
   }
   try {
-    const mine = await Api.listSales({ dateFrom: dateNDaysAgo(90) });
+    // MYKPI-OWN-SALES-FIX: 'my' sales = only sales served by the logged-in user.
+    const myId = currentUser?.id || (await Api.me())?.id;
+    const mine = myId ? await Api.listSales({ dateFrom: dateNDaysAgo(90), cashierId: myId }) : [];
     // Compare using local calendar day everywhere (matches inRange's
     // d.toDateString() basis) -- mixing this with a UTC-based string
     // slice was the bug that made "today" show 0 while sales from

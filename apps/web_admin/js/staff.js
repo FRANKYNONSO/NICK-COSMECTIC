@@ -36,7 +36,7 @@ if (isBranchManager) {
   // picker on the create form to match what the server will actually
   // allow, same as before, just no longer dependent on static <option>
   // elements already being in the markup.
-  document.getElementById('role').innerHTML = '<option value="staff">Staff</option>';
+  document.getElementById('role').innerHTML = '<option value="cashier">Cashier</option>';
 }
 
 // ------------------------------------------------------------ Branches
@@ -199,7 +199,7 @@ function rowHtml(u) {
           ${canEditStaff ? `<button class="btn btn-ghost btn-sm" data-edit="${u.id}">Edit</button>` : ''}
           ${canEditStaff ? `<button class="btn btn-ghost btn-sm" data-reset="${u.id}">Reset password</button>` : ''}
           ${isSuperAdmin && u.role === 'branch_manager' ? `<button class="btn btn-ghost btn-sm" data-restrict="${u.id}">Restrict access</button>` : ''}
-          ${isSuperAdmin && u.role === 'staff' ? `<button class="btn btn-ghost btn-sm" data-grant="${u.id}">Grant extra access</button>` : ''}
+          ${isSuperAdmin && u.role === 'cashier' ? `<button class="btn btn-ghost btn-sm" data-grant="${u.id}">Grant extra access</button>` : ''}
           ${canEditStaff && !isSelf ? `<button class="btn btn-ghost btn-sm" data-toggle="${u.id}">${toggleLabel}</button>` : ''}
           ${canEditStaff && !isSelf ? `<button class="btn btn-danger-text btn-sm" data-delete-user="${u.id}">Delete</button>` : ''}
         </div>
@@ -434,8 +434,42 @@ const restrictModalError = document.getElementById('restrict-modal-error');
 const restrictChecklist = document.getElementById('restrict-checklist');
 let restrictTargetId = null;
 let restrictTargetGranted = [];
+// PATCHP3P-STAFF: state for the grouped Restrict list.
+let restrictShownKeys = [];
+let restrictPrevDenied = [];
+let restrictOpenToken = 0;
 
 function openRestrictModal(u) {
+  restrictPickerOpen(u);
+}
+
+// PATCHP3P-STAFF: loads roles and the registry fresh, then opens the dialog.
+// If anything fails, the old fixed list is shown (restrictShowOld below).
+// restrictOpenToken drops the answer of an older click when a newer one came.
+async function restrictPickerOpen(u) {
+  const token = ++restrictOpenToken;
+  let picker = null;
+  try {
+    const [roles, registry] = await Promise.all([Api.listRoles(), Api.getPermissionRegistry()]);
+    const roleKeys = StaffPicker.roleKeysFor(roles, u.role);
+    if (roleKeys && StaffPicker.isUsableRegistry(registry)) {
+      picker = StaffPicker.renderBoxes('restrict', registry, roleKeys, u.denied_permissions || []);
+    }
+  } catch (err) {
+    picker = null;
+  }
+  if (token !== restrictOpenToken) return;
+  restrictShowOld(u);
+  restrictPrevDenied = u.denied_permissions || [];
+  if (picker) {
+    restrictChecklist.innerHTML = picker.html;
+    restrictShownKeys = picker.shown;
+  } else {
+    restrictShownKeys = RESTRICTABLE_BRANCH_MANAGER_PERMISSIONS.slice();
+  }
+}
+
+function restrictShowOld(u) {
   restrictTargetId = u.id;
   restrictTargetGranted = u.granted_permissions || [];
   const denied = new Set(u.denied_permissions || []);
@@ -459,8 +493,11 @@ restrictForm.addEventListener('submit', async (e) => {
   const deniedPermissions = [...restrictChecklist.querySelectorAll('[data-perm]')]
     .filter((el) => !el.checked)
     .map((el) => el.dataset.perm);
+  // PATCHP3P-STAFF: shown boxes that were unticked are denied; keys the dialog did not show stay as they were.
+  const tickedKeys = restrictShownKeys.filter((k) => !deniedPermissions.includes(k));
+  const mergedDenied = StaffPicker.mergeSelection('restrict', restrictShownKeys, tickedKeys, restrictPrevDenied);
   try {
-    await Api.updateUserPermissions(restrictTargetId, deniedPermissions, restrictTargetGranted);
+    await Api.updateUserPermissions(restrictTargetId, mergedDenied, restrictTargetGranted);
     restrictModalBackdrop.classList.remove('visible');
     showToast('Restrictions saved.');
     loadStaff();
@@ -484,13 +521,45 @@ const grantModalError = document.getElementById('grant-modal-error');
 const grantChecklist = document.getElementById('grant-checklist');
 let grantTargetId = null;
 let grantTargetDenied = [];
+// PATCHP3P-STAFF: state for the grouped Grant list.
+let grantShownKeys = [];
+let grantPrevGranted = [];
+let grantOpenToken = 0;
 
 function openGrantModal(u) {
+  grantPickerOpen(u);
+}
+
+// PATCHP3P-STAFF: same idea as restrictPickerOpen above, for the Grant dialog.
+async function grantPickerOpen(u) {
+  const token = ++grantOpenToken;
+  let picker = null;
+  try {
+    const [roles, registry] = await Promise.all([Api.listRoles(), Api.getPermissionRegistry()]);
+    const roleKeys = StaffPicker.roleKeysFor(roles, u.role);
+    if (roleKeys && StaffPicker.isUsableRegistry(registry)) {
+      picker = StaffPicker.renderBoxes('grant', registry, roleKeys, u.granted_permissions || []);
+    }
+  } catch (err) {
+    picker = null;
+  }
+  if (token !== grantOpenToken) return;
+  grantShowOld(u);
+  grantPrevGranted = u.granted_permissions || [];
+  if (picker) {
+    grantChecklist.innerHTML = picker.html;
+    grantShownKeys = picker.shown;
+  } else {
+    grantShownKeys = GRANTABLE_STAFF_PERMISSIONS.slice();
+  }
+}
+
+function grantShowOld(u) {
   grantTargetId = u.id;
   grantTargetDenied = u.denied_permissions || [];
   const granted = new Set(u.granted_permissions || []);
   document.getElementById('grant-modal-sub').textContent =
-    `Give ${u.full_name} one or two extra abilities beyond the normal Staff role -- without upgrading their role.`;
+    `Give ${u.full_name} one or two extra abilities beyond the normal Cashier role -- without upgrading their role.`;
   grantChecklist.innerHTML = GRANTABLE_STAFF_PERMISSIONS.map((perm) => `
     <label class="checkbox" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
       <input type="checkbox" data-perm="${perm}" ${granted.has(perm) ? 'checked' : ''} />
@@ -509,8 +578,10 @@ grantForm?.addEventListener('submit', async (e) => {
   const grantedPermissions = [...grantChecklist.querySelectorAll('[data-perm]')]
     .filter((el) => el.checked)
     .map((el) => el.dataset.perm);
+  // PATCHP3P-STAFF: shown boxes that were ticked are granted; keys the dialog did not show stay as they were.
+  const mergedGranted = StaffPicker.mergeSelection('grant', grantShownKeys, grantedPermissions, grantPrevGranted);
   try {
-    await Api.updateUserPermissions(grantTargetId, grantTargetDenied, grantedPermissions);
+    await Api.updateUserPermissions(grantTargetId, grantTargetDenied, mergedGranted);
     grantModalBackdrop.classList.remove('visible');
     showToast('Extra access saved.');
     loadStaff();
@@ -540,6 +611,8 @@ const statusLabels = {
   accepted: 'Accepted',
   rejected: 'Rejected',
   suspended: 'Suspended',
+  needs_changes: 'Needs corrections',
+  incomplete: 'Awaiting profile',
 };
 
 document.getElementById('staff-tabs').addEventListener('click', (e) => {
@@ -740,6 +813,7 @@ async function openReviewModal(id) {
         ? `<div style="margin-top:8px;"><button type="button" class="btn btn-ghost btn-sm" id="view-id-doc-btn">View ID document</button></div>`
         : '',
       reviewTarget.rejection_reason ? detailRow('Rejection reason', reviewTarget.rejection_reason) : '',
+      reviewTarget.correction_note ? detailRow('Corrections requested', reviewTarget.correction_note) : '',
     ].join('');
 
     loadCredentialPhotos(reviewTarget);
@@ -752,7 +826,7 @@ async function openReviewModal(id) {
       document.getElementById('review-branch').innerHTML = branchCache.map((b) => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
     }
     if (isBranchManager) {
-      document.getElementById('review-role').value = 'staff';
+      document.getElementById('review-role').value = 'cashier';
       document.getElementById('review-role-field').style.display = 'none';
       document.getElementById('review-branch').value = currentUser.branch_id || '';
       document.getElementById('review-branch').disabled = true;
@@ -776,6 +850,8 @@ async function openReviewModal(id) {
     document.getElementById('review-accept-fields').style.display = canReview ? '' : 'none';
     document.getElementById('review-accept-btn').style.display = canReview ? '' : 'none';
     document.getElementById('review-reject-btn').style.display = canReview ? '' : 'none';
+    const rcBtn = document.getElementById('review-request-changes-btn');
+    if (rcBtn) rcBtn.style.display = canReview ? '' : 'none';
 
     document.getElementById('review-reject-btn').textContent = 'Reject';
     document.getElementById('review-accept-btn').textContent = 'Accept';
@@ -844,6 +920,100 @@ document.getElementById('review-accept-btn').addEventListener('click', async () 
     reviewModalError.classList.add('visible');
   }
 });
+
+// CORR-STAFFJS-BLOCK
+// "Request changes": send an application back to the applicant with a note and
+// the fields they must fix. They stay locked out until it is approved.
+(function () {
+  var FIELD_OPTIONS = [
+    ['name', 'Name'], ['email', 'Email'], ['phone_number', 'Phone number'],
+    ['preferred_name', 'Preferred name / username'], ['role_applied_for', 'Role'], ['branch_id', 'Branch'],
+    ['profile_photo', 'Profile photo'], ['date_of_birth', 'Date of birth'], ['gender', 'Gender'],
+    ['residential_address', 'Residential address'], ['state_of_origin', 'State of origin'],
+    ['lga_of_origin', 'LGA of origin'], ['hometown', 'Hometown'],
+    ['home_address_of_origin', 'Home address (origin)'], ['emergency_contact_name', 'Emergency contact name'],
+    ['emergency_contact_phone', 'Emergency contact phone'],
+    ['emergency_contact_relationship', 'Emergency contact relationship'],
+    ['id_type', 'ID type'], ['id_number', 'ID number'], ['id_document', 'ID document'],
+  ];
+  var rejectBtn = document.getElementById('review-reject-btn');
+  if (!rejectBtn || document.getElementById('review-request-changes-btn')) return;
+
+  var openBtn = document.createElement('button');
+  openBtn.type = 'button';
+  openBtn.id = 'review-request-changes-btn';
+  openBtn.className = 'btn btn-ghost';
+  openBtn.textContent = 'Request changes';
+  openBtn.style.display = 'none';
+  rejectBtn.parentNode.insertBefore(openBtn, rejectBtn);
+
+  var backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.id = 'request-changes-backdrop';
+  backdrop.innerHTML =
+    '<div class="modal" style="max-width:520px;">' +
+    '<h3>Request changes</h3>' +
+    '<p class="modal-sub">The applicant will see your note and can fix the ticked fields, then resubmit. They stay locked out until you approve.</p>' +
+    '<div id="rc-error" class="error-banner"></div>' +
+    '<div class="field"><label for="rc-note">Note for the applicant</label>' +
+    '<textarea id="rc-note" rows="4" style="width:100%;" placeholder="What is wrong and what should they fix?"></textarea></div>' +
+    '<div class="field"><label>Fields to correct</label>' +
+    '<div id="rc-fields" style="display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;max-height:200px;overflow:auto;"></div></div>' +
+    '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:14px;">' +
+    '<button type="button" class="btn btn-ghost" id="rc-cancel">Cancel</button>' +
+    '<button type="button" class="btn btn-primary" id="rc-send" style="width:auto;">Send back for corrections</button>' +
+    '</div></div>';
+  document.body.appendChild(backdrop);
+
+  var fieldsBox = backdrop.querySelector('#rc-fields');
+  FIELD_OPTIONS.forEach(function (pair) {
+    var label = document.createElement('label');
+    label.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:13px;';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = pair[0];
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(pair[1]));
+    fieldsBox.appendChild(label);
+  });
+
+  var errBox = backdrop.querySelector('#rc-error');
+  var noteEl = backdrop.querySelector('#rc-note');
+  var sendBtn = backdrop.querySelector('#rc-send');
+
+  openBtn.addEventListener('click', function () {
+    if (!reviewTarget) return;
+    noteEl.value = '';
+    errBox.classList.remove('visible');
+    fieldsBox.querySelectorAll('input').forEach(function (cb) { cb.checked = false; });
+    backdrop.classList.add('visible');
+  });
+  backdrop.querySelector('#rc-cancel').addEventListener('click', function () {
+    backdrop.classList.remove('visible');
+  });
+  sendBtn.addEventListener('click', async function () {
+    var note = noteEl.value.trim();
+    if (!note) {
+      errBox.textContent = 'Write a note telling the applicant what to fix.';
+      errBox.classList.add('visible');
+      return;
+    }
+    var flagged = Array.prototype.map.call(fieldsBox.querySelectorAll('input:checked'), function (cb) { return cb.value; });
+    sendBtn.disabled = true;
+    try {
+      await Api.requestApplicationChanges(reviewTarget.id, note, flagged);
+      backdrop.classList.remove('visible');
+      reviewModalBackdrop.classList.remove('visible');
+      showToast(reviewTarget.full_legal_name + ' was asked to correct their details.');
+      loadApplications();
+    } catch (err) {
+      errBox.textContent = err.message;
+      errBox.classList.add('visible');
+    } finally {
+      sendBtn.disabled = false;
+    }
+  });
+})();
 
 document.getElementById('review-reject-btn').addEventListener('click', async () => {
   if (!reviewTarget) return;
@@ -1114,7 +1284,7 @@ loadResetHistory();
     const url = new URL('register.html', window.location.href);
     const branchId = String((isBranchManager ? currentUser.branch_id : BranchContext.get()) || '');
     if (UUID_RE.test(branchId)) url.searchParams.set('branch', branchId);
-    url.searchParams.set('role', 'staff');
+    url.searchParams.set('role', 'cashier');
     return url.toString();
   }
 

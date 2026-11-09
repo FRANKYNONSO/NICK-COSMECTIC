@@ -129,7 +129,7 @@ async def test_e_bad_reasons_are_rejected(client, db_session):
 
 async def test_f_cashier_cannot_undo(client, db_session):
     order, headers, batch_ids = await _paid_order(client, db_session)
-    cashier = await _make_user(db_session, "staff", None)
+    cashier = await _make_user(db_session, "cashier", None)
     resp = await _undo(client, cashier, order["id"], {"reason": REASON})
     assert resp.status_code == 403, resp.text
     row = await _order_row(db_session, order["id"])

@@ -5,12 +5,13 @@ from datetime import datetime
 from enum import Enum
 
 from nickcosmetics_core.exceptions import InvalidRoleError
+from nickcosmetics_core.domain.users.permission_registry import REGISTRY_KEYS as _REGISTRY_KEYS  # PATCHREG2
 
 
 class Role(str, Enum):
     SUPER_ADMIN = "super_admin"
     BRANCH_MANAGER = "branch_manager"
-    STAFF = "staff"
+    STAFF = "cashier"
 
 
 # Central permission table. Kept here (not scattered across API routers)
@@ -90,7 +91,48 @@ _PERMISSIONS: dict[Role, set[str]] = {
 # used by the API layer to reject typos/unknown permission names when
 # a super_admin sets per-account restrictions (see
 # api/v1/routers/users.py's update_user_permissions).
-ALL_PERMISSIONS: frozenset[str] = frozenset().union(*_PERMISSIONS.values())
+# PATCHP1-MATRIX
+# One shared source of truth for the four production roles, keyed by the
+# role NAME stored in the roles table. The API itself still reads the roles
+# table on every request (api/dependencies.py); this table is what the tests,
+# the web admin fallback and the seeding migration are checked against.
+_SUPER_ADMIN_PERMISSIONS: frozenset[str] = frozenset({
+    "manage_users", "manage_products", "manage_inventory", "manage_suppliers",
+    "manage_coupons", "view_all_reports", "view_low_stock", "view_financials",
+    "configure_system", "view_audit_logs", "manage_sync", "manage_backups",
+    "process_sale", "view_own_sales", "remove_super_admin", "transfer_ownership",
+    "download_statements", "search_products", "view_stock", "register_customer",
+    "change_own_password", "view_purchase_invoices", "view_restock_list",
+    "manage_restock_list", "restock_shelf", "set_shelf_limit", "reduce_shelf_stock",
+    "view_received_goods", "view_catalog", "manage_units", "view_inventory_history",
+    "view_customer_orders", "view_revenue_totals", "view_inventory_overview",
+    "view_stock_alerts", "generate_pos_code", "view_website_code",
+    "view_transactions", "use_warehouse",
+})
+
+ROLE_PERMISSION_MATRIX: dict[str, frozenset[str]] = {
+    "super_admin": _SUPER_ADMIN_PERMISSIONS,
+    "branch_manager": _SUPER_ADMIN_PERMISSIONS - frozenset({
+        "manage_users", "configure_system", "manage_backups",
+        "remove_super_admin", "transfer_ownership", "view_website_code",
+    }),
+    "cashier": frozenset({
+        "process_sale", "view_own_sales", "search_products", "view_stock",
+        "view_low_stock", "register_customer", "change_own_password",
+        "view_restock_list", "view_catalog", "manage_units", "set_shelf_limit",
+        "view_customer_orders", "view_inventory_overview", "view_transactions",
+    }),
+    "store_assistant": frozenset({
+        "change_own_password", "search_products", "view_stock", "view_low_stock",
+        "restock_shelf", "set_shelf_limit", "reduce_shelf_stock",
+        "view_received_goods", "manage_units", "view_inventory_overview",
+        "view_stock_alerts", "use_warehouse",
+    }),
+}
+
+ALL_PERMISSIONS: frozenset[str] = (
+    frozenset().union(*_PERMISSIONS.values()) | _SUPER_ADMIN_PERMISSIONS | _REGISTRY_KEYS
+)  # PATCHP1-MATRIX PATCHREG2
 
 
 @dataclass

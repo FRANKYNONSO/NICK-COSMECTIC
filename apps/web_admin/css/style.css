@@ -3047,3 +3047,23 @@ main table tbody td button:hover, .content table tbody td button:hover {
   background-position: center 45%;
   background-size: 64px 64px;
 }
+
+/* Restrict / Grant access checklists: stop the global ".field input { width:100% }"
+   from stretching each checkbox across the row, so the checkbox sits right
+   next to its label and the label gets the rest of the width. */
+#restrict-checklist input[type="checkbox"],
+#grant-checklist input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+#restrict-checklist label.checkbox,
+#grant-checklist label.checkbox {
+  gap: 12px !important;
+  padding: 6px 0;
+  cursor: pointer;
+}

@@ -9,7 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from nickcosmetics_core.domain.money import Money
 
-from api.dependencies import get_current_user, get_db_session, require_permission
+from api.dependencies import (
+    can_view_costs,
+    get_current_user,
+    get_db_session,
+    require_any_permission,
+    require_permission,
+)  # PATCHP2C3B-TRANSFER-COST
 from api.v1.schemas.warehouse import (
     IntakeReceiptOut,
     LinkInvoiceLineItemProductIn,
@@ -343,7 +349,7 @@ async def log_waybill_complaint(
 async def list_waybill_complaints(
     branch_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_any_permission("manage_inventory", "use_warehouse")),  # PATCHP2D-WAREHOUSE-GUARDS
 ) -> list[IntakeReceiptOut]:
     stmt = select(IntakeReceipt).order_by(IntakeReceipt.received_at.desc())
     if branch_id:
@@ -687,6 +693,7 @@ async def create_stock_transfer(
 
     await session.commit()
     await session.refresh(transfer)
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C3B-TRANSFER-COST
     return StockTransferOut(
         id=transfer.id,
         product_id=transfer.product_id,
@@ -701,7 +708,7 @@ async def create_stock_transfer(
         is_half_partial=transfer.is_half_partial,
         receipt_id=transfer.receipt_id,
         notes=transfer.notes,
-        total_cost_naira=Money(transfer.total_cost_kobo).naira if transfer.total_cost_kobo is not None else None,
+        total_cost_naira=Money(transfer.total_cost_kobo).naira if (show_cost and transfer.total_cost_kobo is not None) else None,  # PATCHP2C3B-TRANSFER-COST
         payment_method=transfer.payment_method,
         unit_price_naira=Money(transfer.unit_price_kobo).naira if transfer.unit_price_kobo is not None else None,
         total_price_naira=(
@@ -816,7 +823,7 @@ async def preview_transfer_cost(
     from_branch_id: uuid.UUID,
     quantity_pieces: int,
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(require_permission("manage_inventory")),
+    current_user: User = Depends(require_permission("manage_inventory")),  # PATCHP2C3B-TRANSFER-COST
 ) -> dict:
     """September 2026 change spec section 19: "On confirming, show a
     receipt-style summary (items, cost, who processed it) before final
@@ -828,9 +835,10 @@ async def preview_transfer_cost(
     moment later.
     """
     avg_unit_cost_kobo = await _fifo_deduct(session, product_id, from_branch_id, quantity_pieces, dry_run=True)
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C3B-TRANSFER-COST
     return {
-        "unit_cost_naira": Money(avg_unit_cost_kobo).naira,
-        "total_cost_naira": Money(avg_unit_cost_kobo * quantity_pieces).naira,
+        "unit_cost_naira": Money(avg_unit_cost_kobo).naira if show_cost else None,
+        "total_cost_naira": Money(avg_unit_cost_kobo * quantity_pieces).naira if show_cost else None,
     }
 
 
@@ -1579,7 +1587,8 @@ async def pull_to_store(
     override_shelf_limit: bool = False,
     override_reason: str | None = None,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_permission("manage_inventory")),
+    # PATCHP2B-SHELF-GUARDS: manage_inventory still works; restock_shelf is the narrow permission.
+    current_user: User = Depends(require_any_permission("manage_inventory", "restock_shelf")),
 ) -> StockTransfer:
     """This branch's own warehouse -> its shop floor (restocking from
     backstock).
@@ -1765,7 +1774,7 @@ def _wh_breakdown_text(acc):
 async def list_warehouse_stock(
     branch_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_any_permission("manage_inventory", "use_warehouse")),  # PATCHP2D-WAREHOUSE-GUARDS
 ) -> list[WarehouseStockOut]:
     """What's currently sitting in a branch's warehouse -- spec:
     warehouse stock "should also have its own section to store that
@@ -1855,7 +1864,7 @@ async def list_stock_transfers(
     product_id: uuid.UUID | None = None,
     transfer_type: str | None = None,
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission("manage_inventory", "use_warehouse")),  # PATCHP2C3B-TRANSFER-COST  # PATCHP2D-WAREHOUSE-GUARDS
 ) -> list[StockTransferOut]:
     stmt = select(StockTransfer).order_by(StockTransfer.created_at.desc())
     if branch_id:
@@ -1904,6 +1913,7 @@ async def list_stock_transfers(
         elif ret_status in ("requested", "accepted"):
             open_map[ret_tid] = open_map.get(ret_tid, 0) + int(ret_qty)
 
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C3B-TRANSFER-COST
     return [
         StockTransferOut(
             id=t.id,
@@ -1931,7 +1941,7 @@ async def list_stock_transfers(
             pieces_count=t.pieces_count,
             receipt_id=t.receipt_id,
             notes=t.notes,
-            total_cost_naira=Money(t.total_cost_kobo).naira if t.total_cost_kobo is not None else None,
+            total_cost_naira=Money(t.total_cost_kobo).naira if (show_cost and t.total_cost_kobo is not None) else None,  # PATCHP2C3B-TRANSFER-COST
             payment_method=t.payment_method,
             unit_price_naira=Money(t.unit_price_kobo).naira if t.unit_price_kobo is not None else None,
             total_price_naira=Money(t.unit_price_kobo * t.quantity_pieces).naira if t.unit_price_kobo is not None else None,

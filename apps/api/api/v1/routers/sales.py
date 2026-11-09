@@ -1527,11 +1527,13 @@ async def pending_refund_count(
     # Same tier as viewing low-stock/expiry alerts -- the pending-
     # refund dashboard badge (spec section 10) is Super Admin/Branch
     # Manager territory, since only they can act on it.
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("process_refunds")),  # PATCHP3B
 ) -> PendingRefundSummary:
     conditions = [ORMRefund.status == "pending"]
-    if current_user.role == "branch_manager" and current_user.branch_id:
+    if current_user.role != "super_admin" and current_user.branch_id:
         conditions.append(ORMSale.branch_id == current_user.branch_id)
+    elif current_user.role != "super_admin":  # PATCHP3J-COUNT
+        return PendingRefundSummary(count=0)
     elif branch_id:
         conditions.append(ORMSale.branch_id == branch_id)
     count = await session.scalar(
@@ -1548,7 +1550,7 @@ async def mark_refund_processed(
     refund_id: uuid.UUID,
     body: RefundMarkProcessed,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("process_refunds")),  # PATCHP3B
 ) -> RefundOut:
     """Super Admin / Branch Manager confirming a pending transfer
     refund has actually been sent (spec section 10) -- clears the
@@ -1557,6 +1559,14 @@ async def mark_refund_processed(
     refund = await session.get(ORMRefund, refund_id)
     if refund is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Refund not found")
+    if current_user.role != "super_admin":  # PATCHP3I-BRANCH
+        refund_sale = await session.get(ORMSale, refund.sale_id)
+        if (
+            current_user.branch_id is None
+            or refund_sale is None
+            or refund_sale.branch_id != current_user.branch_id
+        ):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Refund not found")
     if refund.status != "pending":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This refund is not pending.")
 
@@ -1599,7 +1609,7 @@ async def get_refund_detail(
     if orm_sale is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Original sale not found")
 
-    if current_user.role == "staff" and orm_sale.branch_id != current_user.branch_id:
+    if current_user.role == "cashier" and orm_sale.branch_id != current_user.branch_id:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail="You can only view refunds for your own branch"
         )
@@ -1874,11 +1884,13 @@ async def pending_change_count(
     session: AsyncSession = Depends(get_db_session),
     # Same tier as the refund pending-count badge (spec 2.4) -- only
     # someone who can actually act on it needs to see the count.
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("process_pending_changes")),  # PATCHP3B
 ) -> PendingRefundSummary:
     conditions = [PendingChange.status.in_(["pending", "outstanding"])]
-    if current_user.role == "branch_manager" and current_user.branch_id:
+    if current_user.role != "super_admin" and current_user.branch_id:
         conditions.append(PendingChange.branch_id == current_user.branch_id)
+    elif current_user.role != "super_admin":  # PATCHP3J-COUNT
+        return PendingRefundSummary(count=0)
     elif branch_id:
         conditions.append(PendingChange.branch_id == branch_id)
     count = await session.scalar(select(func.count()).select_from(PendingChange).where(*conditions))
@@ -1894,6 +1906,8 @@ async def list_pending_changes(
 ) -> list[PendingChangeOut]:
     effective_branch_id = current_user.branch_id if current_user.branch_id is not None else branch_id
     stmt = select(PendingChange)
+    if current_user.role != "super_admin" and current_user.branch_id is None:  # PATCHP3J-COUNT
+        return []
     if status_filter:
         stmt = stmt.where(PendingChange.status == status_filter)
     if effective_branch_id is not None:
@@ -1909,7 +1923,7 @@ async def mark_pending_change_processed(
     change_id: uuid.UUID,
     body: PendingChangeMarkProcessed,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_role("super_admin", "branch_manager")),
+    current_user: User = Depends(require_permission("process_pending_changes")),  # PATCHP3B
 ) -> PendingChangeOut:
     """Super Admin / Branch Manager confirming a pending transfer/
     airtime change settlement has actually been sent (spec 2.4) --
@@ -1921,6 +1935,13 @@ async def mark_pending_change_processed(
     change = await session.get(PendingChange, change_id)
     if change is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Pending change not found")
+    if current_user.role != "super_admin":  # PATCHP3I-BRANCH
+        change_branch_id = change.branch_id
+        if change_branch_id is None:
+            change_sale = await session.get(ORMSale, change.sale_id)
+            change_branch_id = change_sale.branch_id if change_sale is not None else None
+        if current_user.branch_id is None or change_branch_id != current_user.branch_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Pending change not found")
     if change.status != "pending":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This change settlement is not pending approval.")
 
@@ -2059,7 +2080,7 @@ async def get_sale(
     # This is a VIEW permission only -- it does not let them edit,
     # delete, or cancel anything belonging to another cashier (spec
     # section 26: don't confuse visibility with edit permission).
-    if current_user.role == "staff" and orm_sale.branch_id != current_user.branch_id:
+    if current_user.role == "cashier" and orm_sale.branch_id != current_user.branch_id:
         raise HTTPException(
             status.HTTP_403_FORBIDDEN, detail="You can only view receipts for your own branch"
         )
@@ -2116,7 +2137,7 @@ async def list_sales(
     current_user: User = Depends(require_permission("view_own_sales")),
 ) -> list[SaleOut]:
     # Sales & Receipts is branch-based, not cashier-based (spec
-    # section 16): a cashier ("staff") sees every sale rung up at
+    # section 16): a cashier ("cashier") sees every sale rung up at
     # their OWN branch, regardless of who served it, so they can help
     # a customer who bought from a colleague. They are still hard-
     # restricted to their own branch server-side -- never trusted from

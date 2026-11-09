@@ -9,6 +9,13 @@
 <link rel="apple-touch-icon" href="icon.svg" />
 <title>Application Status — Nick Cosmetics Admin</title>
 <link rel="stylesheet" href="css/style.css" />
+<style>
+  /* Prestige x Nick Cosmetics logo */
+  .reg-logo-wrap { display: block; text-align: center; }
+  .reg-logo { width: clamp(64px, 11vh, 88px); margin: 0 auto 10px; }
+  .reg-logo svg { display: block; width: 100%; height: auto; }
+  .reg-logo svg g { fill: var(--ink, #D9DADD); }
+</style>
 <script src="js/theme.js"></script>
   <script src="js/numeric-input-fix.js"></script>
   <script src="ui-dialog.js"></script>
@@ -17,9 +24,9 @@
 
 <div class="login-shell">
   <div class="status-page">
-    <div class="login-brand" style="justify-content:center;">
-      <span class="swatch-mark"><span></span><span></span><span></span></span>
-      <h1 class="display">Nick Cosmetics</h1>
+    <div class="login-brand reg-logo-wrap" style="justify-content:center;">
+      <div class="reg-logo" role="img" aria-label="Prestige, Nick Cosmetics"><svg viewBox="-10 -10 729 1150" aria-hidden="true"><g fill="#D9DADD"><rect x="0" y="95" width="185" height="774"/><polygon points="267,130 451,0 451,554 267,554"/><rect x="285" y="601" width="148" height="44"/><rect x="267" y="692" width="184" height="220"/><rect x="524" y="95" width="185" height="770"/><g transform="translate(34,0)"><path transform="translate(0,1040)" d="M9.621618870027435 -85.00045546124828H42.35789609053498Q56.98958869170096 -85.00045546124828 64.78936256858711 -77.79847447273661Q72.58913644547326 -70.59649348422496 72.58913644547326 -57.27425197187929Q72.58913644547326 -43.89507780349794 64.78936256858711 -36.69309681498628Q56.98958869170096 -29.491115826474623 42.35789609053498 -29.491115826474623H29.377250514403293V0.0H9.621618870027435ZM29.377250514403293 -69.11624442729767V-45.37532686042524H40.25138781721537Q46.00158607681756 -45.37532686042524 49.132882158779154 -48.478156614369Q52.26417824074074 -51.58098636831276 52.26417824074074 -57.27425197187929Q52.26417824074074 -62.96751757544582 49.132882158779154 -66.04188100137175Q46.00158607681756 -69.11624442729767 40.25138781721537 -69.11624442729767Z M124.09164951989027 -47.31103716563786Q130.24037637174212 -47.31103716563786 132.94467753343622 -49.8730066872428Q135.64897869513032 -52.434976208847736 135.64897869513032 -58.29903978052126Q135.64897869513032 -64.10617069615913 132.94467753343622 -66.6112075617284Q130.24037637174212 -69.11624442729767 124.09164951989027 -69.11624442729767H115.77948173868313V-47.31103716563786ZM115.77948173868313 -32.16695066015089V0.0H96.02385009430728V-85.00045546124828H126.14122513717422Q141.28531164266118 -85.00045546124828 148.31649466306584 -79.36412251371742Q155.34767768347052 -73.72778956618656 155.34767768347052 -61.54420117455418Q155.34767768347052 -53.11816808127572 151.70398769718793 -47.70956575788752Q148.06029771090536 -42.300963434499316 140.6590524262689 -39.73899391289438Q144.7012710048011 -38.7142061042524 147.9179660708162 -35.09898244598765Q151.13466113683128 -31.48375878772291 154.3798225308642 -24.139446159122084L165.08316186556928 0.0H144.0750117884088L134.79498885459535 -21.122015389231823Q131.94835605281207 -27.498472865226336 129.04479059499315 -29.83271176268861Q126.14122513717422 -32.16695066015089 121.35888203017834 -32.16695066015089Z M186.35443458504804 -85.00045546124828H239.5864679783951V-68.43305255486969H206.1100662294239V-52.60577417695473H237.5938250171468V-36.038371270576135H206.1100662294239V-16.5674029063786H240.72512109910838V0.0H186.35443458504804Z M320.8078275034294 -82.32462062757202V-64.33390132030178Q314.5452353395062 -67.46519740226337 308.53884012774347 -69.059311771262Q302.5324449159808 -70.65342614026063 297.18077524862827 -70.65342614026063Q290.1211259002058 -70.65342614026063 286.7336328660837 -68.48998521090536Q283.34613983196164 -66.32654428155007 283.34613983196164 -61.77193179869685Q283.34613983196164 -58.355972436556925 285.6234460733882 -56.448728459362144Q287.90075231481484 -54.541484482167355 293.9356138545954 -53.17510073731139L302.30471429183814 -51.29632308813443Q315.11456189986285 -48.449690286351164 320.46623156721535 -42.6425593707133Q325.8179012345679 -36.835428455075444 325.8179012345679 -26.13208912037037Q325.8179012345679 -12.069723079561042 318.3312569658779 -5.2093380272633745Q310.8446126971879 1.6510470250342935 295.41586291152265 1.6510470250342935Q288.1284829389575 1.6510470250342935 280.81263663837456 0.11386531207133055Q273.49679033779154 -1.4233164008916324 266.1524777091907 -4.440747170781893V-22.943860382373114Q273.49679033779154 -18.616978523662553 280.32870906207137 -16.42507126628944Q287.1606277863512 -14.233164008916324 293.5370852623457 -14.233164008916324Q299.97047539437585 -14.233164008916324 303.41490108453365 -16.624335562414267Q306.8593267746914 -19.015507115912207 306.8593267746914 -23.4562542866941Q306.8593267746914 -27.441540209190673 304.5250878772291 -29.604981138545952Q302.1908489797668 -31.768422067901234 295.18813228738 -33.47640174897119L287.55915637860085 -35.355179398148145Q276.1156925154321 -38.087946887860085 270.79248917609743 -44.06587577160494Q265.4692858367627 -50.043804655349795 265.4692858367627 -60.177817429698216Q265.4692858367627 -72.87379972565158 272.8705311213992 -79.70571844993142Q280.2717764060357 -86.53763717421126 294.0494791666667 -86.53763717421126Q300.36900398662556 -86.53763717421126 307.0301247427984 -85.48438303755145Q313.6912454989712 -84.43112890089164 320.8078275034294 -82.32462062757202Z M343.55934927983543 -85.00045546124828H414.04197745198906V-68.43305255486969H388.70694551611797V0.0H368.9513138717421V-68.43305255486969H343.55934927983543Z M433.7760684585048 -85.00045546124828H453.5317001028807V0.0H433.7760684585048Z M551.092731910151 -6.319524819958848Q543.6914866255145 -2.334238897462277 535.7493811085392 -0.34159593621399176Q527.8072755915639 1.6510470250342935 519.3812424982854 1.6510470250342935Q500.25187007030183 1.6510470250342935 489.0930694873114 -10.21941175840192Q477.934268904321 -22.089870541838135 477.934268904321 -42.41482874657064Q477.934268904321 -62.96751757544582 489.2923337834362 -74.75257737482853Q500.6503986625515 -86.53763717421126 520.462962962963 -86.53763717421126Q528.0919388717422 -86.53763717421126 535.094655564129 -84.94352280521262Q542.0973722565159 -83.34940843621399 548.3030317644034 -80.2181123542524V-62.62592163923183Q541.8696416323731 -66.66814021776406 535.5501168124143 -68.66078317901236Q529.2305919924555 -70.65342614026063 522.8541345164609 -70.65342614026063Q511.06907471707825 -70.65342614026063 504.6926172410837 -63.337579839677645Q498.3161597650892 -56.02173353909465 498.3161597650892 -42.41482874657064Q498.3161597650892 -28.92178926611797 504.46488661694104 -21.577476637517147Q510.6136134687929 -14.233164008916324 521.9432120198903 -14.233164008916324Q525.0175754458162 -14.233164008916324 527.6649439514747 -14.660158929183813Q530.3123124571331 -15.087153849451303 532.361888074417 -15.998076346021948V-32.50854659636488H520.3490976508917V-47.19717185356653H551.092731910151Z M577.9434049211249 -85.00045546124828H631.1754383144719V-68.43305255486969H597.6990365655007V-52.60577417695473H629.1827953532236V-36.038371270576135H597.6990365655007V-16.5674029063786H632.3140914351852V0.0H577.9434049211249Z"/></g><g fill="#D9DADD"><g transform="translate(34,0)"><path transform="translate(0,1130)" d="M4.301429612482853 -38.00020361796982H14.15144890260631L26.597597307956104 -11.93710348079561V-38.00020361796982H34.94593407064472V0.0H25.095914780521262L12.675218621399177 -26.06310013717421V0.0H4.301429612482853Z M58.307431808589214 -38.00020361796982H67.1393612496043V0.0H58.307431808589214Z M117.6329534662868 -2.0870841906721536Q115.18953782842672 -0.6872106481481481 112.55523034385882 0.025452246227709197Q109.92092285929093 0.7381151406035665 107.0702712817875 0.7381151406035665Q98.51831654927722 0.7381151406035665 93.52967628864621 -4.568678197873799Q88.54103602801521 -9.875471536351165 88.54103602801521 -18.961923439643346Q88.54103602801521 -28.073827589163237 93.52967628864621 -33.38062092764061Q98.51831654927722 -38.68741426611797 107.0702712817875 -38.68741426611797Q109.92092285929093 -38.68741426611797 112.55523034385882 -37.974751371742116Q115.18953782842672 -37.262088477366255 117.6329534662868 -35.86221493484225V-27.99747085048011Q115.16408558219902 -29.85548482510288 112.78430055990822 -30.720861196844993Q110.4045155376174 -31.586237568587105 107.78293417616335 -31.586237568587105Q103.04881637780944 -31.586237568587105 100.35087827767228 -28.226541066529492Q97.6529401775351 -24.86684456447188 97.6529401775351 -18.961923439643346Q97.6529401775351 -13.082454561042523 100.35087827767228 -9.72275805898491Q103.04881637780944 -6.363061556927297 107.78293417616335 -6.363061556927297Q110.4045155376174 -6.363061556927297 112.78430055990822 -7.228437928669409Q115.16408558219902 -8.093814300411522 117.6329534662868 -9.951828275034293Z M139.67093440039042 -38.00020361796982H148.5028638414055V-24.12872942386831L161.2035347090324 -38.00020361796982H171.4607899387992L154.96773438324365 -20.00546553497942L173.140638189828 0.0H162.0943633270022L148.5028638414055 -14.965920781893004V0.0H139.67093440039042Z  M248.9810033502163 -2.0870841906721536Q246.5375877123562 -0.6872106481481481 243.90328022778831 0.025452246227709197Q241.26897274322042 0.7381151406035665 238.41832116571697 0.7381151406035665Q229.8663664332067 0.7381151406035665 224.8777261725757 -4.568678197873799Q219.8890859119447 -9.875471536351165 219.8890859119447 -18.961923439643346Q219.8890859119447 -28.073827589163237 224.8777261725757 -33.38062092764061Q229.8663664332067 -38.68741426611797 238.41832116571697 -38.68741426611797Q241.26897274322042 -38.68741426611797 243.90328022778831 -37.974751371742116Q246.5375877123562 -37.262088477366255 248.9810033502163 -35.86221493484225V-27.99747085048011Q246.5121354661285 -29.85548482510288 244.1323504438377 -30.720861196844993Q241.75256542154688 -31.586237568587105 239.13098406009286 -31.586237568587105Q234.39686626173892 -31.586237568587105 231.69892816160177 -28.226541066529492Q229.0009900614646 -24.86684456447188 229.0009900614646 -18.961923439643346Q229.0009900614646 -13.082454561042523 231.69892816160177 -9.72275805898491Q234.39686626173892 -6.363061556927297 239.13098406009286 -6.363061556927297Q241.75256542154688 -6.363061556927297 244.1323504438377 -7.228437928669409Q246.5121354661285 -8.093814300411522 248.9810033502163 -9.951828275034293Z M286.6466634681334 -31.586237568587105Q282.62520856415534 -31.586237568587105 280.3981370192308 -28.27744555898491Q278.1710654743062 -24.968653549382715 278.1710654743062 -18.961923439643346Q278.1710654743062 -12.980645576131687 280.3981370192308 -9.671853566529492Q282.62520856415534 -6.363061556927297 286.6466634681334 -6.363061556927297Q290.69357061833915 -6.363061556927297 292.92064216326366 -9.671853566529492Q295.14771370818823 -12.980645576131687 295.14771370818823 -18.961923439643346Q295.14771370818823 -24.968653549382715 292.92064216326366 -28.27744555898491Q290.69357061833915 -31.586237568587105 286.6466634681334 -31.586237568587105ZM286.6466634681334 -38.68741426611797Q294.89319124591117 -38.68741426611797 299.56367842869577 -33.44425154320987Q304.2341656114804 -28.20108882030178 304.2341656114804 -18.961923439643346Q304.2341656114804 -9.74821030521262 299.56367842869577 -4.505047582304527Q294.89319124591117 0.7381151406035665 286.6466634681334 0.7381151406035665Q278.4255879365833 0.7381151406035665 273.7423746306848 -4.505047582304527Q269.0591613247863 -9.74821030521262 269.0591613247863 -18.961923439643346Q269.0591613247863 -28.20108882030178 273.7423746306848 -33.44425154320987Q278.4255879365833 -38.68741426611797 286.6466634681334 -38.68741426611797Z M349.4336906127994 -36.80394804526749V-28.761038237311386Q346.6339435277514 -30.16091177983539 343.9487315507281 -30.87357467421125Q341.2635195737048 -31.586237568587105 338.8710084283001 -31.586237568587105Q335.7149298960642 -31.586237568587105 334.20052124551546 -30.619052211934154Q332.6861125949668 -29.651866855281206 332.6861125949668 -27.61568715706447Q332.6861125949668 -26.088552383401918 333.7042024440751 -25.23590213477366Q334.7222922931835 -24.383251886145402 337.4202303933207 -23.772397976680384L341.16171058879394 -22.93247385116598Q346.8884659900285 -21.659861539780522 349.2809771354332 -19.063732424554182Q351.67348828083783 -16.467603309327846 351.67348828083783 -11.682581018518517Q351.67348828083783 -5.3958762002743486 348.3265179018941 -2.328880529835391Q344.9795475229503 0.7381151406035665 338.08198879524116 0.7381151406035665Q334.82410127809436 0.7381151406035665 331.55348763783377 0.05090449245541839Q328.2828739975731 -0.6363061556927297 324.9995342341986 -1.9852752057613168V-10.257255229766804Q328.2828739975731 -8.322884516460904 331.33714354489825 -7.342973036694101Q334.39141309222333 -6.363061556927297 337.24206466972674 -6.363061556927297Q340.11816849345786 -6.363061556927297 341.6580293902343 -7.432055898491083Q343.1978902870107 -8.50105024005487 343.1978902870107 -10.486325445816187Q343.1978902870107 -12.267982681755829 342.1543481916746 -13.235168038408778Q341.11080609633854 -14.202353395061728 337.9801798103303 -14.965920781893004L334.5695788158173 -15.805844907407407Q329.4536773240477 -17.027552726337447 327.0738923017569 -19.70003858024691Q324.6941072794661 -22.37252443415638 324.6941072794661 -26.903024262688614Q324.6941072794661 -32.578875171467764 328.0028992890683 -35.63314471879286Q331.3116912986705 -38.68741426611797 337.4711348857761 -38.68741426611797Q340.2963342170518 -38.68741426611797 343.2742470256938 -38.216547710905346Q346.25215983433577 -37.74568115569273 349.4336906127994 -36.80394804526749Z M374.16960964704026 -38.00020361796982H385.39405023346L393.182437579139 -17.663858882030176L401.02172941727343 -38.00020361796982H412.2207177574655V0.0H403.87238099477685V-27.793852880658434L396.0076369104147 -7.304794667352537H390.4081427403187L382.54339865595654 -27.793852880658434V0.0H374.16960964704026Z M435.6076677416377 -38.00020361796982H459.40551796454577V-30.593599965706446H444.4395971826528V-23.51787551440329H458.51468934657595V-16.111271862139915H444.4395971826528V-7.4066036522633745H459.91456288909995V0.0H435.6076677416377Z M478.3383248588689 -38.00020361796982H509.84820568877285V-30.593599965706446H498.5219561174423V0.0H489.6900266764272V-30.593599965706446H478.3383248588689Z M529.1627962765116 -38.00020361796982H537.9947257175268V0.0H529.1627962765116Z M588.4883179342092 -2.0870841906721536Q586.0449022963492 -0.6872106481481481 583.4105948117813 0.025452246227709197Q580.7762873272134 0.7381151406035665 577.92563574971 0.7381151406035665Q569.3736810171996 0.7381151406035665 564.3850407565686 -4.568678197873799Q559.3964004959377 -9.875471536351165 559.3964004959377 -18.961923439643346Q559.3964004959377 -28.073827589163237 564.3850407565686 -33.38062092764061Q569.3736810171996 -38.68741426611797 577.92563574971 -38.68741426611797Q580.7762873272134 -38.68741426611797 583.4105948117813 -37.974751371742116Q586.0449022963492 -37.262088477366255 588.4883179342092 -35.86221493484225V-27.99747085048011Q586.0194500501215 -29.85548482510288 583.6396650278307 -30.720861196844993Q581.2598800055398 -31.586237568587105 578.6382986440858 -31.586237568587105Q573.9041808457318 -31.586237568587105 571.2062427455946 -28.226541066529492Q568.5083046454575 -24.86684456447188 568.5083046454575 -18.961923439643346Q568.5083046454575 -13.082454561042523 571.2062427455946 -9.72275805898491Q573.9041808457318 -6.363061556927297 578.6382986440858 -6.363061556927297Q581.2598800055398 -6.363061556927297 583.6396650278307 -7.228437928669409Q586.0194500501215 -8.093814300411522 588.4883179342092 -9.951828275034293Z M634.3241490912209 -36.80394804526749V-28.761038237311386Q631.5244020061729 -30.16091177983539 628.8391900291496 -30.87357467421125Q626.1539780521263 -31.586237568587105 623.7614669067216 -31.586237568587105Q620.6053883744856 -31.586237568587105 619.0909797239369 -30.619052211934154Q617.5765710733882 -29.651866855281206 617.5765710733882 -27.61568715706447Q617.5765710733882 -26.088552383401918 618.5946609224966 -25.23590213477366Q619.612750771605 -24.383251886145402 622.3106888717422 -23.772397976680384L626.0521690672155 -22.93247385116598Q631.77892446845 -21.659861539780522 634.1714356138547 -19.063732424554182Q636.5639467592594 -16.467603309327846 636.5639467592594 -11.682581018518517Q636.5639467592594 -5.3958762002743486 633.2169763803156 -2.328880529835391Q629.8700060013718 0.7381151406035665 622.9724472736626 0.7381151406035665Q619.7145597565159 0.7381151406035665 616.4439461162552 0.05090449245541839Q613.1733324759946 -0.6363061556927297 609.88999271262 -1.9852752057613168V-10.257255229766804Q613.1733324759946 -8.322884516460904 616.2276020233196 -7.342973036694101Q619.2818715706447 -6.363061556927297 622.1325231481482 -6.363061556927297Q625.0086269718794 -6.363061556927297 626.5484878686557 -7.432055898491083Q628.0883487654321 -8.50105024005487 628.0883487654321 -10.486325445816187Q628.0883487654321 -12.267982681755829 627.044806670096 -13.235168038408778Q626.00126457476 -14.202353395061728 622.8706382887518 -14.965920781893004L619.4600372942388 -15.805844907407407Q614.3441358024692 -17.027552726337447 611.9643507801784 -19.70003858024691Q609.5845657578876 -22.37252443415638 609.5845657578876 -26.903024262688614Q609.5845657578876 -32.578875171467764 612.8933577674898 -35.63314471879286Q616.202149777092 -38.68741426611797 622.3615933641976 -38.68741426611797Q625.1867926954733 -38.68741426611797 628.1647055041153 -38.216547710905346Q631.1426183127572 -37.74568115569273 634.3241490912209 -36.80394804526749Z"/></g></g></g></svg></div>
+      <h1 class="display" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Nick Cosmetics</h1>
     </div>
 
     <div id="status-icon" class="status-icon">⏳</div>
@@ -28,120 +35,397 @@
 
     <div id="complete-profile-wrap" style="display:none; text-align:left; margin-top:16px;">
       <style>
-        .cp-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 14px; }
-        @media (max-width:560px) { .cp-grid { grid-template-columns:1fr; } }
-        .cp-field { display:flex; flex-direction:column; gap:4px; margin-bottom:12px; }
-        .cp-field label { font-size:13px; opacity:.85; }
-        .cp-field input, .cp-field select { padding:10px 12px; border:1px solid rgba(128,128,128,.35); border-radius:8px; background:transparent; color:inherit; font:inherit; }
-        .cp-field select option { color:#111; }
-        .cp-full { grid-column:1 / -1; }
-        .cp-h { font-size:14px; font-weight:600; margin:10px 0 8px; }
+        #complete-profile-wrap .cp-locked { opacity:.7; cursor:not-allowed; }
+        #complete-profile-wrap .cp-note { font-size:12px; color:var(--ink-faint); margin:0 0 10px; }
       </style>
       <form id="complete-profile-form">
-        <div class="cp-h">Basic information</div>
-        <div class="cp-grid">
-          <div class="cp-field cp-full"><label for="cp-full-name">Full legal name *</label><input id="cp-full-name" name="full_legal_name" required /></div>
-          <div class="cp-field"><label for="cp-pref">Preferred name / username *</label><input id="cp-pref" name="preferred_name" required /></div>
-          <div class="cp-field"><label for="cp-phone">Phone number *</label><input id="cp-phone" name="phone_number" type="tel" required /></div>
-          <div class="cp-field"><label for="cp-dob">Date of birth *</label><input id="cp-dob" name="date_of_birth" type="date" required /></div>
-          <div class="cp-field"><label for="cp-gender">Gender</label>
-            <select id="cp-gender" name="gender"><option value="">Select</option><option value="male">Male</option><option value="female">Female</option></select></div>
-          <div class="cp-field cp-full"><label for="cp-addr">Current residential address *</label><input id="cp-addr" name="residential_address" required /></div>
+        <h3 class="display" style="font-size:14px;margin:0 0 10px;">Role &amp; branch</h3>
+        <p class="cp-note">Pre-filled by your administrator &mdash; change them if they are wrong.</p>
+        <div class="field">
+          <label for="role_applied_for">Role</label>
+          <select id="role_applied_for"><option value="">Loading&hellip;</option></select>
         </div>
-        <div class="cp-h">Origin</div>
-        <div class="cp-grid">
-          <div class="cp-field"><label for="cp-soo">State of origin</label><input id="cp-soo" name="state_of_origin" /></div>
-          <div class="cp-field"><label for="cp-lga">LGA of origin</label><input id="cp-lga" name="lga_of_origin" /></div>
-          <div class="cp-field"><label for="cp-town">Hometown</label><input id="cp-town" name="hometown" /></div>
-          <div class="cp-field"><label for="cp-haoo">Home address of origin</label><input id="cp-haoo" name="home_address_of_origin" /></div>
+        <div class="field">
+          <label for="branch_id">Branch</label>
+          <select id="branch_id"><option value="">Loading&hellip;</option></select>
         </div>
-        <div class="cp-h">Emergency contact</div>
-        <div class="cp-grid">
-          <div class="cp-field"><label for="cp-ecn">Contact name *</label><input id="cp-ecn" name="emergency_contact_name" required /></div>
-          <div class="cp-field"><label for="cp-ecp">Contact phone *</label><input id="cp-ecp" name="emergency_contact_phone" type="tel" required /></div>
-          <div class="cp-field cp-full"><label for="cp-ecr">Relationship to contact</label><input id="cp-ecr" name="emergency_contact_relationship" /></div>
+
+        <h3 class="display" style="font-size:14px;margin:20px 0 10px;">Account credentials</h3>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" />
         </div>
-        <div class="cp-h">Identification</div>
-        <div class="cp-grid">
-          <div class="cp-field"><label for="cp-idt">ID type *</label>
-            <select id="cp-idt" name="id_type" required><option value="">Select</option><option value="national_id">National ID</option><option value="passport">Passport</option><option value="drivers_license">Driver's License</option></select></div>
-          <div class="cp-field"><label for="cp-idn">ID number *</label><input id="cp-idn" name="id_number" required /></div>
-          <div class="cp-field"><label for="cp-photo">Passport photo</label><input id="cp-photo" name="profile_photo" type="file" accept="image/*" /></div>
-          <div class="cp-field"><label for="cp-iddoc">Copy of ID</label><input id="cp-iddoc" name="id_document" type="file" accept="image/*,.pdf" /></div>
+        <div class="field">
+          <label for="preferred_name">Preferred name / username</label>
+          <input type="text" id="preferred_name" required />
         </div>
+
+        <h3 class="display" style="font-size:14px;margin:20px 0 10px;">Basic information</h3>
+        <div class="field">
+          <label for="first_name">First name</label>
+          <input type="text" id="first_name" />
+        </div>
+        <div class="field">
+          <label for="middle_name">Middle name <span style="color:var(--ink-faint);font-weight:400;">(optional)</span></label>
+          <input type="text" id="middle_name" />
+        </div>
+        <div class="field">
+          <label for="surname">Surname</label>
+          <input type="text" id="surname" />
+        </div>
+        <div class="field">
+          <label for="profile_photo">Profile photo</label>
+          <input type="file" id="profile_photo" accept="image/*" />
+        </div>
+        <div class="field">
+          <label for="date_of_birth">Date of birth</label>
+          <input type="date" id="date_of_birth" />
+        </div>
+        <div class="field">
+          <label for="gender">Gender</label>
+          <select id="gender">
+            <option value="">Select&hellip;</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="phone_number">Phone number</label>
+          <input type="tel" id="phone_number" inputmode="numeric" pattern="[0-9]*" placeholder="Numbers only" />
+        </div>
+        <div class="field">
+          <label for="residential_address">Current residential address</label>
+          <input type="text" id="residential_address" placeholder="Where you live now" />
+        </div>
+
+        <h3 class="display" style="font-size:14px;margin:20px 0 10px;">Origin</h3>
+        <div class="field">
+          <label for="state_of_origin">State of origin</label>
+          <select id="state_of_origin"><option value="">Select a state&hellip;</option></select>
+        </div>
+        <div class="field">
+          <label for="lga_of_origin">Local government area of origin</label>
+          <select id="lga_of_origin" disabled><option value="">Select a state first&hellip;</option></select>
+        </div>
+        <div class="field">
+          <label for="hometown">Hometown</label>
+          <input type="text" id="hometown" />
+        </div>
+        <div class="field">
+          <label for="home_address_of_origin">Home address (state/LGA of origin)</label>
+          <input type="text" id="home_address_of_origin" placeholder="Address back home, in your state/LGA of origin" />
+        </div>
+
+        <h3 class="display" style="font-size:14px;margin:20px 0 10px;">Emergency contact</h3>
+        <div class="field">
+          <label for="emergency_contact_name">Emergency contact name</label>
+          <input type="text" id="emergency_contact_name" />
+        </div>
+        <div class="field">
+          <label for="emergency_contact_phone">Emergency contact phone</label>
+          <input type="tel" id="emergency_contact_phone" inputmode="numeric" pattern="[0-9]*" placeholder="Numbers only" />
+        </div>
+        <div class="field">
+          <label for="emergency_contact_relationship">Relationship to emergency contact</label>
+          <input type="text" id="emergency_contact_relationship" />
+        </div>
+
+        <h3 class="display" style="font-size:14px;margin:20px 0 10px;">Identification</h3>
+        <div class="field">
+          <label for="id_type">ID type</label>
+          <select id="id_type">
+            <option value="">Select&hellip;</option>
+            <option value="national_id">National ID</option>
+            <option value="passport">International Passport</option>
+            <option value="drivers_license">Driver's License</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="id_number">ID number</label>
+          <input type="text" id="id_number" />
+        </div>
+        <div class="field">
+          <label for="id_document">ID document</label>
+          <input type="file" id="id_document" accept="image/*,.pdf" />
+        </div>
+
         <div id="cp-error" class="error-banner"></div>
         <button type="submit" class="btn btn-primary" id="cp-save" style="width:100%;">Submit for approval</button>
       </form>
       <script>
-        // PENDSTAFF-COMPLETE-JS
-        (function () {
-          var wrap = document.getElementById('complete-profile-wrap');
-          var form = document.getElementById('complete-profile-form');
-          var errBox = document.getElementById('cp-error');
-          var saveBtn = document.getElementById('cp-save');
+(function () {
+  // PENDSTAFF-V2
+  var wrap = document.getElementById('complete-profile-wrap');
+  var form = document.getElementById('complete-profile-form');
+  var errBox = document.getElementById('cp-error');
+  var saveBtn = document.getElementById('cp-save');
+  var state = { ctx: null };
 
-          function formatDetail(detail, status) {
-            if (Array.isArray(detail)) {
-              return detail.map(function (d) {
-                var field = d && d.loc ? String(d.loc[d.loc.length - 1]).replace(/_/g, ' ') : '';
-                return (field ? field + ': ' : '') + (d && d.msg ? d.msg : 'invalid');
-              }).join('; ');
-            }
-            if (typeof detail === 'string') return detail;
-            if (status === 401) return 'Your session expired. Please sign out and sign in again.';
-            return 'Could not submit your details (error ' + status + ').';
-          }
+  function $(id) { return document.getElementById(id); }
+  function val(id) { return $(id).value.trim(); }
+  function showErr(msg) { errBox.textContent = msg; errBox.classList.add('visible'); }
 
-          window.showCompleteForm = async function () {
-            document.getElementById('status-icon').innerHTML = '&#128221;';
-            document.getElementById('status-title').textContent = 'Complete your profile';
-            document.getElementById('status-body').textContent =
-              'Your account was created by an administrator. Please fill in the details below. ' +
-              'After you submit, your account stays pending until a super admin or your branch manager approves it.';
-            var page = document.querySelector('.status-page');
-            if (page) page.style.maxWidth = '640px';
-            document.getElementById('cp-dob').max = new Date().toISOString().slice(0, 10);
-            try {
-              var me = await Api.me();
-              if (me) {
-                form.elements.full_legal_name.value = me.full_name || '';
-                form.elements.phone_number.value = me.phone || '';
-              }
-            } catch (e) { /* prefill is a convenience only */ }
-            wrap.style.display = 'block';
-          };
+  function formatDetail(detail, status) {
+    if (Array.isArray(detail)) {
+      return detail.map(function (d) {
+        var field = d && d.loc ? String(d.loc[d.loc.length - 1]).replace(/_/g, ' ') : '';
+        return (field ? field + ': ' : '') + (d && d.msg ? d.msg : 'invalid');
+      }).join('; ');
+    }
+    if (typeof detail === 'string') return detail;
+    if (status === 401) return 'Your session expired. Please sign out and sign in again.';
+    return 'Could not submit your details (error ' + status + ').';
+  }
 
-          form.addEventListener('submit', async function (e) {
-            e.preventDefault();
-            errBox.classList.remove('visible');
-            saveBtn.disabled = true;
-            try {
-              var fd = new FormData(form);
-              ['profile_photo', 'id_document'].forEach(function (k) {
-                var f = fd.get(k);
-                if (f && !f.name) fd.delete(k);
-              });
-              var res = await fetch(API_BASE + '/staff-applications/complete-profile', {
-                method: 'POST',
-                headers: { Authorization: 'Bearer ' + Auth.getToken(), Accept: 'application/json' },
-                body: fd,
-              });
-              var data = null;
-              try { data = await res.json(); } catch (_) {}
-              if (!res.ok) throw new Error(formatDetail(data && data.detail, res.status));
-              localStorage.setItem('nc_app_status', 'under_review');
-              window.location.reload();
-            } catch (err) {
-              errBox.textContent = err.message;
-              errBox.classList.add('visible');
-              saveBtn.disabled = false;
-            }
-          });
-        })();
+  function lock(id) {
+    var el = $(id);
+    el.disabled = true;
+    el.classList.add('cp-locked');
+  }
+
+  function loadScript(src) {
+    return new Promise(function (resolve) {
+      if (typeof NIGERIA_STATES_LGAS !== 'undefined') return resolve();
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = resolve;
+      document.head.appendChild(s);
+    });
+  }
+
+  async function authedJson(path) {
+    var res = await fetch(API_BASE + path, {
+      headers: { Authorization: 'Bearer ' + Auth.getToken(), Accept: 'application/json' },
+    });
+    var data = null;
+    try { data = await res.json(); } catch (_) {}
+    if (!res.ok) throw new Error(formatDetail(data && data.detail, res.status));
+    return data;
+  }
+
+  window.showCompleteForm = async function () {
+    $('status-icon').innerHTML = '&#128221;';
+    $('status-title').textContent = 'Complete your account';
+    $('status-body').textContent =
+      'Your account was created by an administrator. Fill in the remaining details below - ' +
+      'check the pre-filled ones, correct them and add anything missing After you submit, your account stays pending ' +
+      'until a super admin or your branch manager approves it.';
+    var page = document.querySelector('.status-page');
+    if (page) page.style.maxWidth = '540px';
+
+    await loadScript('js/ng_states_lgas.js');
+
+    var ctx;
+    try {
+      ctx = await authedJson('/staff-applications/complete-profile/context');
+    } catch (err) {
+      showErr(err.message);
+      wrap.style.display = 'block';
+      saveBtn.disabled = true;
+      return;
+    }
+    state.ctx = ctx;
+
+    // role / branch labels (public list, same one the Create Account form uses)
+    var roleSel = $('role_applied_for');
+    var branchSel = $('branch_id');
+    try {
+      var options = await Api.staffApplicationOptions();
+      roleSel.innerHTML = options.roles
+        .filter(function (r) { return !/website/i.test(r.name + ' ' + (r.display_name || '')); })
+        .map(function (r) { return '<option value="' + r.name + '">' + r.display_name + '</option>'; }).join('');
+      branchSel.innerHTML = options.branches
+        .map(function (b) { return '<option value="' + b.id + '">' + b.name + (b.address ? ' \u2014 ' + b.address : '') + '</option>'; }).join('');
+    } catch (e) { showErr('Could not load the role/branch lists. Refresh the page to try again.'); /* PENDSTAFF-V5 */ }
+    /* PENDSTAFF-V6-HTML */
+    if (ctx.role_applied_for && !/website/i.test(ctx.role_applied_for) && ![].some.call(roleSel.options, function (o) { return o.value === ctx.role_applied_for; })) {
+      roleSel.insertAdjacentHTML('afterbegin', '<option value="' + ctx.role_applied_for + '">' + ctx.role_applied_for.replace(/_/g, ' ') + '</option>');
+    }
+    roleSel.value = ctx.role_applied_for;
+    if (ctx.branch_id && ![].some.call(branchSel.options, function (o) { return o.value === ctx.branch_id; })) {
+      branchSel.insertAdjacentHTML('afterbegin', '<option value="' + ctx.branch_id + '">Assigned branch</option>');
+    }
+    branchSel.value = ctx.branch_id;
+
+    // email: locked when the admin entered one
+    $('email').value = ctx.email;
+
+    // name: split into first / middle / surname, locked when present
+    var parts = (ctx.full_legal_name || '').split(/\s+/).filter(Boolean);
+    if (parts.length) {
+      $('first_name').value = parts[0];
+      $('surname').value = parts.length > 1 ? parts[parts.length - 1] : '';
+      $('middle_name').value = parts.length > 2 ? parts.slice(1, -1).join(' ') : '';
+    }
+
+    $('preferred_name').value = ctx.preferred_name || '';
+
+    // phone: locked when the admin entered one
+    $('phone_number').value = ctx.phone_number;
+
+    // state -> LGA
+    var stateSel = $('state_of_origin');
+    var lgaSel = $('lga_of_origin');
+    if (typeof NIGERIA_STATES_LGAS !== 'undefined') {
+      Object.keys(NIGERIA_STATES_LGAS).sort().forEach(function (st) {
+        var opt = document.createElement('option');
+        opt.value = st; opt.textContent = st;
+        stateSel.appendChild(opt);
+      });
+    }
+    stateSel.addEventListener('change', function () {
+      var lgas = (typeof NIGERIA_STATES_LGAS !== 'undefined' && NIGERIA_STATES_LGAS[stateSel.value]) || [];
+      lgaSel.innerHTML = '';
+      if (!lgas.length) {
+        lgaSel.innerHTML = '<option value="">Select a state first\u2026</option>';
+        lgaSel.disabled = true;
+        return;
+      }
+      lgaSel.disabled = false;
+      lgaSel.innerHTML = '<option value="">Select an LGA\u2026</option>' +
+        lgas.map(function (l) { return '<option value="' + l + '">' + l + '</option>'; }).join('');
+    });
+
+    // DOB bounds
+    var today = new Date();
+    $('date_of_birth').max = today.toISOString().slice(0, 10);
+    $('date_of_birth').min = (today.getFullYear() - 100) + '-01-01';
+
+    // digits only on phone fields
+    ['phone_number', 'emergency_contact_phone'].forEach(function (id) {
+      $(id).addEventListener('input', function (e) {
+        e.target.value = e.target.value.replace(/[^0-9]/g, '');
+      });
+    });
+
+    // CORR-PREFILL
+    if (ctx.status === 'needs_changes') {
+      $('status-icon').innerHTML = '&#9998;';
+      $('status-title').textContent = 'Corrections needed';
+      $('status-body').textContent =
+        'An administrator reviewed your details and asked for changes. Your saved details are below - ' +
+        'fix the highlighted fields and resubmit. Your account stays pending until it is approved.';
+      saveBtn.textContent = 'Resubmit for approval';
+      var setv = function (id, v) { if (v !== null && v !== undefined && v !== '') $(id).value = v; };
+      setv('date_of_birth', ctx.date_of_birth);
+      setv('gender', ctx.gender);
+      setv('residential_address', ctx.residential_address);
+      if (ctx.state_of_origin) {
+        stateSel.value = ctx.state_of_origin;
+        stateSel.dispatchEvent(new Event('change'));
+        setv('lga_of_origin', ctx.lga_of_origin);
+      }
+      setv('hometown', ctx.hometown);
+      setv('home_address_of_origin', ctx.home_address_of_origin);
+      setv('emergency_contact_name', ctx.emergency_contact_name);
+      setv('emergency_contact_phone', ctx.emergency_contact_phone);
+      setv('emergency_contact_relationship', ctx.emergency_contact_relationship);
+      setv('id_type', ctx.id_type);
+      setv('id_number', ctx.id_number);
+
+      var addHint = function (id, text) {
+        var holder = $(id).closest('.field');
+        if (!holder) return;
+        var hint = document.createElement('div');
+        hint.style.cssText = 'font-size:12px;color:var(--ink-faint);margin-top:4px;';
+        hint.textContent = text;
+        holder.appendChild(hint);
+      };
+      if (ctx.has_photo) addHint('profile_photo', 'A photo is already on file. Choose a new file only to replace it.');
+      if (ctx.has_id_document) addHint('id_document', 'An ID document is already on file. Choose a new file only to replace it.');
+
+      var styleEl = document.createElement('style');
+      styleEl.textContent =
+        '#complete-profile-wrap .cp-flagged label{color:#e5a00d;font-weight:600;}' +
+        '#complete-profile-wrap .cp-flagged input,#complete-profile-wrap .cp-flagged select{border-color:#e5a00d !important;box-shadow:0 0 0 1px #e5a00d;}';
+      document.head.appendChild(styleEl);
+
+      var groups = { name: ['first_name', 'middle_name', 'surname'] };
+      (ctx.correction_fields || []).forEach(function (f) {
+        (groups[f] || [f]).forEach(function (id) {
+          var el = document.getElementById(id);
+          var holder = el && el.closest('.field');
+          if (holder) holder.classList.add('cp-flagged');
+        });
+      });
+
+      var box = document.createElement('div');
+      box.style.cssText = 'border:1px solid #e5a00d;border-radius:10px;padding:12px 14px;margin-bottom:16px;background:rgba(229,160,13,.08);';
+      var boxHead = document.createElement('div');
+      boxHead.style.cssText = 'font-weight:600;margin-bottom:4px;';
+      boxHead.textContent = 'Note from the reviewer';
+      var boxText = document.createElement('div');
+      boxText.style.cssText = 'white-space:pre-wrap;font-size:14px;';
+      boxText.textContent = ctx.correction_note || 'Please review and correct your details.';
+      box.appendChild(boxHead);
+      box.appendChild(boxText);
+      form.insertBefore(box, form.firstChild);
+    }
+
+    wrap.style.display = 'block';
+  };
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    errBox.classList.remove('visible');
+    var ctx = state.ctx;
+    if (!ctx) return;
+
+    // PENDSTAFF-V4
+    if (!val('preferred_name')) return showErr('Enter your preferred name / username.');
+    if (!$('role_applied_for').value) return showErr('Select the role you are applying for.');
+    if (!$('branch_id').value) return showErr('Select the branch you are applying to.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val('email'))) return showErr('Enter a valid email address.');
+    if (!val('first_name') || !val('surname')) return showErr('Enter your first name and surname.');
+    if (val('date_of_birth') && new Date(val('date_of_birth')) > new Date()) return showErr('Date of birth cannot be in the future.');
+
+    // Role and branch are locked and never sent; the server ignores them anyway.
+    // PENDSTAFF-V3
+    var fd = new FormData();
+    fd.append('preferred_name', val('preferred_name'));
+    fd.append('full_legal_name', [val('first_name'), val('middle_name'), val('surname')].filter(Boolean).join(' '));
+    fd.append('email', val('email'));
+    if ($('role_applied_for').value) fd.append('role_applied_for', $('role_applied_for').value);
+    if ($('branch_id').value) fd.append('branch_id', $('branch_id').value);
+    if (val('phone_number')) fd.append('phone_number', val('phone_number'));
+    ['date_of_birth', 'residential_address', 'state_of_origin', 'lga_of_origin', 'hometown',
+     'home_address_of_origin', 'emergency_contact_name', 'emergency_contact_phone',
+     'emergency_contact_relationship', 'id_number'].forEach(function (k) {
+      if (val(k)) fd.append(k, val(k));
+    });
+    if ($('gender').value) fd.append('gender', $('gender').value);
+    if ($('id_type').value) fd.append('id_type', $('id_type').value);
+    var photo = $('profile_photo').files[0];
+    if (photo) fd.append('profile_photo', photo);
+    var idDoc = $('id_document').files[0];
+    if (idDoc) fd.append('id_document', idDoc);
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Submitting\u2026';
+    try {
+      var res = await fetch(API_BASE + '/staff-applications/complete-profile', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + Auth.getToken(), Accept: 'application/json' },
+        body: fd,
+      });
+      var data = null;
+      try { data = await res.json(); } catch (_) {}
+      if (!res.ok) throw new Error(formatDetail(data && data.detail, res.status));
+      try { localStorage.setItem('nc_app_status', 'under_review'); } catch (_) {}
+      window.location.reload();
+    } catch (err) {
+      showErr(err.message);
+      saveBtn.disabled = false;
+      saveBtn.textContent = (state.ctx && state.ctx.status === 'needs_changes') ? 'Resubmit for approval' : 'Submit for approval';
+    }
+  });
+})();
       </script>
     </div>
 
-    <div id="error-banner" class="error-banner"></div>
+    
+<div id="error-banner" class="error-banner"></div>
 
     <button class="btn btn-ghost" id="logout-link" style="margin-top:12px;">Sign out</button>
   </div>
@@ -173,7 +457,7 @@
       body.textContent = application.rejection_reason
         ? `Your staff application was not approved. Reason given: ${application.rejection_reason}`
         : 'Your staff application was not approved. Please contact an administrator for details.';
-    } else if (application.status === 'incomplete') {
+    } else if (application.status === 'incomplete' || application.status === 'needs_changes') {
       showCompleteForm(application);
     } else if (application.status === 'suspended') {
       icon.textContent = '⏸';

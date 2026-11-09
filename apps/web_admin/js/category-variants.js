@@ -13,7 +13,7 @@ Auth.requireAuth();
 Perms.guardPage('manage_products');
 Perms.applyNav();
 
-const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier' };
+const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier', store_assistant: 'Store assistant' }; // PATCHP3C-ROLE-LABEL
 const currentUser = Auth.getUser();
 document.getElementById('current-user-name').textContent = currentUser?.full_name || 'Signed in';
 document.getElementById('current-user-role').textContent = roleLabels[currentUser?.role] || currentUser?.role || '';

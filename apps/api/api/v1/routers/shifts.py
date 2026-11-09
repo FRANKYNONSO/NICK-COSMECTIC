@@ -527,7 +527,7 @@ async def admin_acknowledge_compliance_event(
     event_id: uuid.UUID,
     body: ComplianceAdminAcknowledge,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_permission("manage_users")),
+    current_user: User = Depends(require_permission("acknowledge_shift_violations")),  # PATCHP3C
 ) -> ShiftComplianceEventOut:
     """Update Request item 15: a manager/admin marking that they've
     informed the staff member about this auto-close incident (with an
@@ -540,6 +540,9 @@ async def admin_acknowledge_compliance_event(
     event = await session.get(ShiftComplianceEvent, event_id)
     if event is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Compliance event not found")
+    if current_user.role != "super_admin":  # PATCHP3I-BRANCH
+        if current_user.branch_id is None or event.branch_id != current_user.branch_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Compliance event not found")
     event.admin_acknowledged_at = datetime.now(timezone.utc)
     event.admin_acknowledged_by = current_user.id
     if body.note is not None:

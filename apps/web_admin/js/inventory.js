@@ -1,7 +1,7 @@
 Auth.requireAuth();
 Perms.applyNav();
 
-const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier' };
+const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager', staff: 'Cashier', store_assistant: 'Store assistant' }; // PATCHP3C-ROLE-LABEL
 const currentUser = Auth.getUser();
 document.getElementById('current-user-name').textContent = currentUser?.full_name || 'Signed in';
 document.getElementById('current-user-role').textContent = roleLabels[currentUser?.role] || currentUser?.role || '';
@@ -43,8 +43,8 @@ if (!showActionsColumn) {
 // "Select several items from the master catalog -> Add to Restock
 // List" -- the person's explicit request for a checkbox-driven flow
 // on top of the plain per-row buttons. Hidden entirely for anyone
-// without manage_restock_list, same pattern as showActionsColumn above.
-const canBulkAddRestock = Perms.can('manage_restock_list');
+// without manage_inventory, same pattern as showActionsColumn above.
+const canBulkAddRestock = Perms.can('manage_inventory'); // PATCHP2A-RESTOCK-MANAGE
 const restockSelected = new Set();
 let selectMode = false;
 

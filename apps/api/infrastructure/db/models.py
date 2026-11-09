@@ -237,7 +237,7 @@ class StaffApplication(Base):
     __tablename__ = "staff_applications"
     __table_args__ = (
         CheckConstraint(
-            "status IN ('incomplete','under_review','accepted','rejected','suspended')",
+            "status IN ('incomplete','under_review','needs_changes','accepted','rejected','suspended')",
             name="ck_staff_application_status",
         ),
     )
@@ -250,7 +250,7 @@ class StaffApplication(Base):
     # this is just their stated preference, shown to the reviewer as a
     # starting point. Deliberately excludes super_admin -- self-applying
     # for the highest access tier isn't offered on the registration form.
-    role_applied_for: Mapped[str] = mapped_column(String, nullable=False, default="staff")
+    role_applied_for: Mapped[str] = mapped_column(String, nullable=False, default="cashier")
     # Which branch they're applying to work at, chosen by the applicant
     # themselves at registration (not assigned later by the reviewer --
     # see StaffApplicationAccept.branch_id, which now just carries this
@@ -301,6 +301,10 @@ class StaffApplication(Base):
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # "Request changes": the reviewer's note + the comma-separated form fields
+    # they flagged. Cleared when the applicant resubmits.
+    correction_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    correction_fields: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.dependencies import get_current_user, get_db_session, require_permission
+from api.dependencies import can_view_costs, get_current_user, get_db_session, require_permission
 from api.v1.schemas.purchasing import (
     PurchaseOrderCreate,
     PurchaseOrderItemOut,
@@ -88,7 +88,9 @@ async def update_supplier(
 
 # ------------------------------------------------------- PURCHASE ORDERS
 
-def _po_to_out(po: PurchaseOrder, items: list[PurchaseOrderItem]) -> PurchaseOrderOut:
+def _po_to_out(
+    po: PurchaseOrder, items: list[PurchaseOrderItem], show_cost: bool = True
+) -> PurchaseOrderOut:
     return PurchaseOrderOut(
         id=po.id,
         supplier_id=po.supplier_id,
@@ -104,7 +106,7 @@ def _po_to_out(po: PurchaseOrder, items: list[PurchaseOrderItem]) -> PurchaseOrd
                 product_id=i.product_id,
                 quantity_ordered=i.quantity_ordered,
                 quantity_received=i.quantity_received,
-                unit_cost_naira=Money(i.unit_cost_kobo).naira,
+                unit_cost_naira=Money(i.unit_cost_kobo).naira if show_cost else 0.0,
             )
             for i in items
         ],
@@ -160,7 +162,7 @@ async def list_purchase_orders(
     status_filter: str | None = None,
     branch_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> list[PurchaseOrderOut]:
     stmt = select(PurchaseOrder)
     if status_filter:
@@ -182,14 +184,15 @@ async def list_purchase_orders(
     for item in items_result.scalars().all():
         items_by_po.setdefault(item.purchase_order_id, []).append(item)
 
-    return [_po_to_out(o, items_by_po.get(o.id, [])) for o in orders]
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C2-COST-VISIBLE
+    return [_po_to_out(o, items_by_po.get(o.id, []), show_cost=show_cost) for o in orders]
 
 
 @router.get("/purchase-orders/{po_id}", response_model=PurchaseOrderOut)
 async def get_purchase_order(
     po_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> PurchaseOrderOut:
     po = await session.get(PurchaseOrder, po_id)
     if po is None:
@@ -198,7 +201,8 @@ async def get_purchase_order(
     items_result = await session.execute(
         select(PurchaseOrderItem).where(PurchaseOrderItem.purchase_order_id == po_id)
     )
-    return _po_to_out(po, list(items_result.scalars().all()))
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C2-COST-VISIBLE
+    return _po_to_out(po, list(items_result.scalars().all()), show_cost=show_cost)
 
 
 @router.post("/purchase-orders/{po_id}/mark-ordered", response_model=PurchaseOrderOut)

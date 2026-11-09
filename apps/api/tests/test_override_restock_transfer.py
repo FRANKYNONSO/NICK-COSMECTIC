@@ -67,25 +67,18 @@ async def _stocked_branch(db, client):
 
 
 # ---------------------------------------------------------------- O1
-async def test_o1_manager_override_on_pull_needs_reason_and_is_audited(client, db_session):
+# PATCHT2-STALE-TESTS: fix45 rule - a warehouse restock may go over the shelf limit,
+# so a pull needs no override and no reason, and it writes no override audit row.
+async def test_o1_pull_may_go_over_the_limit_without_override(client, db_session):
     branch, admin, manager, product, ah, mh = await _stocked_branch(db_session, client)
     assert _figures(await _summary(client, ah, branch.id, product.id)) == (100, 80, 20)
 
-    blocked = await _pull_o(client, mh, branch.id, product.id, 10, override=False)
-    assert blocked.status_code == 400, blocked.text
-    assert _figures(await _summary(client, ah, branch.id, product.id)) == (100, 80, 20)
-
-    no_reason = await _pull_o(client, mh, branch.id, product.id, 10)
-    assert no_reason.status_code == 400, no_reason.text
-    assert _figures(await _summary(client, ah, branch.id, product.id)) == (100, 80, 20)
-    assert await _override_audits(db_session) == 0
-
-    ok = await _pull_o(client, mh, branch.id, product.id, 10, reason=REASON)
+    ok = await _pull_o(client, mh, branch.id, product.id, 10, override=False)
     assert ok.status_code == 201, ok.text
     s = await _summary(client, ah, branch.id, product.id)
     assert _figures(s) == (100, 70, 30)
     assert s["over_limit"] is True
-    assert await _override_audits(db_session) == 1
+    assert await _override_audits(db_session) == 0
 
 
 # ---------------------------------------------------------------- O2
@@ -101,7 +94,7 @@ async def test_o2_override_cannot_create_stock(client, db_session):
 # ---------------------------------------------------------------- O3
 async def test_o3_staff_cannot_use_pull_to_store(client, db_session):
     branch, admin, manager, product, ah, mh = await _stocked_branch(db_session, client)
-    staff = await _user(db_session, "staff", branch.id)
+    staff = await _user(db_session, "cashier", branch.id)
     await db_session.commit()
 
     resp = await _pull_o(client, _headers(staff), branch.id, product.id, 10, reason=REASON)

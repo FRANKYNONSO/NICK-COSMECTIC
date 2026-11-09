@@ -24,7 +24,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from api.dependencies import get_db_session, require_role
+from api.dependencies import get_db_session, require_permission  # PATCHP3F-IMPORT
 from api.v1.schemas.password_reset import (
     PasswordResetComplete,
     PasswordResetRequestCreate,
@@ -61,9 +61,8 @@ def _effective_status(row: PasswordResetRequest) -> str:
 def _can_manage(admin: User, target: User) -> bool:
     if admin.role == "super_admin":
         return True
-    return (
-        admin.role == "branch_manager"
-        and admin.branch_id is not None
+    return (  # PATCHP3F-CANMANAGE
+        admin.branch_id is not None
         and target.branch_id == admin.branch_id
         and target.role not in ("super_admin", "branch_manager")
         and target.id != admin.id
@@ -159,7 +158,7 @@ async def complete_reset_request(
 @router.get("/password-reset-requests", response_model=list[PasswordResetRequestOut])
 async def list_reset_requests(
     status_filter: str | None = Query(None, alias="status"),
-    admin: User = Depends(require_role("super_admin", "branch_manager")),
+    admin: User = Depends(require_permission("review_password_resets")),  # PATCHP3F-GUARDS
     session: AsyncSession = Depends(get_db_session),
 ) -> list[PasswordResetRequestOut]:
     decider = aliased(User)
@@ -216,7 +215,7 @@ async def _load_for_decision(request_id: uuid.UUID, admin: User, session: AsyncS
 @router.post("/password-reset-requests/{request_id}/approve", response_model=PasswordResetStatusOut)
 async def approve_reset_request(
     request_id: uuid.UUID,
-    admin: User = Depends(require_role("super_admin", "branch_manager")),
+    admin: User = Depends(require_permission("review_password_resets")),  # PATCHP3F-GUARDS
     session: AsyncSession = Depends(get_db_session),
 ) -> PasswordResetStatusOut:
     req = await _load_for_decision(request_id, admin, session)
@@ -231,7 +230,7 @@ async def approve_reset_request(
 @router.post("/password-reset-requests/{request_id}/reject", response_model=PasswordResetStatusOut)
 async def reject_reset_request(
     request_id: uuid.UUID,
-    admin: User = Depends(require_role("super_admin", "branch_manager")),
+    admin: User = Depends(require_permission("review_password_resets")),  # PATCHP3F-GUARDS
     session: AsyncSession = Depends(get_db_session),
 ) -> PasswordResetStatusOut:
     req = await _load_for_decision(request_id, admin, session)

@@ -24,7 +24,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from api.dependencies import get_current_user, get_db_session, require_permission
+from api.dependencies import (
+    can_view_costs,
+    get_current_user,
+    get_db_session,
+    require_any_permission,
+    require_permission,
+)
 from infrastructure.db.audit import log_audit_event
 from infrastructure.db.models import (
     Branch,
@@ -324,6 +330,14 @@ def _receipt_out(receipt):
     }
 
 
+def _hide_receipt_costs(out):  # PATCHP2C3A-RECEIPTS
+    """For roles without view_financials the unit costs are sent as null
+    (not 0), so a cost box can never be filled with a fake 0 and saved back."""
+    for line in out.get("lines", []):
+        line["unit_cost_kobo"] = None
+    return out
+
+
 async def _load_receipt(session, receipt_id, lock=False):
     stmt = (
         select(GoodsReceipt)
@@ -554,7 +568,8 @@ async def set_shelf_setting(
 async def reduce_shelf_stock(
     body: ShelfReduceIn,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_permission("manage_inventory")),
+    # PATCHP2B-SHELF-GUARDS: manage_inventory still works; reduce_shelf_stock is the narrow permission.
+    current_user: User = Depends(require_any_permission("manage_inventory", "reduce_shelf_stock")),
 ):
     _check_branch_access(current_user, body.branch_id)
     await _require_branch(session, body.branch_id)
@@ -716,7 +731,17 @@ async def _apply_input(session, receipt, body, current_user, is_new):
     receipt.notes = body.notes
     receipt.reconciliation_notes = body.reconciliation_notes
     receipt.documentation_status = "documented" if invoice else "pending"
+    old_costs = {}  # PATCHP2C3C-KEEP-COST
     if not is_new:
+        if not await can_view_costs(current_user, session):  # PATCHP2C3C-KEEP-COST
+            per_product = {}
+            for old_line in receipt.lines:
+                per_product[old_line.product_id] = per_product.get(old_line.product_id, 0) + 1
+            old_costs = {
+                old_line.product_id: old_line.unit_cost_kobo
+                for old_line in receipt.lines
+                if per_product[old_line.product_id] == 1 and old_line.unit_cost_kobo is not None
+            }
         receipt.lines.clear()
         await session.flush()
     for i, l in enumerate(body.lines):
@@ -729,7 +754,7 @@ async def _apply_input(session, receipt, body, current_user, is_new):
                 quantity_received=l.quantity_received,
                 quantity_to_shelf=l.quantity_to_shelf,
                 quantity_to_warehouse=l.quantity_received - l.quantity_to_shelf,
-                unit_cost_kobo=l.unit_cost_kobo,
+                unit_cost_kobo=(l.unit_cost_kobo if l.unit_cost_kobo is not None else old_costs.get(l.product_id)),  # PATCHP2C3C-KEEP-COST
                 cost_verified=False,
                 notes=l.notes,
             )
@@ -1113,7 +1138,7 @@ async def list_receipts(
     branch_id: uuid.UUID | None = None,
     status_filter: str | None = Query(default=None, alias="status"),
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission("view_received_goods", "manage_inventory")),
 ):
     if current_user.branch_id:
         branch_id = current_user.branch_id
@@ -1124,14 +1149,16 @@ async def list_receipts(
         stmt = stmt.where(GoodsReceipt.status == status_filter)
     stmt = stmt.order_by(GoodsReceipt.created_at.desc()).limit(100)
     rows = (await session.execute(stmt)).scalars().all()
-    return [_receipt_out(r) for r in rows]
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C3A-RECEIPTS
+    out = [_receipt_out(r) for r in rows]
+    return out if show_cost else [_hide_receipt_costs(o) for o in out]
 
 
 @router.get("/receipts/outstanding")
 async def outstanding_for_invoice(
     invoice_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission("view_received_goods", "manage_inventory")),
 ):
     invoice = await session.get(PurchaseInvoice, invoice_id)
     if invoice is None:
@@ -1176,11 +1203,13 @@ async def outstanding_for_invoice(
 async def get_receipt(
     receipt_id: uuid.UUID,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_any_permission("view_received_goods", "manage_inventory")),
 ):
     receipt = await _load_receipt(session, receipt_id)
     _check_branch_access(current_user, receipt.branch_id)
-    return _receipt_out(receipt)
+    show_cost = await can_view_costs(current_user, session)  # PATCHP2C3A-RECEIPTS
+    out = _receipt_out(receipt)
+    return out if show_cost else _hide_receipt_costs(out)
 
 
 @router.put("/receipts/{receipt_id}")
@@ -1225,7 +1254,7 @@ COST_SUMMARY_CAP = 200
 async def cost_summary(
     branch_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(require_permission("manage_inventory")),
+    current_user: User = Depends(require_permission("view_financials")),
 ):
     """Read-only view of posted receipts whose purchase costs are still unverified.
     Values are kobo. Nothing here is stored; it is derived from the receipts and

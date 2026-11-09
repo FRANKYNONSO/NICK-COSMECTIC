@@ -9,6 +9,8 @@ class SalesSummaryRow(BaseModel):
     sales_count: int
     subtotal_naira: float
     discount_naira: float
+    refunds_naira: float = 0  # PATCH26F: returned on partly refunded sales
+    net_total_naira: float = 0  # total_naira minus refunds_naira
     total_naira: float
 
 
@@ -16,6 +18,8 @@ class SalesSummaryResponse(BaseModel):
     rows: list[SalesSummaryRow]
     grand_total_naira: float
     grand_sales_count: int
+    grand_refunds_naira: float = 0  # PATCH26F
+    grand_net_naira: float = 0
 
 
 class LowStockRow(BaseModel):
@@ -162,6 +166,7 @@ class ProfitSummaryResponse(BaseModel):
     # Sale lines with no stock batch recorded -- their cost is today's
     # cost price for the product, so it is an estimate.
     estimated_cost_lines: int = 0
+    refunds_naira: float = 0  # PATCH26F: already taken off revenue_naira
     total_lines: int = 0
 
 
@@ -514,3 +519,66 @@ class CountVarianceResponse(BaseModel):
     by_branch: list[CountVarianceGroupRow]
     by_staff: list[CountVarianceGroupRow]
     recent: list[CountVarianceEventRow]
+
+
+# ---------------------------------------------------------------- Patch 26d
+
+
+class LossMonthRow(BaseModel):
+    month: str  # YYYY-MM
+    losses_naira: float
+    revenue_naira: float
+    loss_percent: float | None = None
+
+
+class LossTrendResponse(BaseModel):
+    months: list[LossMonthRow]
+    total_losses_naira: float
+    total_revenue_naira: float
+    overall_loss_percent: float | None = None
+    worst_month: str | None = None
+
+
+# ---------------------------------------------------------------- Patch 26e
+
+
+class HealthCheckRow(BaseModel):
+    key: str
+    title: str
+    count: int
+    amount_naira: float | None = None
+    status: str  # 'ok' | 'warn'
+    why: str
+    fix: str
+
+
+class DataHealthResponse(BaseModel):
+    checks: list[HealthCheckRow]
+    attention_count: int
+    total_checks: int
+
+
+class ValuationCategoryRow(BaseModel):
+    category_name: str
+    units: int
+    batch_cost_naira: float
+    retail_naira: float
+    margin_percent: float | None = None
+
+
+class ValuationBranchRow(BaseModel):
+    branch_name: str
+    units: int
+    batch_cost_naira: float
+
+
+class StockValuationResponse(BaseModel):
+    units: int
+    batch_cost_naira: float
+    current_cost_naira: float
+    retail_naira: float
+    cost_difference_naira: float
+    uncosted_units: int
+    uncosted_batches: int
+    by_category: list[ValuationCategoryRow]
+    by_branch: list[ValuationBranchRow]

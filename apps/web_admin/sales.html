@@ -36,14 +36,22 @@
       min-width: 140px;
     }
   </style>
+<style id="sb-logo-css">
+  .sb-logo { display: flex; align-items: center; gap: 12px; color: var(--ink, #e9ecf2); }
+  .sb-logo .sb-mark { height: 38px; width: auto; flex: none; }
+  .sb-logo .sb-text { display: flex; flex-direction: column; line-height: 1; }
+  .sb-logo .sb-text b { font-size: 19px; font-weight: 800; letter-spacing: .14em; }
+  .sb-logo .sb-text small { margin-top: 6px; font-size: 9.5px; font-weight: 600; letter-spacing: .3em; opacity: .65; }
+</style>
 </head>
 <body>
 
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="login-brand">
-      <span class="brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"/><path d="M3 8l9 5 9-5"/><path d="M12 13v8"/></svg></span>
-      <h1 class="display">Nick Cosmetics</h1>
+    <div class="login-brand sb-logo">
+      <svg class="sb-mark" viewBox="-6 -6 721 924" aria-hidden="true" fill="currentColor"><rect x="0" y="95" width="185" height="774"/><polygon points="267,130 451,0 451,554 267,554"/><rect x="285" y="601" width="148" height="44"/><rect x="267" y="692" width="184" height="220"/><rect x="524" y="95" width="185" height="770"/></svg>
+      <span class="sb-text"><b>PRESTIGE</b><small>NICK COSMETICS</small></span>
+      <h1 class="display" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Nick Cosmetics</h1>
     </div>
     <nav class="nav-gate-pending">
       <a href="dashboard.html" data-nav="dashboard" class="nav-item"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="12" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></svg></span><span>Dashboard</span></a>

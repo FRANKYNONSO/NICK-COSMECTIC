@@ -48,13 +48,13 @@ class StaffRegisterRequest(BaseModel):
         return v
 
     # What they're applying for -- admin has final say at accept time.
-    # No longer a fixed Literal["staff","branch_manager"]: a super_admin
+    # No longer a fixed Literal["cashier","branch_manager"]: a super_admin
     # can define custom roles (see roles.py), and any self-applicable
     # one (every role except super_admin) should be selectable here
     # without a code change. Validated dynamically against the roles
     # table in the register() endpoint instead, where the DB session
     # is available.
-    role_applied_for: str = Field(default="staff", min_length=1, max_length=100)
+    role_applied_for: str = Field(default="cashier", min_length=1, max_length=100)
 
     # Which branch they're applying to work at -- picked by the
     # applicant themselves now, not assigned later by whoever reviews
@@ -122,7 +122,7 @@ class StaffApplicationAccept(BaseModel):
     # them somewhere else instead.
     branch_id: uuid.UUID | None = None
     role: str = Field(
-        default="staff",
+        default="cashier",
         description="One of the existing roles: super_admin, branch_manager, staff",
     )
 
@@ -163,6 +163,8 @@ class StaffApplicationOut(BaseModel):
     reviewed_at: datetime | None
     rejection_reason: str | None
     submitted_at: datetime
+    correction_note: str | None = None
+    correction_fields: list[str] = []
 
     model_config = {"from_attributes": True}
 
