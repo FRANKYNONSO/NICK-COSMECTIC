@@ -1,6 +1,10 @@
 
 
-const API_BASE = `http://${window.location.hostname}:8000/api/v1`;
+// fix_live01: on a Tailscale Funnel address (*.ts.net) the API is reached on
+// the same name over HTTPS on port 10000. Local use is unchanged.
+const API_BASE = window.location.hostname.endsWith('.ts.net')
+    ? `https://${window.location.hostname}:10000/api/v1`
+    : `http://${window.location.hostname}:8000/api/v1`;
 
 // Global branch context: the branch picked on the Dashboard now scopes
 // every other page (POS, sales, invoices, credit, inventory, low stock,

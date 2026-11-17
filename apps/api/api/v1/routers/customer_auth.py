@@ -10,6 +10,7 @@ from infrastructure.db.models import Customer, CustomerAddress
 from infrastructure.db.repositories import CustomerRepository
 from infrastructure.security.jwt import create_access_token, create_refresh_token
 from infrastructure.security.passwords import hash_password, verify_password
+from api.v1.routers.auth import _login_key, _login_is_locked, _login_record_failure, _login_clear, _LOGIN_LOCK_TEXT  # FIXLIVE14
 
 router = APIRouter(prefix="/customer-auth", tags=["customer-auth"])
 
@@ -62,13 +63,19 @@ async def register(body: CustomerRegisterRequest, session: AsyncSession = Depend
 async def login(body: CustomerLoginRequest, session: AsyncSession = Depends(get_db_session)) -> TokenResponse:
     repo = CustomerRepository(session)
     customer = await repo.get_by_email(body.email)
+    limit_key = "cust:" + _login_key(body.email)  # FIXLIVE14
+    if _login_is_locked(limit_key):  # FIXLIVE14
+        raise HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, detail=_LOGIN_LOCK_TEXT)  # FIXLIVE14
 
     # Same "identical error either way" reasoning as staff auth.py --
     # don't let a login attempt reveal whether an email is registered.
     invalid_credentials = HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     if customer is None or not customer.password_hash or not verify_password(body.password, customer.password_hash):
+        _login_record_failure(limit_key)  # FIXLIVE14
         raise invalid_credentials
+
+    _login_clear(limit_key)  # FIXLIVE14
 
     return _tokens_for(customer)
 

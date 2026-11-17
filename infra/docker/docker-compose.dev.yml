@@ -41,16 +41,25 @@ services:
     # Docker Desktop for Windows/WSL2, where container hostnames
     # (e.g. "postgres") intermittently or consistently fail to
     # resolve under uvloop's resolver even though the network is fine.
-    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--loop", "asyncio"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--loop", "asyncio"]
     ports:
-      - "8000:8000"
+      # fix_live03: API port open on this PC only (reached from outside through the tunnel).
+      - "127.0.0.1:8000:8000"
     environment:
-      DATABASE_URL: "postgresql+asyncpg://nickcosmetics:${NICK_DB_PASSWORD:?Missing NICK_DB_PASSWORD. Create infra/docker/.env first.}@postgres:5432/nickcosmetics"
+      # fix_live07: database name from NICK_DB_NAME (default nickcosmetics = dev database).
+      DATABASE_URL: "postgresql+asyncpg://nickcosmetics:${NICK_DB_PASSWORD:?Missing NICK_DB_PASSWORD. Create infra/docker/.env first.}@postgres:5432/${NICK_DB_NAME:-nickcosmetics}"
       REDIS_URL: redis://redis:6379/0
       # PATCH20A-JWT-KEY: the signing key is read from apps/api/.env (mounted at /app/.env), not set here.
       JWT_ALGORITHM: HS256
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: "30"
+      # fix_live10: trial signing key from infra/docker/.env (empty = fall back to apps/api/.env, the dev key).
+      JWT_SECRET_KEY: "${NICK_TRIAL_JWT_SECRET_KEY:-}"
+      # fix_live03: allowed browser origins; set CORS_ALLOW_ORIGINS in infra/docker/.env for the trial.
+      CORS_ALLOW_ORIGINS: "${CORS_ALLOW_ORIGINS:-http://127.0.0.1:5500,http://localhost:5500,http://127.0.0.1:8000,http://localhost:8000}"
+      # fix_live04: public address of the API and of the admin site (defaults = local use).
+      API_PUBLIC_BASE_URL: "${API_PUBLIC_BASE_URL:-http://127.0.0.1:8000}"
+      WEB_ADMIN_BASE_URL: "${WEB_ADMIN_BASE_URL:-http://127.0.0.1:5500}"
     volumes:
       - ../../apps/api:/app
       - ../../packages/core:/app/packages/core

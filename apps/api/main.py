@@ -54,7 +54,9 @@ app = FastAPI(
 # somewhere other than localhost.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://127.0.0.1:5500', 'http://localhost:5500', 'http://127.0.0.1:8000', 'http://localhost:8000'],
+    # fix_live02: allowed origins come from CORS_ALLOW_ORIGINS (comma-separated).
+    # If it is not set, the old local list below is used.
+    allow_origins=[o.strip() for o in __import__('os').environ.get('CORS_ALLOW_ORIGINS', 'http://127.0.0.1:5500,http://localhost:5500,http://127.0.0.1:8000,http://localhost:8000').split(',') if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
