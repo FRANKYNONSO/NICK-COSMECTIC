@@ -35,8 +35,12 @@ def test_keys_look_right():
         assert re.fullmatch(r"[a-z][a-z0-9_]*", p.key), p.key
 
 
-def test_page_groups_are_a_to_z():
-    assert list(PAGE_GROUPS) == sorted(PAGE_GROUPS, key=str.lower)
+# PATCHG1-TESTS: page groups are the sidebar sections, in sidebar order.
+def test_page_groups_follow_sidebar_order():
+    assert list(PAGE_GROUPS) == [
+        "Dashboard", "POS", "Inventory", "Transactions", "Invoice",
+        "Warehouse", "Reports", "Team", "Settings", "Chat and Announcements",
+    ]
 
 
 def test_owner_only_keys_are_only_the_agreed_ones():
@@ -44,10 +48,10 @@ def test_owner_only_keys_are_only_the_agreed_ones():
     assert owner_only <= _AGREED_OWNER_ONLY
 
 
-def test_grouped_registry_is_a_to_z_and_hides_owner_only():
+def test_grouped_registry_follows_sidebar_order_and_hides_owner_only():
     groups = grouped_registry()
     names = [g["group"] for g in groups]
-    assert names == sorted(names, key=str.lower)
+    assert names == [g for g in PAGE_GROUPS if g in names]
     shown = set()
     for g in groups:
         for t in g["tabs"]:
@@ -57,3 +61,16 @@ def test_grouped_registry_is_a_to_z_and_hides_owner_only():
     assert "remove_super_admin" not in shown
     assert "transfer_ownership" not in shown
     assert len(shown) == len(REGISTRY_KEYS) - 2
+
+
+def test_moved_permissions_sit_under_their_sidebar_section():
+    where = {p.key: (p.group, p.tab) for p in PERMISSION_REGISTRY}
+    assert where["manage_coupons"] == ("POS", "Coupons")
+    assert where["manage_website_coupons"] == ("POS", "Coupons")
+    assert where["manage_restock_list"] == ("Inventory", "Restock List")
+    assert where["view_restock_list"] == ("Inventory", "Restock List")
+    assert where["view_customer_orders"] == ("Inventory", "Customer Orders")
+    assert where["manage_suppliers"] == ("Invoice", "Suppliers")
+    assert where["view_purchase_invoices"] == ("Invoice", "")
+    assert where["download_statements"] == ("Reports", "Statements")
+    assert where["acknowledge_shift_violations"] == ("Team", "Shifts")

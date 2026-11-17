@@ -317,6 +317,104 @@ const Perms = {
   },
 };
 
+// PATCHF1-LIVE-ACCESS: keep this page in step with the server without a hard refresh.
+// Every 30 seconds (tab visible), when the tab is shown again, shortly after load, and
+// right after any 403 reply, ask the server for this person's real permissions. If they
+// differ from what the page was drawn with: reload (not on POS, not while typing), else
+// show a bar with a Refresh button.
+(function () {
+  'use strict';
+  function sigOf(list) { return Array.isArray(list) ? list.slice().sort().join(',') : null; }
+  var baseline = null;
+  try { baseline = sigOf(Auth.getMyPermissions()); } catch (e) { baseline = null; }
+  var checking = false;
+  var lastCheck = 0;
+  var handled = false;
+
+  function isPos() { return /(^|\/)pos\.html$/i.test(location.pathname); }
+
+  function typing() {
+    var a = document.activeElement;
+    if (!a || !a.tagName) return false;
+    var tag = a.tagName.toUpperCase();
+    if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (tag !== 'INPUT') return false;
+    var t = (a.type || 'text').toLowerCase();
+    return !/^(checkbox|radio|button|submit|reset|file|image)$/.test(t);
+  }
+
+  function showBar() {
+    if (document.getElementById('access-updated-bar')) return;
+    var build = function () {
+      var bar = document.createElement('div');
+      bar.id = 'access-updated-bar';
+      bar.setAttribute('role', 'status');
+      bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;display:flex;align-items:center;justify-content:center;gap:12px;padding:10px 16px;background:var(--accent,#6c4bd6);color:#fff;font-size:13.5px;box-shadow:0 2px 8px rgba(0,0,0,.25);';
+      var msg = document.createElement('span');
+      msg.textContent = 'Your access was updated. Refresh to see the changes.';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Refresh now';
+      btn.style.cssText = 'background:#fff;color:#222;border:0;border-radius:999px;padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer;';
+      btn.onclick = function () { location.reload(); };
+      bar.appendChild(msg);
+      bar.appendChild(btn);
+      document.body.appendChild(bar);
+    };
+    if (document.body) build(); else document.addEventListener('DOMContentLoaded', build);
+  }
+
+  function react() {
+    if (handled) return;
+    handled = true;
+    var recent = false;
+    try {
+      var t = Number(sessionStorage.getItem('nc_access_reload_at') || 0);
+      recent = (Date.now() - t) < 20000;
+    } catch (e) { recent = false; }
+    if (isPos() || typing() || recent) { showBar(); return; }
+    try { sessionStorage.setItem('nc_access_reload_at', String(Date.now())); } catch (e) {}
+    location.reload();
+  }
+
+  async function check() {
+    if (checking || handled) return;
+    if (Date.now() - lastCheck < 3000) return;
+    if (typeof Auth === 'undefined' || typeof Api === 'undefined') return;
+    if (!Auth.getToken()) return;
+    checking = true;
+    lastCheck = Date.now();
+    try {
+      var mine = await Api.myPermissions();
+      if (!mine || !Array.isArray(mine.permissions)) return;
+      var fresh = sigOf(mine.permissions);
+      Auth.setMyPermissions(mine.permissions);
+      if (baseline === null) { baseline = fresh; return; }
+      if (fresh !== baseline) react();
+    } catch (e) {
+      // Not fatal: try again at the next trigger.
+    } finally {
+      checking = false;
+    }
+  }
+
+  if (typeof window.fetch === 'function') {
+    var origFetch = window.fetch.bind(window);
+    window.fetch = function () {
+      return origFetch.apply(window, arguments).then(function (res) {
+        try { if (res && res.status === 403) check(); } catch (e) {}
+        return res;
+      });
+    };
+  }
+
+  setInterval(function () { if (document.visibilityState === 'visible') check(); }, 30000);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') check(); });
+  window.addEventListener('focus', function () { check(); });
+  setTimeout(check, 1500);
+  if (typeof Perms !== 'undefined') Perms.checkAccessNow = check;
+})();
+
 // Kick off a background cache refresh on every page that includes this
 // file (all of them) -- see refreshRolePermissionsCache() above for why
 // this is fire-and-forget rather than blocking page render.

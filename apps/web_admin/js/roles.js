@@ -75,6 +75,35 @@ async function loadRegistry() {
   }
 }
 
+// PATCHG2-ROLES-COLLAPSE: each sidebar section is a closed row that opens when clicked.
+function permGroupHtml(name, innerHtml, startOpen) {
+  const open = !!startOpen;
+  return `<div class="perm-group" style="grid-column:1 / -1;border-bottom:1px solid var(--border);">
+    <button type="button" onclick="togglePermGroup(this)" aria-expanded="${open ? 'true' : 'false'}" style="display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;color:inherit;font:inherit;font-size:14px;font-weight:700;text-align:left;cursor:pointer;padding:10px 0;">
+      <span class="perm-arrow" style="display:inline-block;width:12px;">${open ? '\u25BE' : '\u25B8'}</span>
+      <span>${escapeHtml(name)}</span>
+      <span class="perm-count" style="font-size:12px;font-weight:600;color:var(--ink-faint);"></span>
+    </button>
+    <div class="perm-body" onchange="refreshPermCounts()" style="display:${open ? 'grid' : 'none'};grid-template-columns:1fr 1fr;gap:8px 16px;padding:0 0 12px 20px;">${innerHtml}</div>
+  </div>`;
+}
+function togglePermGroup(btn) {
+  const body = btn.parentNode.querySelector('.perm-body');
+  if (!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'grid' : 'none';
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const arrow = btn.querySelector('.perm-arrow');
+  if (arrow) arrow.textContent = open ? '\u25BE' : '\u25B8';
+}
+function refreshPermCounts() {
+  document.querySelectorAll('#role-permissions-list .perm-group').forEach((g) => {
+    const n = g.querySelectorAll('input[type="checkbox"]:checked').length;
+    const c = g.querySelector('.perm-count');
+    if (c) c.textContent = n ? '(' + n + ')' : '';
+  });
+}
+
 // Draws the boxes under group and tab headings. Returns false (and draws
 // nothing) when the registry has no usable permission, so the caller falls
 // back to the flat list. A permission the role holds that the registry does
@@ -97,17 +126,18 @@ function renderGroupedPermissionCheckboxes(checkedPermissions, checked) {
         if (p && p.key && !known.has(p.key)) { known.add(p.key); items.push(p); }
       });
       if (!items.length) return;
-      groupHtml += `<div style="${tabStyle}">${escapeHtml(t.tab)}</div>` + items.map((p) => box(p.key, p.label || p.key)).join('');
+      groupHtml += (t.tab ? `<div style="${tabStyle}">${escapeHtml(t.tab)}</div>` : '') + items.map((p) => box(p.key, p.label || p.key)).join('');
     });
-    if (groupHtml) html += `<div style="${groupStyle}">${escapeHtml(g.group)}</div>` + groupHtml;
+    if (groupHtml) html += permGroupHtml(g.group, groupHtml, false);
   });
   if (!known.size) return false;
   const other = checkedPermissions.filter((p) => !known.has(p))
     .sort((a, b) => permissionLabel(a).localeCompare(permissionLabel(b), 'en', { sensitivity: 'base' }));
   if (other.length) {
-    html += `<div style="${groupStyle}">Other</div>` + other.map((p) => box(p, permissionLabel(p))).join('');
+    html += permGroupHtml('Other', other.map((p) => box(p, permissionLabel(p))).join(''), true);
   }
   document.getElementById('role-permissions-list').innerHTML = html;
+  refreshPermCounts();
   return true;
 }
 let editingRoleName = null; // null = creating a new role

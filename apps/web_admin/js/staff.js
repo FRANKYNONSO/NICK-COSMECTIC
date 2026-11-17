@@ -199,7 +199,7 @@ function rowHtml(u) {
           ${canEditStaff ? `<button class="btn btn-ghost btn-sm" data-edit="${u.id}">Edit</button>` : ''}
           ${canEditStaff ? `<button class="btn btn-ghost btn-sm" data-reset="${u.id}">Reset password</button>` : ''}
           ${isSuperAdmin && u.role === 'branch_manager' ? `<button class="btn btn-ghost btn-sm" data-restrict="${u.id}">Restrict access</button>` : ''}
-          ${isSuperAdmin && u.role === 'cashier' ? `<button class="btn btn-ghost btn-sm" data-grant="${u.id}">Grant extra access</button>` : ''}
+          ${isSuperAdmin && (u.role === 'cashier' || u.role === 'store_assistant') ? `<button class="btn btn-ghost btn-sm" data-grant="${u.id}">Grant extra access</button>` : ''}
           ${canEditStaff && !isSelf ? `<button class="btn btn-ghost btn-sm" data-toggle="${u.id}">${toggleLabel}</button>` : ''}
           ${canEditStaff && !isSelf ? `<button class="btn btn-danger-text btn-sm" data-delete-user="${u.id}">Delete</button>` : ''}
         </div>
@@ -559,7 +559,7 @@ function grantShowOld(u) {
   grantTargetDenied = u.denied_permissions || [];
   const granted = new Set(u.granted_permissions || []);
   document.getElementById('grant-modal-sub').textContent =
-    `Give ${u.full_name} one or two extra abilities beyond the normal Cashier role -- without upgrading their role.`;
+    `Give ${u.full_name} one or two extra abilities beyond their normal role -- without upgrading their role.`;
   grantChecklist.innerHTML = GRANTABLE_STAFF_PERMISSIONS.map((perm) => `
     <label class="checkbox" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
       <input type="checkbox" data-perm="${perm}" ${granted.has(perm) ? 'checked' : ''} />

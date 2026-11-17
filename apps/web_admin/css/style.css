@@ -2813,6 +2813,97 @@ main table tbody td button:hover, .content table tbody td button:hover {
 .dash-top .rep-row .top-actions { justify-content: flex-end; }
 .dash-top .kpi-row { margin: 20px 0 0; }
 .dash-top .kpi-card { background: var(--surface-raised); }
+/* fix51-dash-compact */
+.main:has(.dash-top) { padding-top: 24px; }
+.dash-top.rep-top.page-head { padding: 16px 20px; margin-bottom: 14px; }
+.dash-top .rep-row { gap: 10px 16px; padding-bottom: 14px !important; }
+.dash-top .rep-row .card-head { flex: 0 1 auto; }
+.dash-top .rep-row .top-actions { flex: 1 1 auto; gap: 6px; justify-content: flex-end; }
+.dash-top .top-actions .pill-btn { padding: 6px 12px; }
+.dash-top .kpi-row { margin: 14px 0 0; gap: 14px; }
+.dash-top .kpi-card { padding: 16px 20px; }
+.dash-top .kpi-card .label { min-height: 28px; }
+.dash-top .kpi-card .value { margin-top: 8px; font-size: 24px; line-height: 30px; }
+.dash-top .kpi-card .icon { top: 16px; right: 20px; }
+/* end fix51-dash-compact */
+/* fix52-dash-select-top-role-color */
+.dash-top .rep-row { column-gap: 12px; }
+.dash-top .rep-row .card-head { flex: 1 1 auto; }
+.dash-top .rep-row > #branch-filter { flex: 0 0 auto; }
+.dash-top .rep-row .top-actions { flex: 1 1 100%; }
+.dash-top .role-pill { color: #fff; font-weight: 600; border: 1px solid transparent; background: var(--rc, #8b5cf6); background: linear-gradient(135deg, var(--rc, #8b5cf6), color-mix(in srgb, var(--rc, #8b5cf6) 60%, #000)); box-shadow: 0 2px 10px color-mix(in srgb, var(--rc, #8b5cf6) 45%, transparent); }
+.dash-top .role-pill .role-pill-dot { background: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.28); }
+.dash-top .role-pill[data-role="super_admin"] { --rc: #8b5cf6; }
+.dash-top .role-pill[data-role="branch_manager"] { --rc: #3b82f6; }
+.dash-top .role-pill[data-role="staff"] { --rc: #16a34a; }
+.dash-top .role-pill[data-role="cashier"] { --rc: #0891b2; }
+.dash-top .role-pill[data-role="store_assistant"] { --rc: #d97706; }
+/* end fix52-dash-select-top-role-color */
+/* fix53-dash-select-center */
+.dash-top .rep-row > #branch-filter { order: -1; flex: 0 0 auto; margin: 0 auto; min-width: 220px; }
+.dash-top .rep-row .card-head { flex: 1 1 100%; }
+/* end fix53-dash-select-center */
+/* fix54-dash-badge-center */
+.dash-top.rep-top.page-head { position: relative; }
+.dash-top #my-branch-badge { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 2; }
+@media (max-width: 1100px) { .dash-top #my-branch-badge { position: static; transform: none; } }
+/* end fix54-dash-badge-center */
+/* fix55-dash-e-banner */
+.dash-top.rep-top.page-head { padding: 0; }
+.dash-top.rep-top .rep-row { flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; padding: 22px 24px !important; margin: 0; background: linear-gradient(120deg, #16275a 0%, #1b2f6b 45%, #3a2a78 100%); border-radius: 17px 17px 0 0; }
+.dash-top .rep-row .card-head { flex: 1 1 0; min-width: max-content; margin: 0; }
+.dash-top .rep-row > #branch-filter, .dash-top .rep-row > #my-branch-badge { order: 0; flex: 0 0 auto; margin: 0; min-width: 210px; padding: 10px 16px; border-radius: 14px; background: rgba(6, 10, 19, 0.55); border: 1px solid rgba(255, 255, 255, 0.28); color: #ffffff; font-size: 14px; font-weight: 600; color-scheme: dark; justify-content: center; }
+.dash-top .rep-row > #branch-filter option { background: #0b1326; color: #f1f5ff; }
+.dash-top .rep-row .top-actions { flex: 1 1 0; min-width: max-content; flex-wrap: nowrap; justify-content: flex-end; gap: 8px; }
+.dash-top .card-titles h2 { color: #ffffff; }
+.dash-top .card-titles p { display: inline; margin: 0; color: #d6defa; }
+.dash-top #updated-at { display: inline; color: #d6defa; font-size: 13px; }
+.dash-top #updated-at:not(:empty)::before { content: " \00b7 "; }
+.dash-top .card-head .card-icon { background: rgba(255, 255, 255, 0.12); color: #ffffff; }
+.dash-top #sync-btn { font-size: 0; width: 34px; height: 34px; padding: 0; justify-content: center; background: rgba(6, 10, 19, 0.55); border-color: rgba(255, 255, 255, 0.28); color: #ffffff; }
+.dash-top #sync-btn::before { content: "\21bb"; font-size: 15px; }
+.dash-top #notif-bell-btn { background: rgba(6, 10, 19, 0.55); border-color: rgba(255, 255, 255, 0.28); color: #ffffff; }
+.dash-top #my-branch-badge { position: static; transform: none; }
+.dash-top .kpi-row { margin: 0; padding: 20px 24px 24px; }
+@media (max-width: 720px) { .dash-top.rep-top .rep-row { padding: 16px !important; } .dash-top .rep-row .card-head, .dash-top .rep-row .top-actions { min-width: 0; flex: 1 1 100%; } .dash-top .rep-row .top-actions { flex-wrap: wrap; } .dash-top .kpi-row { padding: 16px; } }
+/* end fix55-dash-e-banner */
+/* fix56-dash-e-center */
+.dash-top.rep-top .rep-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; column-gap: 16px; row-gap: 8px; }
+.dash-top .rep-row .card-head { grid-column: 1; grid-row: 1; min-width: 0; flex: none; }
+.dash-top .rep-row > #branch-filter, .dash-top .rep-row > #my-branch-badge { grid-column: 2; grid-row: 1; justify-self: center; }
+.dash-top .rep-row .top-actions { grid-column: 3; grid-row: 1; min-width: 0; flex: none; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.dash-top .card-titles p, .dash-top #updated-at { font-size: 14px !important; font-weight: 400 !important; color: #d6defa !important; }
+.dash-top #updated-at:not(:empty)::before { content: "\00a0\00b7\00a0"; }
+@media (max-width: 900px) { .dash-top.rep-top .rep-row { grid-template-columns: minmax(0, 1fr); } .dash-top .rep-row .card-head, .dash-top .rep-row > #branch-filter, .dash-top .rep-row > #my-branch-badge, .dash-top .rep-row .top-actions { grid-column: 1; grid-row: auto; justify-self: stretch; } .dash-top .rep-row .top-actions { justify-content: flex-start; } }
+/* end fix56-dash-e-center */
+/* fix57-dash-updated-line */
+.dash-top #updated-at { display: block; margin-top: 2px; }
+.dash-top #updated-at:not(:empty)::before { content: none; }
+/* end fix57-dash-updated-line */
+/* fix58-dash-actions-one-row */
+@media (min-width: 901px) {
+  .dash-top.rep-top .rep-row { grid-template-columns: minmax(0, 1fr) auto max-content; }
+  .dash-top .rep-row .top-actions { flex-wrap: nowrap; min-width: max-content; align-items: center; justify-content: flex-end; }
+}
+/* end fix58-dash-actions-one-row */
+/* fix59-avatar-indigo */
+.dash-top #avatar-btn { background: linear-gradient(135deg, #4338ca 0%, #312e81 100%) !important; color: #ffffff !important; font-weight: 700; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.75), 0 2px 10px rgba(49, 46, 129, 0.55) !important; }
+.dash-top #avatar-btn:hover { background: linear-gradient(135deg, #5149d6 0%, #3b37a0 100%) !important; }
+/* end fix59-avatar-indigo */
+/* fix60-avatar-blue-gold */
+.dash-top #avatar-btn { background: linear-gradient(135deg, #1e40af 0%, #172554 100%) !important; color: #ffe08a !important; font-weight: 700; box-shadow: 0 0 0 2.5px #f5c542, 0 0 12px rgba(245, 197, 66, 0.45) !important; }
+.dash-top #avatar-btn:hover { background: linear-gradient(135deg, #2549c4 0%, #1b2e6b 100%) !important; box-shadow: 0 0 0 2.5px #ffd966, 0 0 16px rgba(255, 217, 102, 0.6) !important; }
+/* end fix60-avatar-blue-gold */
+/* fix61-avatar-blue-gold-ring */
+.dash-top #avatar-btn { margin: 0 6px 0 8px; box-shadow: 0 0 0 3px #1d4ed8, 0 0 0 5.5px #f5c542, 0 0 14px rgba(245, 197, 66, 0.4) !important; }
+.dash-top #avatar-btn:hover { box-shadow: 0 0 0 3px #2f64e8, 0 0 0 5.5px #ffd966, 0 0 18px rgba(255, 217, 102, 0.6) !important; }
+/* end fix61-avatar-blue-gold-ring */
+/* fix62-banner-royal-blue-gold */
+.dash-top.rep-top .rep-row { background: radial-gradient(circle at 100% 0%, rgba(245, 197, 66, 0.32) 0%, rgba(245, 197, 66, 0) 42%), linear-gradient(120deg, #0f2a7a 0%, #1d4ed8 55%, #1e40af 100%); box-shadow: inset 0 -2px 0 rgba(245, 197, 66, 0.6); }
+/* end fix62-banner-royal-blue-gold */
+/* fix63-banner-deep-blue */
+.dash-top.rep-top .rep-row { background: linear-gradient(120deg, #0a1f75 0%, #0f2fa0 50%, #0b2585 100%) !important; box-shadow: inset 0 -2px 0 rgba(245, 197, 66, 0.7); }
+/* end fix63-banner-deep-blue */
 .dashboard-grid-2 > .section-card { display: flex; flex-direction: column; }
 
 #sales-by-worker-table { margin: 0; }
@@ -3067,3 +3158,31 @@ main table tbody td button:hover, .content table tbody td button:hover {
   padding: 6px 0;
   cursor: pointer;
 }
+
+/* PATCHROLEPILL-CSS: role pill in the dashboard top bar */
+.role-pill {
+  --rc: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--rc);
+  background: color-mix(in srgb, var(--rc) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rc) 40%, transparent);
+}
+.role-pill .role-pill-dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--rc);
+}
+.role-pill[data-role="super_admin"] { --rc: #8b5cf6; }
+.role-pill[data-role="branch_manager"] { --rc: #3b82f6; }
+.role-pill[data-role="staff"],
+.role-pill[data-role="cashier"] { --rc: #16a34a; }
+.role-pill[data-role="store_assistant"] { --rc: #d97706; }

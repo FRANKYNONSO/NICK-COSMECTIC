@@ -18,6 +18,10 @@
     } catch (e) { return true; }
   }
   if (!isSuperAdmin()) return;
+  // PATCHP3U-WEBCODE: the server needs manage_website_coupons, so the
+  // button needs the key too. Perms.can() is false when the user cannot
+  // be read, so the button stays hidden in that case.
+  if (typeof Perms === 'undefined' || !Perms.can('manage_website_coupons')) return;
 
   const posCouponBtn = document.getElementById('generate-coupon-btn');
   const host = posCouponBtn ? posCouponBtn.parentElement : document.querySelector('.page-head');

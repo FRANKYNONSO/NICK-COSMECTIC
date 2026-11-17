@@ -172,10 +172,13 @@ async function scenarioOk() {
   const html = h.getEl("role-permissions-list")._html;
   const values = h.boxes().map((b) => b.value).sort();
   const box = (k) => h.boxes().find((b) => b.value === k);
-  check("B1 group headings are shown", html.includes(">Sales</div>") && html.includes(">Stock</div>"));
+  check("B1 group headings are shown", html.includes(">Sales</span>") && html.includes(">Stock</span>"));
   check("B2 tab headings are shown", html.includes(">POS</div>") && html.includes(">Shelf</div>"));
   check("B3 headings span the full width", html.includes("grid-column:1 / -1"));
-  check("B4 groups keep the server order", html.indexOf(">Sales</div>") < html.indexOf(">Stock</div>"));
+  // PATCHG3-TESTS: sections start closed; the Other section starts open.
+check("B9 sections start closed", html.includes("aria-expanded=\"false\"") && html.includes("display:none"));
+check("D2 the Other section starts open", html.includes("aria-expanded=\"true\""));
+check("B4 groups keep the server order", html.indexOf(">Sales</span>") < html.indexOf(">Stock</span>"));
   check("B5 the server names are shown", html.includes("Process sales (server)") && html.includes("View stock (server)"));
   check("B6 an empty tab and an empty group are not drawn", !html.includes("Empty"));
   check("B7 a key listed twice is drawn once", h.boxes().filter((b) => b.value === "view_stock").length === 1 && !html.includes("Duplicate") && !html.includes("Again"));
@@ -186,7 +189,7 @@ async function scenarioOk() {
     box("view_stock").checked === false && box("view_own_sales").checked === false);
   check("C2 all boxes are enabled", h.boxes().every((b) => !b.disabled));
   check("D1 a held key outside the registry goes under Other",
-    html.includes(">Other</div>") && html.includes("Legacy Thing") && html.indexOf(">Other</div>") > html.indexOf(">Stock</div>"));
+    html.includes(">Other</span>") && html.includes("Legacy Thing") && html.indexOf(">Other</span>") > html.indexOf(">Stock</span>"));
 
   box("view_stock").checked = true;
   await fire(h.getEl("role-modal-save"), "click");
@@ -207,7 +210,7 @@ async function scenarioOk() {
   await fire(h.getEl("new-role-btn"), "click");
   const html2 = h.getEl("role-permissions-list")._html;
   check("G1 a new role opens grouped, with 3 boxes, none ticked, none read-only, no Other",
-    h.boxes().length === 3 && h.boxes().every((b) => !b.checked && !b.disabled) && !html2.includes(">Other</div>"));
+    h.boxes().length === 3 && h.boxes().every((b) => !b.checked && !b.disabled) && !html2.includes(">Other</span>"));
 }
 
 async function scenarioFail() {

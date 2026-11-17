@@ -6,6 +6,18 @@ const roleLabels = { super_admin: 'Super admin', branch_manager: 'Branch manager
 const currentUser = Auth.getUser();
 document.getElementById('current-user-name').textContent = currentUser?.full_name || 'Signed in';
 document.getElementById('current-user-role').textContent = roleLabels[currentUser?.role] || currentUser?.role || '';
+// PATCHROLEPILL: role pill in the top bar (label comes from roleLabels above)
+(function () {
+  const pill = document.getElementById('role-pill');
+  if (!pill) return;
+  const key = (currentUser && currentUser.role) || '';
+  const pretty = key ? key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ') : '';
+  const label = roleLabels[key] || (key === 'cashier' ? 'Cashier' : pretty);
+  if (!label) return;
+  pill.querySelector('.role-pill-text').textContent = label;
+  pill.dataset.role = key;
+  pill.style.display = '';
+})();
 document.getElementById('logout-link').addEventListener('click', (e) => { e.preventDefault(); Auth.logout(); });
 document.getElementById('full-reports-link')?.addEventListener('click', (e) => e.preventDefault());
 
@@ -895,6 +907,31 @@ if (Perms.isStaff()) {
   document.getElementById('branch-filter').style.display = 'none';
 }
 
+// PATCHP3S-OVERLAY: the dashboard follows permission keys, not role names.
+// Full page = view_all_reports (branch manager, super admin). Everyone else
+// gets a small page: own sales today (view_own_sales) and the inventory
+// overview (view_inventory_overview). The bell is not touched here.
+const DASH_FULL = Perms.can('view_all_reports');
+const DASH_SEE_MINE = Perms.can('view_own_sales');
+const DASH_SEE_INV = Perms.can('view_inventory_overview');
+if (!DASH_FULL) {
+  document.querySelectorAll('.admin-only-section').forEach((el) => { el.style.display = 'none'; });
+  document.querySelectorAll('.staff-only-section').forEach((el) => { el.style.display = DASH_SEE_MINE ? '' : 'none'; });
+  const weekEl = document.getElementById('kpi-my-week-revenue');
+  const weekCard = weekEl ? weekEl.closest('.kpi-card') : null;
+  if (weekCard) weekCard.style.display = 'none';
+  const recentEl = document.getElementById('my-sales-tbody');
+  const recentBox = recentEl ? recentEl.closest('.staff-only-section') : null;
+  if (recentBox) recentBox.style.display = 'none';
+  const invCard = document.querySelector('.dash-overview');
+  const invBox = invCard ? invCard.closest('.admin-only-section') : null;
+  if (invBox) invBox.style.display = DASH_SEE_INV ? '' : 'none';
+  document.getElementById('branch-filter').style.display = 'none';
+  document.getElementById('full-reports-link')?.remove();
+  const subP3S = document.querySelector('.page-head p');
+  if (subP3S) subP3S.textContent = DASH_SEE_MINE ? 'Your sales today and stock - updates automatically.' : 'Stock overview - updates automatically.';
+}
+
 async function loadMyKpis() {
   function inRange(dateStr, days) {
     const d = new Date(dateStr);
@@ -946,6 +983,25 @@ async function loadMyKpis() {
 }
 
 function loadAll() {
+  // PATCHP3S-LOAD: everyone without view_all_reports gets the small dashboard.
+  if (!DASH_FULL) {
+    if (currentUser?.branch_id) {
+      const select = document.getElementById('branch-filter');
+      select.value = currentUser.branch_id;
+      if (select.value === String(currentUser.branch_id)) {
+        const opt = select.options[select.selectedIndex];
+        if (!BranchContext.get()) BranchContext.set(currentUser.branch_id, opt ? opt.textContent : undefined);
+        const badge = document.getElementById('my-branch-badge');
+        if (badge && opt) {
+          badge.textContent = opt.textContent;
+          badge.style.display = '';
+        }
+      }
+    }
+    if (DASH_SEE_INV) loadInventoryOverview();
+    if (DASH_SEE_MINE) loadMyKpis();
+    return;
+  }
   if (Perms.isStaff()) {
     if (currentUser?.branch_id) {
       const select = document.getElementById('branch-filter');

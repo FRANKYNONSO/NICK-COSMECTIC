@@ -56,17 +56,20 @@
           <div class="card-titles">
             <h2 class="display">Dashboard</h2>
             <p>Live store performance &mdash; updates automatically.</p>
+            <span class="updated-at" id="updated-at"></span>
           </div>
         </div>
+      <select id="branch-filter">
+        <option value="">All branches</option>
+      </select>
+      <span class="pill-btn" id="my-branch-badge" style="display:none;"></span>
       <div class="top-actions">
-        <select id="branch-filter">
-          <option value="">All branches</option>
-        </select>
-        <span class="pill-btn" id="my-branch-badge" style="display:none;"></span>
+        <span class="role-pill" id="role-pill" style="display:none;"><i class="role-pill-dot"></i><span class="role-pill-text"></span></span>
+        
         <span class="status-pill connecting" id="sync-status"><span class="dot"></span>Connecting&#8230;</span>
         <span class="status-pill online" id="online-status"><span class="dot"></span>Online</span>
         <button class="pill-btn" id="sync-btn">&#8635; Sync</button>
-        <span class="updated-at" id="updated-at"></span>
+        
         <div class="bell-wrap admin-only-section">
           <button type="button" id="notif-bell-btn" class="pill-btn" aria-label="Notifications">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
