@@ -47,3 +47,11 @@ _bundle*.txt
 _inspect*.txt
 *.bak
 *.before_creator_fix
+_dump_wh.py
+_pwchange.py
+perm_scan.txt
+sample_restock_request.pdf
+apply_logo.py
+migrate_dialogs.py
+patch_invoice_total_top.py
+fix_live13_storefront_account.py
