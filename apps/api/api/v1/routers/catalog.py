@@ -658,6 +658,23 @@ async def create_product(
         if existing.scalar_one_or_none() is not None:
             raise HTTPException(status.HTTP_409_CONFLICT, detail=f"SKU '{sku}' already exists")
 
+    # fix75-barcode-duplicate
+    new_barcode = (getattr(body, "barcode", None) or "").strip()
+    if new_barcode:
+        dup_result = await session.execute(select(Product).where(Product.barcode == new_barcode))
+        dup = dup_result.scalars().first()
+        if dup is not None:
+            if dup.is_deleted:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail=f"Barcode '{new_barcode}' already belongs to a deleted product ('{dup.name}'). Restore it from Deletion history instead of adding it again.",
+                )
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f"Barcode '{new_barcode}' already exists on '{dup.name}'.",
+            )
+    # end fix75-barcode-duplicate
+
     product = Product(
         **data,
         sku=sku,
@@ -678,6 +695,7 @@ async def create_product(
 @router.get("/products", response_model=list[ProductOut])
 async def list_products(
     search: str | None = None,
+    barcode: str | None = None,  # fix75-barcode-duplicate
     category_id: uuid.UUID | None = None,
     brand_id: uuid.UUID | None = None,
     branch_id: uuid.UUID | None = None,
@@ -702,6 +720,10 @@ async def list_products(
         stmt = stmt.where(Product.hidden_from_staff.is_(False))
     if search:
         stmt = stmt.where(Product.name.ilike(f"%{search}%"))
+    # fix75-barcode-duplicate
+    if barcode:
+        stmt = stmt.where(Product.barcode == barcode.strip())
+    # end fix75-barcode-duplicate
     if category_id:
         stmt = stmt.where(Product.category_id == category_id)
     if brand_id:
@@ -907,6 +929,25 @@ async def update_product(
         existing = await session.execute(select(Product).where(Product.sku == data["sku"]))
         if existing.scalar_one_or_none() is not None:
             raise HTTPException(status.HTTP_409_CONFLICT, detail=f"SKU '{data['sku']}' already exists")
+
+    # fix75-barcode-duplicate
+    new_barcode = (data.get("barcode") or "").strip()
+    if new_barcode and new_barcode != (product.barcode or ""):
+        dup_result = await session.execute(
+            select(Product).where(Product.barcode == new_barcode, Product.id != product.id)
+        )
+        dup = dup_result.scalars().first()
+        if dup is not None:
+            if dup.is_deleted:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail=f"Barcode '{new_barcode}' already belongs to a deleted product ('{dup.name}'). Restore it from Deletion history instead of adding it again.",
+                )
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f"Barcode '{new_barcode}' already exists on '{dup.name}'.",
+            )
+    # end fix75-barcode-duplicate
 
     for field, value in data.items():
         setattr(product, field, value)

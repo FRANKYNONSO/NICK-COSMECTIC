@@ -81,6 +81,7 @@
       <button type="button" class="btn btn-ghost btn-sm tab-btn" id="tab-btn-branches" data-consolidated-tab="branches">Branches</button>
       <button type="button" class="btn btn-ghost btn-sm tab-btn" id="tab-btn-roles" data-consolidated-tab="roles">Roles</button>
       <button type="button" class="btn btn-ghost btn-sm tab-btn" id="tab-btn-shifts" data-consolidated-tab="shifts">Shifts</button>
+      <button type="button" class="btn btn-ghost btn-sm tab-btn" id="tab-btn-activity" onclick="location.href='staff-activity.html'">Activity</button>
     </div>
   </div>
 
@@ -711,5 +712,6 @@ if (requestedTab) {
   document.getElementById(`tab-btn-${requestedTab}`)?.click();
 }
 </script>
+<script>/* staff-activity-tab */(function(){var t=new URLSearchParams(location.search).get("tab");if(!t)return;window.addEventListener("load",function(){setTimeout(function(){var b=document.getElementById("tab-btn-"+t);if(b)b.click();},400);});})();</script>
 </body>
 </html>

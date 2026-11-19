@@ -1433,9 +1433,10 @@ async def link_invoice(
             counted += sum(l.quantity_received for l in receipt.lines if l.invoice_line_item_id == li.id)
         counted += await _pushed_old_flow(session, li.id)
         if counted > li.total_pieces:
+            listed = li.total_pieces
             await session.rollback()
             raise _bad(
-                f"Linking would put {counted} pieces against an invoice line that only lists {li.total_pieces}."
+                f"Linking would put {counted} pieces against an invoice line that only lists {listed}."
             )
     for line_id, cost in (body.line_costs or {}).items():
         line = by_id.get(line_id)

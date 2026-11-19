@@ -13,7 +13,7 @@
 // v2: categories.html + variant-types.html merged into
 // category-variants.html (variant-category-system-spec.md) -- bumped so
 // clients with the old shell cached don't keep serving the removed page.
-const CACHE_NAME = 'nc-admin-shell-v21';
+const CACHE_NAME = 'nc-admin-shell-v22';
 const SHELL_ASSETS = [
   'dashboard.html',
   'pos.html',
@@ -24,7 +24,6 @@ const SHELL_ASSETS = [
   'category-variants.html',
   'reports.html',
   'staff.html',
-  'branches.html',
   'css/style.css',
   'js/theme.js',
   'js/api.js',
@@ -32,6 +31,9 @@ const SHELL_ASSETS = [
   'js/website-orders.js',
   'manifest.json',
   'icon.svg',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'icons/icon-512-maskable.png',
 ];
 
 self.addEventListener('install', (event) => {

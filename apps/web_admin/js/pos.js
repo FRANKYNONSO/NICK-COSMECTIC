@@ -394,6 +394,247 @@ document.getElementById('scan-input').addEventListener('keydown', (e) => {
 
 let cart = {}; // product_id -> { product, quantity }
 
+// fix74-pos-camera-scan
+// Camera barcode scanning on the POS page. The camera icon sits inside the
+// search box at the right end. It scans again and again, adds each item to
+// the cart, and ignores the same barcode while it stays in view. The Close
+// camera button inside the camera box turns the camera off.
+let nc73Stream = null;
+let nc73Timer = null;
+let nc73CamIds = [];
+let nc73CamIdx = 0;
+let nc73LastCode = '';
+let nc73LastSeen = 0;
+let nc73Audio = null;
+
+function nc73SavedCam() {
+  try { return localStorage.getItem('nc72_cam') || ''; } catch (e) { return ''; }
+}
+
+function nc73SaveCam(id) {
+  try { localStorage.setItem('nc72_cam', id); } catch (e) { /* ignore */ }
+}
+
+function nc73SetActive(on) {
+  const btn = document.getElementById('nc73-cam-btn');
+  if (!btn) return;
+  btn.style.color = on ? 'var(--accent, #2563eb)' : 'var(--ink-faint, #888)';
+  btn.title = on ? 'Close camera' : 'Scan with camera';
+  btn.setAttribute('aria-label', btn.title);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+
+function nc73Beep() {
+  try {
+    if (!nc73Audio) nc73Audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (nc73Audio.resume) nc73Audio.resume();
+    const o = nc73Audio.createOscillator();
+    const g = nc73Audio.createGain();
+    o.frequency.value = 1200;
+    g.gain.value = 0.08;
+    o.connect(g);
+    g.connect(nc73Audio.destination);
+    o.start();
+    o.stop(nc73Audio.currentTime + 0.12);
+  } catch (e) { /* no sound available */ }
+  try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) { /* ignore */ }
+}
+
+async function nc73Open(deviceId) {
+  const video = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+  if (deviceId) {
+    video.deviceId = { exact: deviceId };
+  } else {
+    video.facingMode = { ideal: 'environment' };
+  }
+  const stream = await navigator.mediaDevices.getUserMedia({ video: video });
+  try {
+    const track = stream.getVideoTracks()[0];
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) {
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+    }
+  } catch (e) { /* focus control not available on this camera */ }
+  return stream;
+}
+
+async function nc73ListBackCameras() {
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    return all
+      .filter((d) => d.kind === 'videoinput' && !/front/i.test(d.label))
+      .map((d) => d.deviceId);
+  } catch (e) { return []; }
+}
+
+async function nc73FindProduct(code) {
+  const local = productCache.find((p) => p.barcode === code);
+  if (local) return local;
+  try {
+    const list = await Api.listProducts({ branchId: currentBranchId || undefined, search: code });
+    return list.find((p) => p.barcode === code) || null;
+  } catch (e) { return null; }
+}
+
+async function nc73Tick(detector, video) {
+  if (!nc73Stream) return;
+  let code = '';
+  try {
+    const found = await detector.detect(video);
+    if (found.length) code = String(found[0].rawValue || '').trim();
+  } catch (e) { /* keep trying on transient errors */ }
+  if (code) {
+    const now = Date.now();
+    const same = code === nc73LastCode && (now - nc73LastSeen) < 1200;
+    nc73LastCode = code;
+    nc73LastSeen = now;
+    if (!same) {
+      const product = await nc73FindProduct(code);
+      if (product) {
+        const before = cart[product.id] ? cart[product.id].quantity : 0;
+        addToCart(product);
+        const after = cart[product.id] ? cart[product.id].quantity : 0;
+        if (after > before) {
+          nc73Beep();
+          showToast('Added: ' + product.name);
+        }
+      } else {
+        showToast('No product with barcode ' + code, true);
+      }
+    }
+  }
+  if (nc73Stream) nc73Timer = setTimeout(() => nc73Tick(detector, video), 150);
+}
+
+function nc73Stop() {
+  if (nc73Timer) clearTimeout(nc73Timer);
+  nc73Timer = null;
+  if (nc73Stream) {
+    nc73Stream.getTracks().forEach((t) => t.stop());
+    nc73Stream = null;
+  }
+  const panel = document.getElementById('nc73-cam-panel');
+  if (panel) panel.style.display = 'none';
+  nc73SetActive(false);
+}
+
+async function nc73Start() {
+  const panel = document.getElementById('nc73-cam-panel');
+  const wrap = document.getElementById('nc73-wrap');
+  const video = document.getElementById('nc73-video');
+  const hint = document.getElementById('nc73-hint');
+  const sw = document.getElementById('nc73-switch-btn');
+  panel.style.display = 'block';
+  if (!('BarcodeDetector' in window)) {
+    wrap.style.display = 'none';
+    sw.style.display = 'none';
+    hint.textContent = 'Camera barcode scanning is not supported on this browser. Use a scanner gun or type the barcode.';
+    return;
+  }
+  try {
+    try {
+      nc73Audio = nc73Audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (nc73Audio.resume) nc73Audio.resume();
+    } catch (e) { /* sound is optional */ }
+    let stream;
+    try {
+      stream = await nc73Open(nc73SavedCam());
+    } catch (e) {
+      stream = await nc73Open('');
+    }
+    nc73Stream = stream;
+    nc73CamIds = await nc73ListBackCameras();
+    const cur = stream.getVideoTracks()[0].getSettings().deviceId;
+    nc73CamIdx = Math.max(0, nc73CamIds.indexOf(cur));
+    video.srcObject = stream;
+    wrap.style.display = 'block';
+    sw.style.display = nc73CamIds.length > 1 ? 'flex' : 'none'; // fix77-camera-icons
+    await video.play();
+    nc73SetActive(true);
+    hint.textContent = 'Align barcode within the frame. Each scan adds the item to the cart.';
+    nc73LastCode = '';
+    nc73LastSeen = 0;
+    const detector = new BarcodeDetector();
+    nc73Timer = setTimeout(() => nc73Tick(detector, video), 150);
+  } catch (err) {
+    nc73Stop();
+    panel.style.display = 'block';
+    wrap.style.display = 'none';
+    sw.style.display = 'none';
+    hint.textContent = 'Could not access the camera: ' + err.message;
+  }
+}
+
+async function nc73Switch() {
+  const hint = document.getElementById('nc73-hint');
+  const video = document.getElementById('nc73-video');
+  if (nc73CamIds.length < 2) {
+    hint.textContent = 'Only one camera was found on this phone.';
+    return;
+  }
+  nc73CamIdx = (nc73CamIdx + 1) % nc73CamIds.length;
+  const id = nc73CamIds[nc73CamIdx];
+  if (nc73Stream) {
+    nc73Stream.getTracks().forEach((t) => t.stop());
+  }
+  try {
+    const s = await nc73Open(id);
+    nc73Stream = s;
+    video.srcObject = s;
+    await video.play();
+    nc73SaveCam(id);
+    hint.textContent = 'Camera ' + (nc73CamIdx + 1) + ' of ' + nc73CamIds.length + '. Align barcode within the frame.';
+  } catch (err) {
+    hint.textContent = 'Could not open that camera: ' + err.message;
+  }
+}
+
+function nc73BuildUi() {
+  if (document.getElementById('nc73-cam-box')) return;
+  const search = document.querySelector('.pos-search');
+  const input = document.getElementById('scan-input');
+  if (!search || !input || !search.parentNode) return;
+
+  // Camera icon inside the search box, at the right end.
+  search.style.position = 'relative';
+  input.style.paddingRight = '52px';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'nc73-cam-btn';
+  btn.style.cssText = 'position:absolute;right:6px;top:50%;transform:translateY(-50%);width:38px;height:38px;padding:0;margin:0;border:0;background:transparent;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;';
+  btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  search.appendChild(btn);
+  nc73SetActive(false);
+
+  // Camera box (hidden until the camera is turned on), right under the search box.
+  const box = document.createElement('div');
+  box.id = 'nc73-cam-box';
+  box.innerHTML = ''
+    + '<div id="nc73-cam-panel" style="display:none;">'
+    + '<div id="nc73-wrap" style="position:relative;">'
+    + '<video id="nc73-video" playsinline muted style="width:100%;max-height:280px;object-fit:cover;border-radius:10px;background:#000;display:block;"></video>'
+    + '<div style="position:absolute;left:12%;right:12%;top:22%;bottom:22%;border:3px solid #2ecc71;border-radius:12px;pointer-events:none;"></div>'
+    + '<button type="button" id="nc73-switch-btn" title="Switch camera" aria-label="Switch camera" style="position:absolute;top:8px;left:8px;display:none;width:40px;height:40px;padding:0;margin:0;border:0;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;align-items:center;justify-content:center;cursor:pointer;z-index:3;"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>'
+    + '<button type="button" id="nc73-close-btn" title="Close camera" aria-label="Close camera" style="position:absolute;top:8px;right:8px;display:flex;width:40px;height:40px;padding:0;margin:0;border:0;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;align-items:center;justify-content:center;cursor:pointer;z-index:3;"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'
+    // fix77-camera-icons: icons are inside the video now
+    + '</div>'
+    + '<p id="nc73-hint" style="font-size:12px;margin:6px 0 16px;color:var(--ink-faint);"></p>'
+    // fix77-camera-icons: text buttons removed
+    + '</div>';
+  search.parentNode.insertBefore(box, search.nextSibling);
+
+  btn.addEventListener('click', () => {
+    if (nc73Stream) { nc73Stop(); } else { nc73Start(); }
+  });
+  document.getElementById('nc73-switch-btn').addEventListener('click', nc73Switch);
+  document.getElementById('nc73-close-btn').addEventListener('click', nc73Stop);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) nc73Stop(); });
+  window.addEventListener('pagehide', nc73Stop);
+}
+
+nc73BuildUi();
+// end fix74-pos-camera-scan
+
 function addToCart(product) {
   const available = product.quantity_available ?? 0;
   const reserved = bookingHolds[product.product_id]?.reserved_quantity ?? 0;

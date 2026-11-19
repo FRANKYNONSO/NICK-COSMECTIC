@@ -292,6 +292,20 @@
   .intro-logo svg.lg { width: 100%; height: auto; display: block; }
   .brand, .intro-brand { display: none !important; }
   @keyframes introLogoIn { from { opacity: 0; transform: translateY(14px) scale(.96); } to { opacity: 1; transform: none; } }
+  /* fix78-login-phone */
+  @media (max-width: 440px) {
+    .card { padding: 22px 16px 20px; }
+    .input .ic { margin-left: 12px; width: 18px; height: 18px; }
+    .input input { padding: 16px 8px; font-size: 14px; text-overflow: ellipsis; }
+    .input input::placeholder { text-overflow: ellipsis; }
+    .eye { padding: 0 12px; }
+    .row { font-size: 13px; }
+  }
+  /* end fix78-login-phone */
+  /* fix79-hide-products-phone */
+  /* fix80 products hidden on all screen sizes */
+  .fx-stand { display: none !important; }
+  /* end fix79-hide-products-phone */
 </style>
   <script src="ui-dialog.js"></script>
 </head>
@@ -436,7 +450,7 @@
         for (var ci = 0; ci < kids.length; ci++) {
           var r = kids[ci].getBoundingClientRect();
           var ox = Math.min(r.right, cr.right + 6) - Math.max(r.left, cr.left - 6);
-          var oy = (cr.bottom + 8) - r.top;
+          var lgEl = document.querySelector('.legal'); /* fix78 legal */ var oy = (Math.max(cr.bottom, lgEl ? lgEl.getBoundingClientRect().bottom : 0) + 8) - r.top;
           if (ox > 0 && oy > 0 && ox * oy > wo) { wo = ox * oy; worst = kids[ci]; }
         }
         if (!worst) break;
@@ -448,6 +462,21 @@
   }
   build();
   var rt; window.addEventListener('resize', function () { clearTimeout(rt); rt = setTimeout(build, 150); });
+  // fix78-login-phone
+  // Place the products again when the card gets taller or shorter
+  // (for example when the red messages show or hide).
+  var cardWatch = document.querySelector('.card');
+  if (cardWatch && window.ResizeObserver) {
+    var lastCardH = cardWatch.offsetHeight;
+    new ResizeObserver(function () {
+      var h = cardWatch.offsetHeight;
+      if (Math.abs(h - lastCardH) < 2) return;
+      lastCardH = h;
+      clearTimeout(rt);
+      rt = setTimeout(build, 150);
+    }).observe(cardWatch);
+  }
+  // end fix78-login-phone
   if (reduce) return;
 
   function R(a, b) { return a + Math.random() * (b - a); }

@@ -223,6 +223,16 @@ function renderProducts() {
       '<td><button type="button" class="btn btn-ghost" data-act="save-product" style="width:auto;" disabled>Save</button></td>' +
       '</tr>';
   }).join('');
+  /* fix87-mu-labels */
+  (function () {
+    const heads = Array.prototype.map.call(document.querySelectorAll('#mu-thead th'), (th) => th.textContent);
+    tbody.querySelectorAll('tr').forEach((tr) => {
+      Array.prototype.forEach.call(tr.children, (td, i) => {
+        if (i >= 2 && heads[i]) td.setAttribute('data-label', heads[i]);
+      });
+    });
+  })();
+  /* end fix87-mu-labels */
   document.getElementById('mu-empty').style.display = allProducts.length ? 'none' : '';
   applySearch();
 }

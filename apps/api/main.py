@@ -106,6 +106,8 @@ app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(storefront_orders.router, prefix="/api/v1")
 from api.v1.routers import goods_receiving  # noqa: E402
 app.include_router(goods_receiving.router, prefix="/api/v1")
+from api.v1.routers import staff_activity  # noqa: E402
+app.include_router(staff_activity.router, prefix="/api/v1")
 
 
 @app.get("/health")

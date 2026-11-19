@@ -817,11 +817,12 @@ const Api = {
   },
 
   // -------------------------------------------------------------- Products
-  listProducts({ branchId, categoryId, search, lowStockOnly, outOfStockOnly, needsInvoiceOnly } = {}) {
+  listProducts({ branchId, categoryId, search, barcode, lowStockOnly, outOfStockOnly, needsInvoiceOnly } = {}) { // fix76-barcode-duplicate
     const params = new URLSearchParams();
     if (branchId) params.set('branch_id', branchId);
     if (categoryId) params.set('category_id', categoryId);
     if (search) params.set('search', search);
+    if (barcode) params.set('barcode', barcode); // fix76-barcode-duplicate
     if (lowStockOnly) params.set('low_stock', 'true');
     if (outOfStockOnly) params.set('out_of_stock', 'true');
     if (needsInvoiceOnly) params.set('needs_invoice', 'true');

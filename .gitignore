@@ -37,3 +37,13 @@ desktop_tree.txt
 core_tree.txt
 __pycache__/
 .venv/
+_patch*.py
+_patchfix*.py
+fix*.ps1
+fix_live*.ps1
+_hold_*/
+_backup_*/
+_bundle*.txt
+_inspect*.txt
+*.bak
+*.before_creator_fix

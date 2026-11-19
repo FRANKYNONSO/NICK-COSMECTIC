@@ -1155,6 +1155,180 @@ document.addEventListener('click', (e) => {
 let barcodeScanStream = null;
 let barcodeScanRAF = null;
 
+// fix72-barcode-camera
+// Better camera for barcode scanning: bigger picture, continuous focus,
+// and a Switch camera button for phones with several back cameras.
+let nc72CamIds = [];
+let nc72CamIdx = 0;
+
+function nc72SavedCam() {
+  try { return localStorage.getItem('nc72_cam') || ''; } catch (e) { return ''; }
+}
+
+function nc72SaveCam(id) {
+  try { localStorage.setItem('nc72_cam', id); } catch (e) { /* ignore */ }
+}
+
+async function nc72OpenCamera(deviceId) {
+  const video = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+  if (deviceId) {
+    video.deviceId = { exact: deviceId };
+  } else {
+    video.facingMode = { ideal: 'environment' };
+  }
+  const stream = await navigator.mediaDevices.getUserMedia({ video: video });
+  try {
+    const track = stream.getVideoTracks()[0];
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if (caps.focusMode && caps.focusMode.indexOf('continuous') !== -1) {
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+    }
+  } catch (e) { /* focus control not available on this camera */ }
+  return stream;
+}
+
+async function nc72ListBackCameras() {
+  try {
+    const all = await navigator.mediaDevices.enumerateDevices();
+    return all
+      .filter((d) => d.kind === 'videoinput' && !/front/i.test(d.label))
+      .map((d) => d.deviceId);
+  } catch (e) { return []; }
+}
+
+// fix77-camera-icons
+// Switch camera and Close camera are round icons inside the video.
+// The Switch icon shows only when the phone has 2 or more cameras.
+function nc77iBtn(id, side, label, svg) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.id = id;
+  b.title = label;
+  b.setAttribute('aria-label', label);
+  b.style.cssText = 'position:absolute;top:16px;' + side + ':8px;display:none;width:40px;height:40px;padding:0;margin:0;border:0;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;align-items:center;justify-content:center;cursor:pointer;z-index:3;';
+  b.innerHTML = svg;
+  return b;
+}
+
+function nc77iWrap() {
+  const video = document.getElementById('p-barcode-scan-video');
+  if (!video || !video.parentNode) return null;
+  let wrap = document.getElementById('nc77-inv-wrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'nc77-inv-wrap';
+    wrap.style.position = 'relative';
+    video.parentNode.insertBefore(wrap, video);
+    wrap.appendChild(video);
+  }
+  return wrap;
+}
+
+function nc72ShowSwitch(show) {
+  let sw = document.getElementById('nc72-cam-switch');
+  let cl = document.getElementById('nc77-inv-close');
+  if (!sw && !cl) {
+    if (!show) return;
+    const wrap = nc77iWrap();
+    if (!wrap) return;
+    cl = nc77iBtn('nc77-inv-close', 'right', 'Close camera', '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>');
+    cl.addEventListener('click', stopBarcodeScan);
+    sw = nc77iBtn('nc72-cam-switch', 'left', 'Switch camera', '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>');
+    sw.addEventListener('click', nc72SwitchCamera);
+    wrap.appendChild(cl);
+    wrap.appendChild(sw);
+  }
+  if (cl) cl.style.display = show ? 'flex' : 'none';
+  if (sw) sw.style.display = (show && nc72CamIds.length > 1) ? 'flex' : 'none';
+}
+// end fix77-camera-icons
+
+async function nc72StartCamera() {
+  const saved = nc72SavedCam();
+  let stream;
+  try {
+    stream = await nc72OpenCamera(saved);
+  } catch (e) {
+    stream = await nc72OpenCamera('');
+  }
+  nc72CamIds = await nc72ListBackCameras();
+  const cur = stream.getVideoTracks()[0].getSettings().deviceId;
+  nc72CamIdx = Math.max(0, nc72CamIds.indexOf(cur));
+  nc72ShowSwitch(true);
+  return stream;
+}
+
+async function nc72SwitchCamera() {
+  const hint = document.getElementById('p-barcode-scan-hint');
+  const video = document.getElementById('p-barcode-scan-video');
+  if (nc72CamIds.length < 2) {
+    hint.textContent = 'Only one camera was found on this phone.';
+    return;
+  }
+  nc72CamIdx = (nc72CamIdx + 1) % nc72CamIds.length;
+  const id = nc72CamIds[nc72CamIdx];
+  if (barcodeScanStream) {
+    barcodeScanStream.getTracks().forEach((t) => t.stop());
+  }
+  try {
+    const s = await nc72OpenCamera(id);
+    barcodeScanStream = s;
+    video.srcObject = s;
+    await video.play();
+    nc72SaveCam(id);
+    hint.textContent = 'Camera ' + (nc72CamIdx + 1) + ' of ' + nc72CamIds.length + '. Hold the barcode about 25 cm away.';
+  } catch (err) {
+    hint.textContent = 'Could not open that camera: ' + err.message;
+  }
+}
+// end fix72-barcode-camera
+
+// fix76-barcode-duplicate
+// Instant duplicate-barcode check. It asks the server (the barcode filter
+// added in fix75) and ignores the product being edited. If the check itself
+// fails, the scan goes through; the server still refuses a duplicate on Save.
+async function nc76BarcodeTaken(code) {
+  const value = String(code || '').trim();
+  if (!value) return null;
+  try {
+    const list = await Api.listProducts({ barcode: value });
+    const ownId = document.getElementById('product-id').value;
+    const hit = (list || []).find((p) => p.barcode === value && String(p.id) !== String(ownId));
+    return hit || null;
+  } catch (e) { return null; }
+}
+
+function nc76TakenText(product, code) {
+  const size = product.size ? ' (' + product.size + ')' : '';
+  return 'Already exists: ' + product.name + size + '. Barcode ' + code + ' is already used, so it cannot be added again.';
+}
+
+function nc76HideTaken() {
+  const el = document.getElementById('nc76-taken-msg');
+  if (el) el.style.display = 'none';
+}
+
+function nc76ShowTaken(product, code) {
+  const text = nc76TakenText(product, code);
+  let el = document.getElementById('nc76-taken-msg');
+  if (!el) {
+    const hint = document.getElementById('p-barcode-scan-hint');
+    if (hint && hint.parentNode) {
+      el = document.createElement('p');
+      el.id = 'nc76-taken-msg';
+      el.style.cssText = 'font-size:13px;font-weight:600;margin-top:8px;color:var(--danger, #e5484d);';
+      hint.parentNode.insertBefore(el, hint.nextSibling);
+    }
+  }
+  if (el) {
+    el.textContent = text;
+    el.style.display = 'block';
+    try { el.scrollIntoView({ block: 'center' }); } catch (e) { /* ignore */ }
+  }
+  showToast(text, true);
+}
+// end fix76-barcode-duplicate
+
 function stopBarcodeScan() {
   if (barcodeScanRAF) cancelAnimationFrame(barcodeScanRAF);
   barcodeScanRAF = null;
@@ -1164,6 +1338,8 @@ function stopBarcodeScan() {
   }
   document.getElementById('p-barcode-scan-video').style.display = 'none';
   document.getElementById('p-barcode-scan-hint').style.display = 'none';
+  nc72ShowSwitch(false); // fix72-barcode-camera
+  nc76HideTaken(); // fix76-barcode-duplicate
   document.getElementById('p-barcode-scan-btn').textContent = '📷 Scan';
 }
 
@@ -1173,13 +1349,14 @@ document.getElementById('p-barcode-scan-btn')?.addEventListener('click', async (
     return;
   }
   const hint = document.getElementById('p-barcode-scan-hint');
+  nc76HideTaken(); // fix76-barcode-duplicate
   if (!('BarcodeDetector' in window)) {
     hint.textContent = "Camera barcode scanning isn't supported on this browser -- type the barcode in manually instead.";
     hint.style.display = 'block';
     return;
   }
   try {
-    barcodeScanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    barcodeScanStream = await nc72StartCamera(); // fix72-barcode-camera
     const video = document.getElementById('p-barcode-scan-video');
     video.srcObject = barcodeScanStream;
     video.style.display = 'block';
@@ -1194,7 +1371,15 @@ document.getElementById('p-barcode-scan-btn')?.addEventListener('click', async (
       try {
         const codes = await detector.detect(video);
         if (codes.length) {
-          document.getElementById('p-barcode').value = codes[0].rawValue;
+          // fix76-barcode-duplicate: instant check, refuse a barcode that is already used
+          const scanned = String(codes[0].rawValue || '').trim();
+          const takenBy = await nc76BarcodeTaken(scanned);
+          if (takenBy) {
+            stopBarcodeScan();
+            nc76ShowTaken(takenBy, scanned);
+            return;
+          }
+          document.getElementById('p-barcode').value = scanned;
           showToast('Barcode captured.');
           stopBarcodeScan();
           return;
@@ -1222,6 +1407,15 @@ productForm.addEventListener('submit', async (e) => {
   const skuManuallySet = skuElement.dataset.userEdited === 'true';
   const sku = skuManuallySet ? (skuFieldValue || undefined) : undefined;
   const barcode = document.getElementById('p-barcode').value.trim() || null;
+  // fix76-barcode-duplicate: refuse a typed barcode that is already used
+  if (barcode) {
+    const takenOn = await nc76BarcodeTaken(barcode);
+    if (takenOn) {
+      nc76ShowTaken(takenOn, barcode);
+      saveBtn.disabled = false;
+      return;
+    }
+  }
   const categoryValue = document.getElementById('p-category').value;
   const categoryId = categoryValue && categoryValue !== '__new__' ? categoryValue : null;
   const size = document.getElementById('p-size').value || null;
